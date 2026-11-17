@@ -19,7 +19,7 @@ settings, including a generated `SECRET_KEY`.
 
 ## 1. Create the database on Neon (about 5 minutes)
 
-1. Sign up at https://neon.tech and create a project (for example `ai-software-engineer`) in
+1. Sign up at https://neon.tech and create a project (for example `codebase-analysis`) in
    **AWS US East 2 (Ohio)**, the same area as the Render service.
 2. Click **Connect**, **turn off "Connection pooling"**, and copy the connection string. It
    looks like
@@ -32,10 +32,10 @@ settings, including a generated `SECRET_KEY`.
 1. Sign up at https://render.com with **GitHub**, and allow Render to access the
    `codebase-analysis` repository.
 2. In the dashboard, click **New → Blueprint** and pick the repository. Render reads
-   `render.yaml` and shows one web service, `ai-software-engineer`, on the **Free** plan.
+   `render.yaml` and shows one web service, `codebase-analysis`, on the **Free** plan.
 3. Fill in the values Render asks for:
    - `DATABASE_URL`: the Neon connection string.
-   - `APP_BASE_URL`: `https://ai-software-engineer.onrender.com`. Change it later if you add
+   - `APP_BASE_URL`: `https://codebase-analysis.onrender.com`. Change it later if you add
      your own domain (step 3), or if Render gives the service a different address.
    - `GEMINI_API_KEY`: optional; leave it empty, or paste a free key from
      https://aistudio.google.com/apikey to enable AI explanations.

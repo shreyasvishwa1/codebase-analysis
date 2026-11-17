@@ -3,7 +3,7 @@
 # See DEPLOY-RENDER.md.
 services:
   - type: web
-    name: ai-software-engineer
+    name: codebase-analysis
     runtime: docker
     plan: free
     region: ohio
