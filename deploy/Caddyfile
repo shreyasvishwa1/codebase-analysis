@@ -7,6 +7,10 @@
 		# visitor cannot pick their own IP by sending an X-Forwarded-For header.
 		trusted_proxies static private_ranges 100.64.0.0/10
 		trusted_proxies_strict
+		# Header holding the visitor's address: X-Forwarded-For by default. Behind Cloudflare
+		# (Render), set CLIENT_IP_HEADER=Cf-Connecting-Ip: Cloudflare sets it to the visitor and
+		# overwrites any value they send, while X-Forwarded-For ends with Cloudflare's own address.
+		client_ip_headers {$CLIENT_IP_HEADER:X-Forwarded-For}
 	}
 }
 
@@ -20,11 +24,8 @@
 
 :{$PORT:8080} {
 	encode gzip
-	# TEMPORARY diagnostic: log request headers of /health checks only (no auth or content).
-	log
 
 	handle /api/* {
-		log_skip
 		import api
 	}
 	handle /health {
@@ -33,7 +34,6 @@
 
 	# The single-page app: unknown paths fall back to index.html for client-side routes.
 	handle {
-		log_skip
 		root * /app/frontend/dist
 		try_files {path} /index.html
 		file_server

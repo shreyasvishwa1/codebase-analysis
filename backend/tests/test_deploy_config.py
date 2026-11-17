@@ -18,6 +18,18 @@ def test_caddy_resolves_the_client_from_the_right_of_the_chain() -> None:
     lines = _directives()
     assert "trusted_proxies static private_ranges 100.64.0.0/10" in lines
     assert "trusted_proxies_strict" in lines
+    # Configurable: X-Forwarded-For by default, Cf-Connecting-Ip behind Cloudflare (Render).
+    assert "client_ip_headers {$CLIENT_IP_HEADER:X-Forwarded-For}" in lines
+
+
+def test_render_reads_the_cloudflare_client_header() -> None:
+    blueprint = (CADDYFILE.parents[1] / "render.yaml").read_text()
+    assert "- key: CLIENT_IP_HEADER\n        value: Cf-Connecting-Ip" in blueprint
+
+
+def test_no_diagnostic_request_logging_is_left_enabled() -> None:
+    lines = _directives()
+    assert "log" not in lines and "log_skip" not in lines
 
 
 def test_every_api_route_forwards_only_the_resolved_client_ip() -> None:

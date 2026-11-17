@@ -20,6 +20,9 @@ services:
         sync: false
       - key: PORT
         value: "10000"
+      # Render sits behind Cloudflare, which puts the visitor's address in Cf-Connecting-Ip.
+      - key: CLIENT_IP_HEADER
+        value: Cf-Connecting-Ip
       # Raise these for a class or event where many people share one Wi-Fi address.
       - key: REGISTER_IP_LIMIT
         value: "5"
