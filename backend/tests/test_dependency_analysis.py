@@ -579,6 +579,10 @@ def test_check_fills_records_summary_and_security_findings(services: dict[str, l
     assert summary["updates"] == {"up_to_date": 0, "patch": 1, "minor": 2, "major": 2, "unknown": 2}
     assert (summary["vulnerable_dependencies"], summary["vulnerabilities"]) == (3, 4)
     assert summary["by_severity"] == {"critical": 1, "high": 1, "medium": 1, "low": 0, "unknown": 1}
+    # Each vulnerable dependency once, by its worst vulnerability (jsonwebtoken: critical).
+    assert summary["vulnerable_by_max_severity"] == {
+        "critical": 1, "high": 1, "medium": 1, "low": 0, "unknown": 0,
+    }  # fmt: skip
     assert summary["conflicts"] == [
         {
             "ecosystem": "python",
@@ -630,6 +634,14 @@ def test_dependency_findings_join_the_security_results(tmp_path: Any) -> None:
     assert summary["findings"] == base.summary["findings"] + 2
     assert summary["by_owasp"]["A06"] == 2 and summary["by_severity"]["critical"] == 1
     assert summary["by_confidence"]["potential"] == base.summary["by_confidence"]["potential"] + 1
+    before = base.summary["by_severity_confidence"]
+    assert summary["by_severity_confidence"] == before | {
+        "critical": {"confirmed": before["critical"]["confirmed"] + 1, "potential": before["critical"]["potential"]},
+        "low": {"confirmed": before["low"]["confirmed"], "potential": before["low"]["potential"] + 1},
+    }  # fmt: skip
+    assert base.summary["by_severity_confidence"] is before and sum(
+        level for levels in before.values() for level in levels.values()
+    ) == base.summary["findings"]  # the base summary is not changed
     assert merged.findings[0].rule_id == "GHSA-1"  # critical first
     assert summary["stored_findings"] == len(merged.findings) == len(base.findings) + 2
     assert summary["top_files"][0] == {

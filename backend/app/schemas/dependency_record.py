@@ -121,6 +121,8 @@ class DependencySummary(BaseModel):
     by_version_source: VersionSourceCounts
     updates: UpdateCounts
     vulnerable_dependencies: int
+    # Absent in runs stored before the health score (phase 7).
+    vulnerable_by_max_severity: VulnerabilitySeverityCounts | None = None
     vulnerabilities: int
     by_severity: VulnerabilitySeverityCounts
     conflicts: list[Conflict]

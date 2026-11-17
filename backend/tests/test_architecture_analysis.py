@@ -469,7 +469,25 @@ def test_technologies_data_stores_routes_entry_points_infrastructure() -> None:
         "technologies": ["Express", "FastAPI", "React", "SQLAlchemy", "PostgreSQL", "Axios", "Vite"],
         "data_stores": ["PostgreSQL", "Redis"], "infrastructure": 5, "services": 3, "cycles": 1,
         "observations": len(document["observations"]),
+        "has_tests": True,
+        "has_ci": True,
+        "separated": True,
     }  # fmt: skip
+
+
+def test_summary_facts_for_the_health_score() -> None:
+    bare = _analyze({"src/app.py": "def main():\n    return 1\n"}).summary
+    assert (bare["has_tests"], bare["has_ci"], bare["separated"]) == (False, False, False)
+    # Separated by a frontend and a backend in one repository, without API or data layers.
+    split = _analyze(
+        {
+            "frontend/src/main.tsx": "export const a = 1\n",
+            "frontend/package.json": '{"dependencies": {"react": "^18.0.0"}}',
+            "backend/app/main.py": "from fastapi import FastAPI\napp = FastAPI()\n",
+            "backend/requirements.txt": "fastapi==0.110.0\n",
+        }
+    ).summary
+    assert (split["has_tests"], split["has_ci"], split["separated"]) == (False, False, True)
 
 
 def test_observations_have_evidence() -> None:

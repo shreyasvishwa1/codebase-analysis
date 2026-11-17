@@ -45,6 +45,7 @@ MAX_INFRASTRUCTURE = 200
 MAX_EVIDENCE = 5
 MAX_CYCLES = 10
 ROOT = "(root)"
+FRONTEND_BACKEND = "Frontend and backend in one repository"
 ROLE_ORDER = ("ui", "api", "auth", "worker", "core", "data", "config", "test")
 _JS_EXTENSIONS = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".vue", ".svelte")
 _SOURCE_LANGUAGES = frozenset({"Python", "JavaScript", "TypeScript", "TSX", "Vue", "Svelte"})
@@ -299,6 +300,11 @@ class ArchitectureAnalyzer:
             "services": len(services),
             "cycles": len(cycles),
             "observations": len(document["observations"]),
+            # Facts the health score checks (phase 7).
+            "has_tests": any("test" in c["roles"] for c in component_list),
+            "has_ci": any(item["kind"] == "ci" for item in infrastructure),
+            "separated": {"api", "data"} <= {c["role"] for c in component_list}
+            or any(o["title"] == FRONTEND_BACKEND for o in document["observations"]),
         }
         return ArchitectureResult(summary=summary, document=document)
 
@@ -380,7 +386,7 @@ class ArchitectureAnalyzer:
         frontend, backend = top_dirs("frontend"), top_dirs("backend")
         if frontend and backend and set(frontend) != set(backend):
             notes.append({
-                "title": "Frontend and backend in one repository",
+                "title": FRONTEND_BACKEND,
                 "detail": "A frontend framework and a backend framework are used in different top-level directories.",
                 "evidence": [*list(frontend.values())[:2], *list(backend.values())[:2]],
             })  # fmt: skip

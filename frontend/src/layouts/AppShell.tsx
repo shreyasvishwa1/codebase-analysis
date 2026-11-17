@@ -1,4 +1,4 @@
-import { FileSearch, FolderGit2, Gauge, LayoutDashboard, LogOut, Network, Package, ShieldCheck, UploadCloud } from 'lucide-react'
+import { FileSearch, FolderGit2, Gauge, HeartPulse, LayoutDashboard, LogOut, Network, Package, ShieldCheck, UploadCloud } from 'lucide-react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 
 import { BrandMark } from '../components/AuthLayout'
@@ -27,7 +27,8 @@ function HealthIndicator() {
 
 /**
  * Main navigation. A section is listed only once its module works; later phases add Code
- * Analysis, Security, Complexity, Dependencies, Architecture, AI chat, Reports and Settings.
+ * Analysis, Security, Complexity, Dependencies, Architecture, Health Score, AI chat, Reports
+ * and Settings.
  */
 const NAVIGATION = [
   { to: '/overview', label: 'Overview', icon: LayoutDashboard },
@@ -38,6 +39,7 @@ const NAVIGATION = [
   { to: '/complexity', label: 'Complexity', icon: Gauge },
   { to: '/dependencies', label: 'Dependencies', icon: Package },
   { to: '/architecture', label: 'Architecture', icon: Network },
+  { to: '/health-score', label: 'Health Score', icon: HeartPulse },
 ]
 
 function MainNavigation({ className }: { className: string }) {

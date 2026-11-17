@@ -207,7 +207,7 @@ def test_alembic_single_head_and_offline_sql_covers_the_thirteen_tables() -> Non
         text=True,
         check=True,
     )
-    assert heads.stdout.split() == ["0009", "(head)"]
+    assert heads.stdout.split() == ["0010", "(head)"]
 
 
 @pytest.mark.skipif(
@@ -222,6 +222,6 @@ async def test_migrated_database_connectivity() -> None:
             names = await conn.run_sync(lambda c: set(inspect(c).get_table_names()))
             assert names == TABLES | {"alembic_version"}
             version = (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar()
-            assert version == "0009"
+            assert version == "0010"
     finally:
         await engine.dispose()

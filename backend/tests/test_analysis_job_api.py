@@ -182,7 +182,7 @@ async def test_migration_upgrade_downgrade_upgrade() -> None:
         await conn.close()
 
     _alembic(TEST_MIGRATION_DATABASE_URL, "upgrade", "head")
-    assert _alembic(TEST_MIGRATION_DATABASE_URL, "current").split() == ["0009", "(head)"]
+    assert _alembic(TEST_MIGRATION_DATABASE_URL, "current").split() == ["0010", "(head)"]
 
     conn = await asyncpg.connect(raw_url)
     try:
@@ -271,7 +271,7 @@ async def test_migration_upgrade_downgrade_upgrade() -> None:
         await conn.close()
 
     _alembic(TEST_MIGRATION_DATABASE_URL, "upgrade", "head")  # upgrade again
-    assert _alembic(TEST_MIGRATION_DATABASE_URL, "current").split() == ["0009", "(head)"]
+    assert _alembic(TEST_MIGRATION_DATABASE_URL, "current").split() == ["0010", "(head)"]
     _alembic(TEST_MIGRATION_DATABASE_URL, "check")
 
 

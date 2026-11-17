@@ -63,6 +63,8 @@ class SecuritySummary(BaseModel):
     stored_findings: int
     by_severity: SecuritySeverityCounts
     by_confidence: ConfidenceCounts
+    # Absent in runs stored before the health score (phase 7).
+    by_severity_confidence: dict[SecuritySeverity, ConfidenceCounts] | None = None
     by_owasp: OwaspCounts
     top_files: list[FileFindingCount]
     top_rules: list[SecurityRuleCount]

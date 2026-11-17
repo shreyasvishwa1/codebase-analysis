@@ -93,6 +93,7 @@ class SecurityAnalyzer:
         self._total = 0
         self._severity: Counter[str] = Counter()
         self._confidence: Counter[str] = Counter()
+        self._severity_confidence: Counter[tuple[str, str]] = Counter()
         self._owasp: Counter[str] = Counter()
         self._rules: Counter[str] = Counter()
         self._rule_titles: dict[str, tuple[str, str]] = {}
@@ -111,6 +112,7 @@ class SecurityAnalyzer:
         self._total += 1
         self._severity[finding.severity] += 1
         self._confidence[finding.confidence] += 1
+        self._severity_confidence[(finding.severity, finding.confidence)] += 1
         self._owasp[finding.owasp] += 1
         self._rules[finding.rule_id] += 1
         self._rule_titles.setdefault(finding.rule_id, (finding.title, finding.severity))
@@ -217,6 +219,13 @@ class SecurityAnalyzer:
             "stored_findings": len(stored),
             "by_severity": {severity: self._severity[severity] for severity in SEVERITIES},
             "by_confidence": {level: self._confidence[level] for level in CONFIDENCES},
+            # Severity and confidence together (the health score counts potential findings half).
+            "by_severity_confidence": {
+                severity: {
+                    level: self._severity_confidence[(severity, level)] for level in CONFIDENCES
+                }
+                for severity in SEVERITIES
+            },
             "by_owasp": {key: self._owasp[key] for key in OWASP_KEYS},
             "top_files": [
                 {
@@ -267,6 +276,12 @@ def with_extra_findings(result: SecurityResult, extra: list[Finding]) -> Securit
         for finding in extra:
             counts[getattr(finding, attribute)] += 1
         summary[key] = counts
+    crossed = {
+        severity: dict(levels) for severity, levels in summary["by_severity_confidence"].items()
+    }
+    for finding in extra:
+        crossed[finding.severity][finding.confidence] += 1
+    summary["by_severity_confidence"] = crossed
     stored = sorted([*result.findings, *extra], key=_rank)[:MAX_STORED_FINDINGS]
     summary["stored_findings"] = len(stored)
 

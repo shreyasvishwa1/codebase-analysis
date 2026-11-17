@@ -343,6 +343,17 @@ def test_security_analyzer_reports_every_source(tmp_path: Path) -> None:
     for key_name in ("by_severity", "by_confidence", "by_owasp"):
         assert sum(summary[key_name].values()) == summary["findings"]
     assert summary["by_severity"]["critical"] == 1
+    crossed = summary["by_severity_confidence"]  # the health score's input
+    assert crossed == {
+        severity: {
+            level: sum(f.severity == severity and f.confidence == level for f in result.findings)
+            for level in ("confirmed", "potential")
+        }
+        for severity in ("critical", "high", "medium", "low")
+    }
+    assert sum(levels["confirmed"] for levels in crossed.values()) == summary["by_confidence"][
+        "confirmed"
+    ]
     assert summary["top_files"][0]["path"] == "shop/db.py"
     assert set(summary["top_rules"][0]) == {"rule_id", "count", "title", "severity"}
 

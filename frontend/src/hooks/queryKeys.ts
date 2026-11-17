@@ -47,4 +47,11 @@ export const queryKeys = {
   runArchitecture: (projectId: string, repositoryId: string, runId: string) =>
     ['projects', projectId, 'repositories', repositoryId, 'analysis-runs', runId, 'architecture'] as const,
   architectureOverview: ['architecture'] as const,
+  // Every health-score key contains 'health-score', so a change of weights refreshes them all.
+  runHealth: (projectId: string, repositoryId: string, runId: string) =>
+    ['projects', projectId, 'repositories', repositoryId, 'analysis-runs', runId, 'health-score'] as const,
+  healthHistory: (projectId: string, repositoryId: string) =>
+    ['projects', projectId, 'repositories', repositoryId, 'health-score', 'history'] as const,
+  healthOverview: ['health-score'] as const,
+  healthWeights: ['health-score', 'weights'] as const,
 }

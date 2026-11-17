@@ -181,6 +181,10 @@ class DependencyAnalyzer:
             },
             "updates": {u: sum(r.update == u for r in records) for u in UPDATES},
             "vulnerable_dependencies": len(vulnerable),
+            # Vulnerable declarations by their most severe vulnerability (the health score).
+            "vulnerable_by_max_severity": {
+                s: sum(r.max_severity == s for r in vulnerable) for s in SEVERITIES
+            },
             "vulnerabilities": sum(r.vulnerability_count for r in records),
             "by_severity": {s: severities[s] for s in SEVERITIES},
             "conflicts": [

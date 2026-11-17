@@ -117,6 +117,10 @@ class ArchitectureSummary(BaseModel):
     services: int
     cycles: int
     observations: int
+    # Absent in runs stored before the health score (phase 7).
+    has_tests: bool | None = None
+    has_ci: bool | None = None
+    separated: bool | None = None
 
 
 class ArchitectureReportResponse(BaseModel):

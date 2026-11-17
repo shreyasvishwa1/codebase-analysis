@@ -33,6 +33,7 @@ from app.api.v1.routes import (
     dependency_analysis,
     file_explanation,
     health,
+    health_score,
     ingestion,
     projects,
     repositories,
@@ -63,6 +64,8 @@ api_router.include_router(dependency_analysis.router)
 api_router.include_router(dependency_analysis.overview_router)
 api_router.include_router(architecture.router)
 api_router.include_router(architecture.overview_router)
+api_router.include_router(health_score.router)
+api_router.include_router(health_score.overview_router)
 api_router.include_router(dependencies.router)
 api_router.include_router(file_explanation.router)
 api_router.include_router(secret_scan.router)

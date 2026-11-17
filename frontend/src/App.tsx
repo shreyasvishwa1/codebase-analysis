@@ -7,6 +7,7 @@ import { CodeAnalysisPage } from './pages/CodeAnalysisPage'
 import { ComplexityPage } from './pages/ComplexityPage'
 import { DependenciesPage } from './pages/DependenciesPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
+import { HealthPage } from './pages/HealthPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { OverviewPage } from './pages/OverviewPage'
@@ -19,6 +20,7 @@ import { RepositoryArchitecturePage } from './pages/RepositoryArchitecturePage'
 import { RepositoryCodeAnalysisPage } from './pages/RepositoryCodeAnalysisPage'
 import { RepositoryComplexityPage } from './pages/RepositoryComplexityPage'
 import { RepositoryDependenciesPage } from './pages/RepositoryDependenciesPage'
+import { RepositoryHealthPage } from './pages/RepositoryHealthPage'
 import { RepositoryPage } from './pages/RepositoryPage'
 import { RepositorySecurityPage } from './pages/RepositorySecurityPage'
 import { SecurityPage } from './pages/SecurityPage'
@@ -41,6 +43,7 @@ export default function App() {
           <Route path="/complexity" element={<ComplexityPage />} />
           <Route path="/dependencies" element={<DependenciesPage />} />
           <Route path="/architecture" element={<ArchitecturePage />} />
+          <Route path="/health-score" element={<HealthPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<ProjectPage />} />
           <Route
@@ -70,6 +73,10 @@ export default function App() {
           <Route
             path="/projects/:projectId/repositories/:repositoryId/architecture"
             element={<RepositoryArchitecturePage />}
+          />
+          <Route
+            path="/projects/:projectId/repositories/:repositoryId/health"
+            element={<RepositoryHealthPage />}
           />
         </Route>
       </Route>

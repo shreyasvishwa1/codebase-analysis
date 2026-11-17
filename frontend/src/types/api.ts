@@ -1088,6 +1088,8 @@ export interface SecuritySummary {
   stored_findings: number
   by_severity: Record<SecuritySeverity, number>
   by_confidence: Record<FindingConfidence, number>
+  /** by severity, then confidence; absent in runs stored before the health score */
+  by_severity_confidence?: Record<SecuritySeverity, Record<FindingConfidence, number>>
   by_owasp: Record<OwaspCategory, number>
   top_files: ({ path: string; findings: number } & Record<SecuritySeverity, number>)[]
   top_rules: { rule_id: string; count: number; title: string; severity: SecuritySeverity }[]
@@ -1306,6 +1308,8 @@ export interface DependencyAnalysisSummary {
   by_version_source: Record<VersionSource, number>
   updates: Record<DependencyUpdate, number>
   vulnerable_dependencies: number
+  /** vulnerable declarations by their worst vulnerability; absent in older runs */
+  vulnerable_by_max_severity?: Record<VulnerabilitySeverity, number>
   vulnerabilities: number
   by_severity: Record<VulnerabilitySeverity, number>
   conflicts: { ecosystem: DependencyEcosystem; name: string; declarations: { manifest: string; specifier: string }[] }[]
@@ -1399,6 +1403,10 @@ export interface ArchitectureSummary {
   services: number
   cycles: number
   observations: number
+  /** absent in runs stored before the health score */
+  has_tests?: boolean
+  has_ci?: boolean
+  separated?: boolean
 }
 
 export interface ArchitectureReport {
@@ -1421,4 +1429,71 @@ export interface RepositoryArchitecture {
 
 export interface ArchitectureOverview {
   repositories: RepositoryArchitecture[]
+}
+
+// --- Code Health Score -------------------------------------------------------------------------
+
+export type HealthDimensionKey =
+  | 'security'
+  | 'quality'
+  | 'complexity'
+  | 'maintainability'
+  | 'dependencies'
+  | 'architecture'
+
+/** Relative weight of each dimension (0-100; at least one above 0). */
+export type HealthWeights = Record<HealthDimensionKey, number>
+
+export interface HealthWeightsResponse {
+  weights: HealthWeights
+  /** the documented default weights are in use */
+  defaults: boolean
+}
+
+export interface HealthDimension {
+  key: HealthDimensionKey
+  name: string
+  /** null: not applicable to this run, left out of the overall score */
+  score: number | null
+  weight: number
+  /** the numbers the score was computed from */
+  inputs: Record<string, unknown>
+  /** how the score was reached */
+  explanation: string
+  /** what would raise the score */
+  improvements: string[]
+}
+
+export interface HealthReport {
+  run_id: string
+  created_at: string
+  overall: number | null
+  grade: string | null
+  weights: HealthWeights
+  dimensions: HealthDimension[]
+}
+
+export interface HealthPoint {
+  run_id: string
+  created_at: string
+  overall: number | null
+  grade: string | null
+  scores: Record<HealthDimensionKey, number | null>
+}
+
+export interface HealthHistory {
+  /** oldest first */
+  points: HealthPoint[]
+}
+
+export interface RepositoryHealth extends HealthPoint {
+  project_id: string
+  project_name: string
+  repository_id: string
+  repository_name: string
+}
+
+export interface HealthOverview {
+  weights: HealthWeights
+  repositories: RepositoryHealth[]
 }

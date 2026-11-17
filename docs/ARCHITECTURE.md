@@ -61,7 +61,7 @@ FastAPI (uvicorn)  ── auth, ownership, rate limits, validation
 | Complexity | 5 | 4 | Lizard: cyclomatic complexity, lines and parameters of every function in about twenty languages; Radon: the maintainability index of Python files (the same formula estimated from Lizard's tokens elsewhere); classes |
 | Dependencies | 6 | 5 | The existing manifest parsers (`package.json`, `pyproject.toml`, `requirements*.txt`); latest versions from PyPI and npm; known vulnerabilities from OSV.dev (CVSS v3 scores computed from the published vectors); conflicting declarations; vulnerable versions also become security findings (A06) |
 | Architecture | 7 | 6 | Components (directories) and the imports between them (Python syntax trees and the code explorer's module index; JavaScript/TypeScript relative and `@/` imports); technologies from manifests and imports; data stores; API routes (FastAPI/Flask/Django, Express-style, Next.js); entry points; Dockerfiles, Docker Compose, CI, deployment and Kubernetes files; rule-based observations with evidence |
-| Health score | 8 | 7 | Documented formula over the results above (section 6) |
+| Health score | 8 | 7 | Documented formulas over the stored results above, computed when read with the user's weights (section 6) |
 
 ### Architecture (phase 6)
 
@@ -201,7 +201,8 @@ backend/app/
     snapshot.py       captures a snapshot and reads files through the verified reader
     summary.py        summary analyzer (languages, lines of code)
     runner.py         run lifecycle: start, claim, analyze, store, history
-    quality/ security/ complexity/ dependencies/ architecture/ health/   (later phases)
+    quality/ security/ complexity/ dependencies/ architecture/   one package per analysis
+    health.py         the Code Health Score (formulas over the stored summaries)
   ai/                 LLM providers (Anthropic, Gemini) and provider selection
   chat/               retrieval (full text + vectors) and conversation service   (phase 8)
   reports/            PDF report builder   (phase 9)
@@ -225,7 +226,7 @@ it:
 | `complexity_functions` | Per-function complexity (migration 0007) | `run_id` (FK, cascade), `path`, `name`, `line`, `end_line`, `cyclomatic`, `nloc`, `parameters`, `rank`; indexes (`run_id`, `cyclomatic`), (`run_id`, `path`). The run's totals are in `analysis_runs.complexity` (JSONB) |
 | `dependency_records` | Dependency health (migration 0008) | `run_id` (FK, cascade), `manifest`, `ecosystem`, `name`, `specifier`, `scope`, `line`, `version`, `version_source` (pinned/minimum/none), `latest_version`, `update`, `vulnerability_count`, `max_severity`, `vulnerabilities` (JSONB: id, aliases, summary, severity, score, fixed_in, cwe, url), `conflict`; indexes (`run_id`, `name`), (`run_id`, `vulnerability_count`). The run's totals are in `analysis_runs.dependencies` (JSONB) |
 | `architecture_reports` | Architecture model (migration 0009) | `run_id` (FK, cascade, unique), `document` (JSONB: depth, components with roles and evidence, edges with example imports, cycles, technologies, data stores, routes, entry points, infrastructure, Compose services, observations, truncation flags). The run's counts are in `analysis_runs.architecture` (JSONB) |
-| `health_scores` | Scores per run | `run_id` (PK), overall and six dimension scores, `details`, `weights`, `methodology_version` |
+| `users.health_weights` | Health-score weights (migration 0010) | JSONB, one integer 0-100 per dimension; null means the defaults. Scores are not stored: they are computed from the run's summaries when read, so a change of weights or formulas applies to every run at once |
 | `code_chunks` | Retrieval units for the chat | `run_id`, `path`, `start_line`, `end_line`, `symbol`, `content`, `search` (tsvector, GIN index), `embedding` (vector, nullable) |
 | `chat_conversations` / `chat_messages` | Chat history per user and repository | conversation: `user_id`, `repository_id`, `run_id`, `title`; message: `role`, `content`, `citations` (JSONB) |
 | `generated_reports` | Report history | `run_id`, `user_id`, `created_at`, `size_bytes`, `sha256` |
@@ -236,19 +237,35 @@ repositories from their project. Ownership is always checked through the project
 
 ## 6. Code Health Score (phase 7)
 
-Each dimension is scored from 0 to 100 with a documented formula. The overall score is a
-weighted average whose weights are configurable and stored with each score:
+Each dimension is scored from 0 to 100 from numbers the analyses already stored
+(`app/analysis/health.py`); nothing reads code again. The overall score is the weighted
+average of the dimensions that apply to the run. A dimension that does not apply (no
+functions, no declared dependencies, dependency lookups turned off or failed, no source
+components) has no score and is left out, so it neither helps nor hurts. Grades: A from 85,
+B from 70, C from 55, D from 40, F below.
 
-| Dimension | Default weight | Basis |
+Densities are per 1,000 lines of code (at least 1,000). A density `d` becomes a score with
+`100 / (1 + d / H)`: 100 with nothing found, 50 at the half-point `H`, approaching 0.
+
+| Dimension | Default weight | Formula |
 | --- | --- | --- |
-| Security | 25% | Findings weighted by severity and confidence, per 1,000 lines of code |
-| Code quality | 20% | Issues weighted by severity per 1,000 lines of code, plus the duplication percentage |
-| Complexity | 15% | Share of functions above cyclomatic complexity 10 and the average complexity |
-| Maintainability | 15% | Average maintainability index, documentation coverage, long files |
-| Dependency health | 15% | Vulnerable and outdated direct dependencies, unparseable manifests |
-| Architecture | 10% | Detected separation of layers, configuration hygiene, tests present, entry points identified |
+| Security | 25 | Points: critical 10, high 5, medium 2, low 0.5; potential findings count half. `H` = 2 points per 1,000 lines. A confirmed critical finding caps the score at 40, a confirmed high one at 70 |
+| Code quality | 20 | 75%: issue points (high 5, medium 2, low 0.5, info 0.1; duplicate blocks excluded) with `H` = 10. 25%: duplication, `100 - 4 x percent` (0 at 25%) |
+| Complexity | 15 | `100 - 150 x share of medium functions (11-20) - 400 x share of high functions (above 20) - 5 x (average - 5, if above 0)` |
+| Maintainability | 15 | Maintainability index mapped to 0 at 10 and 100 at 65. With Python files analyzed by Ruff: 70% index, 30% documentation (missing docstrings with `H` = 10) |
+| Dependency health | 15 | `100 - 200 x weighted share of vulnerable dependencies` (each counted once by its worst vulnerability: critical 1, high 0.7, medium 0.4, low 0.15, unknown 0.4) `- 20 x share a major version behind - 5 x share a minor version behind - 5 per conflicting package (at most 20) - 5 per unparsable manifest`. A critical vulnerability caps the score at 60, a high one at 80 |
+| Architecture | 10 | Checks worth 100: automated tests 30, no circular dependencies 25 (minus 10 per cycle), entry points identified 15, continuous integration 15, separated layers (API and data access, or a frontend and a backend) 15 |
 
-The report shows each dimension's inputs and the improvements that would raise it.
+- **Weights** are relative integers from 0 to 100 (at least one above 0), stored per user and
+  applied to every repository; a dimension counts its weight divided by the total weight of
+  the scored dimensions.
+- **Explanations**: every dimension returns its inputs, the calculation with the actual
+  numbers, and the improvements that would raise it, linked to the page that lists them.
+- **Older runs**: runs stored before phase 7 lack three summary fields. Security then counts
+  every finding as confirmed, dependency health counts every vulnerable dependency as high,
+  and the architecture checks are read from the stored architecture document. Runs without
+  code-quality results are not scored.
+- **History**: the score of each run, oldest first, drawn as a trend.
 
 ## 7. AI codebase chat (phase 8)
 
