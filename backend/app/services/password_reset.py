@@ -17,6 +17,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 
+import httpx
 import jwt
 
 from app.config import Settings
@@ -26,6 +27,10 @@ logger = logging.getLogger(__name__)
 PURPOSE = "password-reset"
 ALGORITHM = "HS256"
 SMTP_TIMEOUT_SECONDS = 20
+BREVO_URL = "https://api.brevo.com/v3/smtp/email"
+BREVO_TIMEOUT_SECONDS = 20
+SENDER_NAME = "CodeBase Analysis"
+SUBJECT = "Reset your CodeBase Analysis password"
 
 
 class InvalidResetToken(Exception):
@@ -75,19 +80,15 @@ def reset_link(settings: Settings, token: str) -> str:
     return f"{settings.app_base_url}/reset-password#token={token}"
 
 
-def _message(settings: Settings, recipient: str, link: str) -> EmailMessage:
+def _content(settings: Settings, link: str) -> tuple[str, str]:
+    """The plain-text and HTML bodies of the reset email."""
     minutes = settings.password_reset_token_minutes
-    message = EmailMessage()
-    message["Subject"] = "Reset your CodeBase Analysis password"
-    message["From"] = f"CodeBase Analysis <{settings.smtp_from}>"
-    message["To"] = recipient
-    message.set_content(
+    text = (
         "Someone asked to reset the password for your CodeBase Analysis account.\n\n"
         f"Reset it here (the link works once and expires in {minutes} minutes):\n{link}\n\n"
         "If you didn't ask for this, ignore this email; your password stays the same.\n"
     )
-    message.add_alternative(
-        f"""<!doctype html>
+    html = f"""<!doctype html>
 <html><body style="margin:0;background:#0b1020;font-family:Segoe UI,Arial,sans-serif;color:#e2e8f0">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 12px"><tr><td align="center">
 <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;background:#111827;border-radius:16px;overflow:hidden;border:1px solid #1f2937">
@@ -97,16 +98,65 @@ def _message(settings: Settings, recipient: str, link: str) -> EmailMessage:
 <p style="margin:0 0 24px;line-height:1.6;color:#cbd5e1">Someone asked to reset the password for your account. The link works once and expires in {minutes} minutes.</p>
 <p style="margin:0 0 24px"><a href="{link}" style="display:inline-block;padding:12px 22px;border-radius:10px;background:#6366f1;color:#fff;text-decoration:none;font-weight:600">Reset password</a></p>
 <p style="margin:0;font-size:13px;line-height:1.6;color:#94a3b8">If you didn't ask for this, ignore this email; your password stays the same.</p>
-</td></tr></table></td></tr></table></body></html>""",
-        subtype="html",
-    )
+</td></tr></table></td></tr></table></body></html>"""
+    return text, html
+
+
+def _message(settings: Settings, recipient: str, link: str) -> EmailMessage:
+    text, html = _content(settings, link)
+    message = EmailMessage()
+    message["Subject"] = SUBJECT
+    message["From"] = f"{SENDER_NAME} <{settings.sender_address}>"
+    message["To"] = recipient
+    message.set_content(text)
+    message.add_alternative(html, subtype="html")
     return message
 
 
 def send_reset_email(settings: Settings, recipient: str, link: str) -> None:
-    """Send the reset email over SMTP with STARTTLS. Failures are logged without details
-    that identify the recipient, and never reach the client."""
-    if not settings.password_reset_enabled or settings.smtp_password is None:
+    """Send the reset email through Brevo's HTTPS API when BREVO_API_KEY is set, otherwise
+    over SMTP with STARTTLS. Failures are logged without details that identify the
+    recipient, and never reach the client."""
+    if not settings.password_reset_enabled:
+        return
+    if settings.email_transport == "brevo":
+        _send_brevo(settings, recipient, link)
+    else:
+        _send_smtp(settings, recipient, link)
+
+
+def _send_brevo(settings: Settings, recipient: str, link: str) -> None:
+    if settings.brevo_api_key is None:
+        return
+    text, html = _content(settings, link)
+    body = {
+        "sender": {"name": SENDER_NAME, "email": settings.sender_address},
+        "to": [{"email": recipient}],
+        "subject": SUBJECT,
+        "htmlContent": html,
+        "textContent": text,
+    }
+    headers = {"api-key": settings.brevo_api_key.get_secret_value(), "accept": "application/json"}
+    try:
+        response = httpx.post(
+            BREVO_URL,
+            json=body,
+            headers=headers,
+            timeout=BREVO_TIMEOUT_SECONDS,
+            follow_redirects=False,
+        )
+    except httpx.HTTPError as exc:
+        logger.warning("Password reset email could not be sent (%s)", type(exc).__name__)
+        return
+    if response.status_code not in (201, 202):
+        # Only the status: Brevo's error body can echo the recipient address.
+        logger.warning(
+            "Password reset email could not be sent (Brevo HTTP %s)", response.status_code
+        )
+
+
+def _send_smtp(settings: Settings, recipient: str, link: str) -> None:
+    if settings.smtp_password is None:
         return
     try:
         with smtplib.SMTP(

@@ -27,3 +27,8 @@ services:
         value: "10"
       - key: GEMINI_API_KEY
         sync: false
+      # Password reset emails: Render's free plan blocks SMTP, so use Brevo's HTTPS API.
+      - key: BREVO_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false

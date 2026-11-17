@@ -96,6 +96,11 @@ class Settings(BaseSettings):
     smtp_password: SecretStr | None = None
     smtp_from: str | None = None
     app_base_url: str | None = None
+    # Alternative to SMTP for hosts that block it (for example Render's free plan): Brevo's
+    # HTTPS email API. When BREVO_API_KEY is set it is used instead of SMTP. EMAIL_FROM is
+    # the sender address for either transport; it falls back to SMTP_FROM.
+    brevo_api_key: SecretStr | None = None
+    email_from: str | None = None
     password_reset_token_minutes: int = Field(default=30, ge=5, le=24 * 60)
 
     # Per-IP limits for sign-ups (per hour) and login attempts (per minute). Raise them for a
@@ -104,15 +109,27 @@ class Settings(BaseSettings):
     login_ip_limit: int = Field(default=10, ge=1, le=10_000)
 
     @property
-    def password_reset_enabled(self) -> bool:
+    def sender_address(self) -> str | None:
+        return self.email_from or self.smtp_from
+
+    @property
+    def smtp_configured(self) -> bool:
         return bool(
             self.smtp_host
             and self.smtp_username
             and self.smtp_password
             and self.smtp_password.get_secret_value().strip()
-            and self.smtp_from
-            and self.app_base_url
         )
+
+    @property
+    def email_transport(self) -> Literal["brevo", "smtp"] | None:
+        if self.brevo_api_key is not None:
+            return "brevo"
+        return "smtp" if self.smtp_configured else None
+
+    @property
+    def password_reset_enabled(self) -> bool:
+        return bool(self.email_transport and self.sender_address and self.app_base_url)
 
     @property
     def cors_origins_list(self) -> list[str]:
@@ -183,7 +200,7 @@ class Settings(BaseSettings):
             return None
         return value.strip().lower() if isinstance(value, str) else value
 
-    @field_validator("anthropic_api_key", "gemini_api_key")
+    @field_validator("anthropic_api_key", "gemini_api_key", "brevo_api_key")
     @classmethod
     def _empty_api_key_disables(cls, value: SecretStr | None) -> SecretStr | None:
         # ANTHROPIC_API_KEY= / GEMINI_API_KEY= (empty, as in .env.example) mean "not configured".
@@ -197,6 +214,11 @@ class Settings(BaseSettings):
         if not value.strip():
             raise ValueError("must not be empty")
         return value.strip()
+
+    @field_validator("email_from")
+    @classmethod
+    def _blank_email_from_means_unset(cls, value: str | None) -> str | None:
+        return value.strip() or None if value is not None else None
 
     @field_validator("gemini_model")
     @classmethod

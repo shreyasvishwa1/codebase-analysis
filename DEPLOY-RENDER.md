@@ -14,7 +14,8 @@ settings, including a generated `SECRET_KEY`.
 - The disk is wiped whenever the service sleeps, restarts or redeploys. Accounts, projects and
   repository records stay in Neon, but **uploaded code must be ingested again**. Open the
   repository and click **Upload and ingest** (or **Ingest from GitHub**) again.
-- Render blocks outgoing email on the free plan, so **password reset emails do not work** there.
+- Render blocks SMTP email on the free plan. Password reset emails work through **Brevo**
+  instead (free, sent over HTTPS); see "Password reset emails" below.
 - One service running all month fits in the free 750 instance hours.
 
 ## 1. Create the database on Neon (about 5 minutes)
@@ -59,6 +60,17 @@ For example, to serve the app at `code.nammaicons.com` without touching the main
 3. Back in Render, click **Verify**. Render issues the HTTPS certificate automatically, which
    can take a few minutes after DNS updates.
 4. In **Environment**, change `APP_BASE_URL` to `https://code.nammaicons.com` and save.
+
+## Password reset emails (Brevo, free)
+
+1. Sign up at https://www.brevo.com (free plan, about 300 emails a day).
+2. In Brevo, open **Senders, Domains & Dedicated IPs → Senders → Add a sender**, enter the
+   address emails should come from (for example a Gmail address made for this app), and confirm
+   the code Brevo sends to it.
+3. Open **SMTP & API → API keys → Generate a new API key** and copy it.
+4. In Render, open the service's **Environment** and add `BREVO_API_KEY` (the key) and
+   `EMAIL_FROM` (the verified sender address), then save. Make sure `APP_BASE_URL` is the
+   site's real address, because reset links point there.
 
 ## Classroom or event mode
 

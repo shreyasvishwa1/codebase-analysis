@@ -115,8 +115,9 @@ FastAPI on uvicorn (http://127.0.0.1:8000)
     stops working when the password changes.
   - Requests get the same answer whether or not the account exists, and the email is sent
     after the response. Requests are limited per IP and per email, confirmations per IP.
-  - Without SMTP settings, both endpoints answer 503 "Password reset by email is not
-    available".
+  - Emails go out over SMTP (for example Gmail with an app password) or, when
+    `BREVO_API_KEY` is set, through Brevo's HTTPS API, which works on hosts that block SMTP.
+  - Without either, reset requests answer 503 "Password reset by email is not available".
 - **Ownership**: every endpoint that addresses a project or repository checks ownership first.
   Another user's project or repository answers 404 ("Project not found", "Repository not
   found"), exactly like a missing one.
@@ -353,6 +354,8 @@ below exists in the code.
 | `APP_BASE_URL` | Optional | empty | Public origin of the frontend, such as `http://127.0.0.1:5173`; reset links point to `<APP_BASE_URL>/reset-password` |
 | `REGISTER_IP_LIMIT` | Optional | `5` | Sign-ups per hour from one network address; raise it for a class sharing one Wi-Fi |
 | `LOGIN_IP_LIMIT` | Optional | `10` | Login attempts per minute from one network address; raise it the same way |
+| `BREVO_API_KEY` | Optional | empty | Sends reset emails through Brevo's HTTPS API instead of SMTP (for hosts that block SMTP, such as Render's free plan) |
+| `EMAIL_FROM` | Optional | `SMTP_FROM` | Sender address of reset emails for either transport |
 | `PASSWORD_RESET_TOKEN_MINUTES` | Optional | `30` | Reset link lifetime (5 to 1,440 minutes) |
 | `DEBUG` | Optional, development only | `false` | Logs SQL statements, including bound parameter values; keep it off outside local development |
 | `APP_NAME`, `APP_VERSION` | Optional | `CodeBase Analysis`, `1.0.0` | Shown in the API title and health responses |

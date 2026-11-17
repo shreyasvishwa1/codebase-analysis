@@ -5,6 +5,7 @@ sent). API tests use the already-migrated throwaway test database (TEST_DATABASE
 "_test") inside rolled-back transactions; the email sender is replaced to capture links.
 """
 
+import json
 import logging
 import os
 import smtplib
@@ -16,6 +17,7 @@ from typing import Any
 import httpx
 import jwt
 import pytest
+import respx
 from pydantic import SecretStr
 from sqlalchemy import select
 from sqlalchemy.engine import make_url
@@ -282,6 +284,95 @@ def test_smtp_failures_are_logged_without_details(
     assert "could not be sent" in caplog.text
     for secret in ("user@example.test", "SECRETTOKEN", "test-only-app-password"):
         assert secret not in caplog.text
+
+
+# --- Email through Brevo ---------------------------------------------------------------------
+
+BREVO_KEY = "test-only-brevo-key"
+NO_SMTP = {"smtp_host": None, "smtp_username": None, "smtp_password": None, "smtp_from": None}
+
+
+@pytest.fixture
+def brevo() -> Any:
+    with respx.mock(assert_all_called=False) as mock:
+        yield mock
+
+
+def test_brevo_alone_enables_the_feature_with_email_from() -> None:
+    settings = _settings(**NO_SMTP, brevo_api_key=BREVO_KEY, email_from="reset@example.test")
+    assert settings.password_reset_enabled is True
+    assert settings.email_transport == "brevo"
+    assert settings.sender_address == "reset@example.test"
+    assert (
+        _settings(**NO_SMTP, brevo_api_key=BREVO_KEY).password_reset_enabled is False
+    )  # no sender
+    assert _settings(brevo_api_key="  ").brevo_api_key is None
+    assert _settings(email_from="  ").email_from is None
+
+
+def test_email_from_overrides_smtp_from(fake_smtp: type[_FakeSMTP]) -> None:
+    send_reset_email(_settings(email_from="reset@example.test"), "user@example.test", "link")
+    (smtp,) = fake_smtp.instances
+    (message,) = smtp.sent
+    assert message["From"] == "CodeBase Analysis <reset@example.test>"
+
+
+def test_brevo_request_and_it_wins_over_smtp(
+    brevo: respx.MockRouter, fake_smtp: type[_FakeSMTP]
+) -> None:
+    route = brevo.post("https://api.brevo.com/v3/smtp/email").respond(
+        201, json={"messageId": "<x>"}
+    )
+    link = f"{BASE_URL}/reset-password#token=TOKEN"
+    send_reset_email(_settings(brevo_api_key=BREVO_KEY), "user@example.test", link)
+    assert fake_smtp.instances == []  # SMTP is configured too, but Brevo is used
+    request = route.calls.last.request
+    assert request.headers["api-key"] == BREVO_KEY
+    assert BREVO_KEY not in str(request.url)
+    body = json.loads(request.content)
+    assert body["sender"] == {"name": "CodeBase Analysis", "email": "sender@example.test"}
+    assert body["to"] == [{"email": "user@example.test"}]
+    assert body["subject"] == "Reset your CodeBase Analysis password"
+    assert link in body["htmlContent"] and link in body["textContent"]
+    assert "30 minutes" in body["textContent"]
+
+
+@pytest.mark.parametrize("status", [400, 401, 403, 429, 500])
+def test_brevo_errors_are_logged_without_details(
+    brevo: respx.MockRouter, caplog: pytest.LogCaptureFixture, status: int
+) -> None:
+    brevo.post("https://api.brevo.com/v3/smtp/email").respond(
+        status, json={"code": "invalid_parameter", "message": "user@example.test is invalid"}
+    )
+    with caplog.at_level(logging.WARNING):
+        send_reset_email(
+            _settings(**NO_SMTP, brevo_api_key=BREVO_KEY, email_from="reset@example.test"),
+            "user@example.test",
+            "https://x.test/reset#token=SECRETTOKEN",
+        )
+    assert f"Brevo HTTP {status}" in caplog.text
+    for secret in ("user@example.test", "SECRETTOKEN", BREVO_KEY):
+        assert secret not in caplog.text
+
+
+def test_brevo_transport_errors_and_redirects_fail_quietly(
+    brevo: respx.MockRouter, caplog: pytest.LogCaptureFixture
+) -> None:
+    settings = _settings(**NO_SMTP, brevo_api_key=BREVO_KEY, email_from="reset@example.test")
+    route = brevo.post("https://api.brevo.com/v3/smtp/email")
+    route.mock(side_effect=httpx.ConnectError(f"boom {BREVO_KEY}"))
+    with caplog.at_level(logging.WARNING):
+        send_reset_email(settings, "user@example.test", "link")
+    assert "could not be sent (ConnectError)" in caplog.text
+    assert BREVO_KEY not in caplog.text
+
+    elsewhere = brevo.post("https://attacker.example/collect").respond(201)
+    route.mock(side_effect=None)
+    route.respond(307, headers={"location": "https://attacker.example/collect"})
+    with caplog.at_level(logging.WARNING):
+        send_reset_email(settings, "user@example.test", "link")
+    assert "Brevo HTTP 307" in caplog.text
+    assert not elsewhere.called  # the key never goes to another host
 
 
 # --- API ---------------------------------------------------------------------------------------
