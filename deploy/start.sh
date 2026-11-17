@@ -16,8 +16,16 @@ alembic upgrade head
 
 # Only Caddy (on this host) may set the client address through X-Forwarded-For.
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips 127.0.0.1 &
-arq app.workers.worker.WorkerSettings &
 caddy run --config /app/deploy/Caddyfile --adapter caddyfile &
+
+# On small instances the API and the worker compete for CPU while starting; let the API come
+# up first (it listens once startup is complete), then start the worker. Give up waiting
+# after five minutes so a slow start never leaves jobs without a worker.
+for _ in $(seq 1 300); do
+  (echo > /dev/tcp/127.0.0.1/8000) 2>/dev/null && break
+  sleep 1
+done
+arq app.workers.worker.WorkerSettings &
 
 wait -n
 exit 1

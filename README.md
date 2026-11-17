@@ -123,7 +123,8 @@ FastAPI on uvicorn (http://127.0.0.1:8000)
 - **Rate limiting**: fixed windows in Redis, updated by atomic Lua scripts. Keys store SHA-256
   digests, never raw user ids, emails or IPs.
   - Search, per-file analyses, secret scans and explanations have per-user limits.
-  - Login is limited per IP and per email, registration per IP.
+  - Login is limited per IP and per email, registration per IP. The per-IP limits are
+    adjustable (`LOGIN_IP_LIMIT`, `REGISTER_IP_LIMIT`) for classrooms that share one address.
   - Limited requests receive 429 with `Retry-After`.
   - If Redis is unavailable, requests proceed without limits.
 - **Verified file reads**: every read checks that the path stays inside the repository
@@ -350,6 +351,8 @@ below exists in the code.
 | `SMTP_USERNAME`, `SMTP_PASSWORD` | Optional | empty | Mail server login; for Gmail, the address and a Google app password (not the account password) |
 | `SMTP_FROM` | Optional | empty | Sender address of reset emails |
 | `APP_BASE_URL` | Optional | empty | Public origin of the frontend, such as `http://127.0.0.1:5173`; reset links point to `<APP_BASE_URL>/reset-password` |
+| `REGISTER_IP_LIMIT` | Optional | `5` | Sign-ups per hour from one network address; raise it for a class sharing one Wi-Fi |
+| `LOGIN_IP_LIMIT` | Optional | `10` | Login attempts per minute from one network address; raise it the same way |
 | `PASSWORD_RESET_TOKEN_MINUTES` | Optional | `30` | Reset link lifetime (5 to 1,440 minutes) |
 | `DEBUG` | Optional, development only | `false` | Logs SQL statements, including bound parameter values; keep it off outside local development |
 | `APP_NAME`, `APP_VERSION` | Optional | `AI Software Engineer`, `1.0.0` | Shown in the API title and health responses |
@@ -452,9 +455,9 @@ All endpoints are under `/api/v1`. Repository endpoints share the prefix
 - **Bundle size**: the main frontend bundle is about 739 kB, above Vite's 500 kB warning.
 - **Deployment**: single-server only. The root `docker-compose.yml` is for local development;
   for hosting, see [DEPLOY.md](DEPLOY.md) (Railway), [DEPLOY-ORACLE.md](DEPLOY-ORACLE.md)
-  (free, on an Oracle Cloud Always Free server) or [DEPLOY-HUGGINGFACE.md](DEPLOY-HUGGINGFACE.md)
-  (free, no card: Hugging Face Spaces with a Neon database; uploaded code must be ingested
-  again after the Space restarts).
+  (free, on an Oracle Cloud Always Free server) or [DEPLOY-RENDER.md](DEPLOY-RENDER.md)
+  (free, no card: Render with a Neon database; it sleeps when idle, and uploaded code must be
+  ingested again after it wakes).
 
 ## Future Scope
 

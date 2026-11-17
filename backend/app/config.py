@@ -98,6 +98,11 @@ class Settings(BaseSettings):
     app_base_url: str | None = None
     password_reset_token_minutes: int = Field(default=30, ge=5, le=24 * 60)
 
+    # Per-IP limits for sign-ups (per hour) and login attempts (per minute). Raise them for a
+    # classroom or event where many people share one network address (a single Wi-Fi).
+    register_ip_limit: int = Field(default=5, ge=1, le=10_000)
+    login_ip_limit: int = Field(default=10, ge=1, le=10_000)
+
     @property
     def password_reset_enabled(self) -> bool:
         return bool(

@@ -1,0 +1,29 @@
+# Render Blueprint: one free web service built from deploy/render/Dockerfile.
+# PostgreSQL is external (Neon): paste its connection string as DATABASE_URL when Render asks.
+# See DEPLOY-RENDER.md.
+services:
+  - type: web
+    name: ai-software-engineer
+    runtime: docker
+    plan: free
+    region: ohio
+    dockerfilePath: ./deploy/render/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: APP_BASE_URL
+        sync: false
+      - key: PORT
+        value: "10000"
+      # Raise these for a class or event where many people share one Wi-Fi address.
+      - key: REGISTER_IP_LIMIT
+        value: "5"
+      - key: LOGIN_IP_LIMIT
+        value: "10"
+      - key: GEMINI_API_KEY
+        sync: false

@@ -32,6 +32,7 @@ from arq.connections import ArqRedis
 from fastapi import Depends, HTTPException, Request, status
 from redis.exceptions import RedisError
 
+from app.config import get_settings
 from app.schemas.auth import normalize_email
 from app.workers.queue import redis_settings
 
@@ -158,10 +159,16 @@ class RateLimiter:
             raise too_many_attempts(result[1])
 
     async def check_login_ip(self, ip: str) -> None:
-        await self.hit(LOGIN_IP, ip)
+        # LOGIN_IP's scope and window with the configured maximum (LOGIN_IP_LIMIT).
+        limit = Limit(LOGIN_IP.scope, get_settings().login_ip_limit, LOGIN_IP.window_seconds)
+        await self.hit(limit, ip)
 
     async def check_register_ip(self, ip: str) -> None:
-        await self.hit(REGISTER_IP, ip)
+        # REGISTER_IP's scope and window with the configured maximum (REGISTER_IP_LIMIT).
+        limit = Limit(
+            REGISTER_IP.scope, get_settings().register_ip_limit, REGISTER_IP.window_seconds
+        )
+        await self.hit(limit, ip)
 
     @asynccontextmanager
     async def login_attempt(self, email: str) -> AsyncIterator[LoginAttempt]:

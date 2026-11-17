@@ -23,7 +23,7 @@ import pytest
 from arq import create_pool
 from arq.connections import ArqRedis, RedisSettings
 from fastapi import HTTPException
-from pydantic import SecretStr
+from pydantic import SecretStr, ValidationError
 from redis.exceptions import ConnectionError as RedisConnectionError
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -31,7 +31,7 @@ from sqlalchemy.pool import NullPool
 from starlette.requests import Request
 
 from app.api.v1.routes import auth as auth_routes
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.database import get_db
 from app.main import app
 from app.services import rate_limit
@@ -551,6 +551,34 @@ async def test_register_ip_limit_counts_every_attempt(
     retry_after = _assert_limited(await _register(client, "r5@example.com"), 3600)
     assert retry_after > 3500
     assert (await _register(clients("192.0.2.51"), "r5@example.com")).status_code == 201
+
+
+def test_default_ip_limits_match_the_documented_constants() -> None:
+    settings = Settings(_env_file=None, secret_key="x" * 40)  # type: ignore[call-arg]
+    assert (settings.register_ip_limit, settings.login_ip_limit) == (
+        REGISTER_IP.max_requests,
+        LOGIN_IP.max_requests,
+    )
+    for bad in (0, -1, 10_001):
+        with pytest.raises(ValidationError):
+            Settings(_env_file=None, secret_key="x" * 40, register_ip_limit=bad)  # type: ignore[call-arg]
+        with pytest.raises(ValidationError):
+            Settings(_env_file=None, secret_key="x" * 40, login_ip_limit=bad)  # type: ignore[call-arg]
+
+
+@requires_db_and_redis
+async def test_classroom_limits_let_a_shared_network_sign_up_and_log_in(
+    redis_client: ArqRedis, clients: ClientFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(get_settings(), "register_ip_limit", 8)
+    monkeypatch.setattr(get_settings(), "login_ip_limit", 12)
+    client = clients("192.0.2.70")  # one shared address, like a classroom Wi-Fi
+    for i in range(8):
+        assert (await _register(client, f"class{i}@example.com")).status_code == 201
+    _assert_limited(await _register(client, "class8@example.com"), 3600)
+    for i in range(12):
+        assert (await _login(client, f"class{i % 8}@example.com", WRONG)).status_code == 401
+    _assert_limited(await _login(client, "class0@example.com", WRONG), 60)
 
 
 @requires_db_and_redis
