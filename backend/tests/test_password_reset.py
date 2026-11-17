@@ -260,7 +260,7 @@ def test_the_email_is_sent_over_starttls_with_the_link(fake_smtp: type[_FakeSMTP
     ]
     (message,) = smtp.sent
     assert message["To"] == "user@example.test"
-    assert message["From"] == "AI Software Engineer <sender@example.test>"
+    assert message["From"] == "CodeBase Analysis <sender@example.test>"
     assert "Reset your" in message["Subject"]
     plain = message.get_body(("plain",)).get_content()
     html = message.get_body(("html",)).get_content()

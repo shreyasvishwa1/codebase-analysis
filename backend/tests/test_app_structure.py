@@ -20,7 +20,7 @@ def test_root(client: TestClient) -> None:
     response = client.get("/")
     assert response.status_code == 200
     assert response.json() == {
-        "name": "AI Software Engineer",
+        "name": "CodeBase Analysis",
         "version": "1.0.0",
         "status": "running",
         "docs": "/docs",

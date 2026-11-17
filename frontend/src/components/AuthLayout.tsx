@@ -32,7 +32,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         <div className="relative z-10 flex w-full flex-col justify-between p-12 text-white">
           <div className="flex items-center gap-3 text-lg font-semibold">
             <BrandMark size="lg" />
-            AI Software Engineer
+            CodeBase Analysis
           </div>
           <div className="max-w-lg space-y-8">
             <p className="text-4xl font-extrabold leading-tight tracking-tight">
@@ -59,7 +59,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         <div className="w-full max-w-md">
           <div className="mb-8 flex items-center gap-3 lg:hidden">
             <BrandMark />
-            <span className="font-semibold">AI Software Engineer</span>
+            <span className="font-semibold">CodeBase Analysis</span>
           </div>
           <div className="glass-card space-y-6 p-8">{children}</div>
         </div>

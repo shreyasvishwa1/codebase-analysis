@@ -45,7 +45,7 @@ class Settings(BaseSettings):
 
     environment: Literal["development", "test", "production"] = "development"
 
-    app_name: str = "AI Software Engineer"
+    app_name: str = "CodeBase Analysis"
     app_version: str = "1.0.0"
     debug: bool = False
     api_prefix: str = "/api"

@@ -26,7 +26,7 @@ CONNECT_TIMEOUT_SECONDS = 10.0
 READ_TIMEOUT_SECONDS = 30.0
 TOTAL_TIMEOUT_SECONDS = 300.0
 MAX_REDIRECTS = 5
-USER_AGENT = "AI-Software-Engineer-Ingestion"
+USER_AGENT = "CodeBase-Analysis-Ingestion"
 
 # GitHub owner names: 1-39 alphanumerics or single hyphens, not starting/ending with "-".
 _OWNER = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$")

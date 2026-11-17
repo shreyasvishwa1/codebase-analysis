@@ -35,7 +35,7 @@ export function AppShell() {
           <Link to="/projects" className="flex items-center gap-2.5 font-semibold tracking-tight">
             <BrandMark />
             <span>
-              AI Software Engineer
+              CodeBase Analysis
               <span className="ml-2 hidden rounded-md bg-indigo-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-indigo-300 md:inline">
                 Codebase Intelligence
               </span>
@@ -69,7 +69,7 @@ export function AppShell() {
         <Outlet />
       </main>
       <footer className="border-t border-slate-800/60 py-6 text-center text-xs text-slate-500">
-        AI Software Engineer · Codebase intelligence that never executes your code
+        CodeBase Analysis · Codebase intelligence that never executes your code
       </footer>
     </div>
   )

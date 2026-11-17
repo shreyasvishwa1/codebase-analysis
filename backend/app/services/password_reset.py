@@ -78,11 +78,11 @@ def reset_link(settings: Settings, token: str) -> str:
 def _message(settings: Settings, recipient: str, link: str) -> EmailMessage:
     minutes = settings.password_reset_token_minutes
     message = EmailMessage()
-    message["Subject"] = "Reset your AI Software Engineer password"
-    message["From"] = f"AI Software Engineer <{settings.smtp_from}>"
+    message["Subject"] = "Reset your CodeBase Analysis password"
+    message["From"] = f"CodeBase Analysis <{settings.smtp_from}>"
     message["To"] = recipient
     message.set_content(
-        "Someone asked to reset the password for your AI Software Engineer account.\n\n"
+        "Someone asked to reset the password for your CodeBase Analysis account.\n\n"
         f"Reset it here (the link works once and expires in {minutes} minutes):\n{link}\n\n"
         "If you didn't ask for this, ignore this email; your password stays the same.\n"
     )
@@ -91,7 +91,7 @@ def _message(settings: Settings, recipient: str, link: str) -> EmailMessage:
 <html><body style="margin:0;background:#0b1020;font-family:Segoe UI,Arial,sans-serif;color:#e2e8f0">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:32px 12px"><tr><td align="center">
 <table width="520" cellpadding="0" cellspacing="0" style="max-width:520px;background:#111827;border-radius:16px;overflow:hidden;border:1px solid #1f2937">
-<tr><td style="padding:24px 28px;background:linear-gradient(135deg,#6366f1,#8b5cf6,#06b6d4);color:#fff;font-size:20px;font-weight:700">AI Software Engineer</td></tr>
+<tr><td style="padding:24px 28px;background:linear-gradient(135deg,#6366f1,#8b5cf6,#06b6d4);color:#fff;font-size:20px;font-weight:700">CodeBase Analysis</td></tr>
 <tr><td style="padding:28px">
 <p style="margin:0 0 12px;font-size:18px;font-weight:600;color:#fff">Reset your password</p>
 <p style="margin:0 0 24px;line-height:1.6;color:#cbd5e1">Someone asked to reset the password for your account. The link works once and expires in {minutes} minutes.</p>

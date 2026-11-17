@@ -1,4 +1,4 @@
-# AI Software Engineer — Codebase Intelligence Platform
+# CodeBase Analysis — Codebase Intelligence Platform
 
 **An intelligent codebase analysis platform that helps developers understand software
 repositories through static analysis, repository intelligence and AI-assisted code
@@ -355,7 +355,7 @@ below exists in the code.
 | `LOGIN_IP_LIMIT` | Optional | `10` | Login attempts per minute from one network address; raise it the same way |
 | `PASSWORD_RESET_TOKEN_MINUTES` | Optional | `30` | Reset link lifetime (5 to 1,440 minutes) |
 | `DEBUG` | Optional, development only | `false` | Logs SQL statements, including bound parameter values; keep it off outside local development |
-| `APP_NAME`, `APP_VERSION` | Optional | `AI Software Engineer`, `1.0.0` | Shown in the API title and health responses |
+| `APP_NAME`, `APP_VERSION` | Optional | `CodeBase Analysis`, `1.0.0` | Shown in the API title and health responses |
 | `API_PREFIX` | Optional | `/api` | API mount prefix; the frontend expects `/api/v1`, so keep the default |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Development only (Docker Compose) | — | Required by `docker-compose.yml`; read from the repository-root `.env` or the shell |
 | `POSTGRES_PORT` | Development only (Docker Compose) | `5432` | Local PostgreSQL port |

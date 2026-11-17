@@ -40,7 +40,7 @@ requires_db = pytest.mark.skipif(
 
 DOC_PATHS = ["/docs", "/docs/oauth2-redirect", "/redoc", "/openapi.json"]
 ROOT_WITH_DOCS = {
-    "name": "AI Software Engineer",
+    "name": "CodeBase Analysis",
     "version": "1.0.0",
     "status": "running",
     "docs": "/docs",
