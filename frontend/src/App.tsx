@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 
 import { RequireAuth } from './components/RequireAuth'
 import { AppShell } from './layouts/AppShell'
+import { CodeAnalysisPage } from './pages/CodeAnalysisPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -11,6 +12,7 @@ import { ProjectsPage } from './pages/ProjectsPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { RepositoryAnalysisPage } from './pages/RepositoryAnalysisPage'
+import { RepositoryCodeAnalysisPage } from './pages/RepositoryCodeAnalysisPage'
 import { RepositoryPage } from './pages/RepositoryPage'
 import { UploadPage } from './pages/UploadPage'
 
@@ -26,6 +28,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/overview" replace />} />
           <Route path="/overview" element={<OverviewPage />} />
           <Route path="/upload" element={<UploadPage />} />
+          <Route path="/code-analysis" element={<CodeAnalysisPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<ProjectPage />} />
           <Route
@@ -35,6 +38,10 @@ export default function App() {
           <Route
             path="/projects/:projectId/repositories/:repositoryId/analysis"
             element={<RepositoryAnalysisPage />}
+          />
+          <Route
+            path="/projects/:projectId/repositories/:repositoryId/code-analysis"
+            element={<RepositoryCodeAnalysisPage />}
           />
         </Route>
       </Route>

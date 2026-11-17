@@ -18,6 +18,7 @@ from app.api.v1.routes import (
     code_metrics,
     code_occurrences,
     code_outline,
+    code_quality,
     code_references,
     code_replaced_definitions,
     code_search,
@@ -48,6 +49,8 @@ api_router.include_router(repository_files.router)
 api_router.include_router(code_metrics.router)
 api_router.include_router(analysis_runs.router)
 api_router.include_router(analysis_runs.dashboard_router)
+api_router.include_router(code_quality.router)
+api_router.include_router(code_quality.overview_router)
 api_router.include_router(dependencies.router)
 api_router.include_router(file_explanation.router)
 api_router.include_router(secret_scan.router)

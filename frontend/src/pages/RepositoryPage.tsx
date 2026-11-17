@@ -1,5 +1,5 @@
-import { useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { Link, useLocation, useParams } from 'react-router-dom'
 
 import { CodeMetricsPanel } from '../components/CodeMetricsPanel'
 import { CodeSearchPanel } from '../components/CodeSearchPanel'
@@ -26,15 +26,37 @@ import { formatBytes } from '../utils/format'
 
 const CARD = 'rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-glow backdrop-blur'
 
+/** A file and line to open on arrival, set by links to reported lines (Code Analysis). */
+function openFileFrom(state: unknown): { path: string; line: number } | null {
+  const openFile = (state as { openFile?: { path?: unknown; line?: unknown } } | null)?.openFile
+  if (typeof openFile?.path !== 'string' || typeof openFile.line !== 'number') return null
+  return { path: openFile.path, line: openFile.line }
+}
+
 export function RepositoryPage() {
   const { projectId = '', repositoryId = '' } = useParams()
+  const location = useLocation()
   const repository = useRepository(projectId, repositoryId)
   const tree = useRepositoryTree(projectId, repositoryId)
   const languages = useRepositoryLanguages(projectId, repositoryId)
-  const [selectedPath, setSelectedPath] = useState<string | null>(null)
+  const [openFile] = useState(() => openFileFrom(location.state))
+  const [selectedPath, setSelectedPath] = useState<string | null>(openFile?.path ?? null)
   // A fresh object per selection, so choosing the same line again scrolls to it again.
-  const [selectedLine, setSelectedLine] = useState<LineSelection | null>(null)
+  const [selectedLine, setSelectedLine] = useState<LineSelection | null>(
+    openFile ? { line: openFile.line } : null,
+  )
   const fileCard = useRef<HTMLElement>(null)
+  const loaded = repository.data !== undefined
+
+  // Opened at a reported line: bring the file viewer into view once the page has rendered.
+  // An instant jump (not smooth) lets the browser's scroll anchoring keep the viewer in view
+  // while the panels above it finish loading and grow.
+  useEffect(() => {
+    const card = fileCard.current
+    if (openFile && loaded && card && typeof card.scrollIntoView === 'function') {
+      card.scrollIntoView({ block: 'start' })
+    }
+  }, [openFile, loaded])
 
   if (repository.isPending) {
     return <p className="text-sm text-slate-400">Loading repository…</p>

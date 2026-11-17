@@ -53,6 +53,7 @@ const run = (overrides: Partial<AnalysisRun> = {}): AnalysisRun => ({
     { language: 'TypeScript', files: 3, lines: 500, code_lines: 334, bytes: 1096 },
   ],
   skipped: { binary: 1, too_large: 0, unavailable: 0, generated: 0 },
+  quality: null,
   created_at: '2026-11-17T10:00:00Z',
   ...overrides,
 })

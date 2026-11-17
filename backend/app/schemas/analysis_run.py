@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.models.enums import AnalysisJobStatus
 from app.schemas.analysis_job import AnalysisJobResponse
+from app.schemas.code_issue import QualitySummary
 
 
 class LanguageBreakdown(BaseModel):
@@ -37,6 +38,8 @@ class AnalysisRunResponse(BaseModel):
     code_lines: int
     languages: list[LanguageBreakdown]
     skipped: SkippedFiles
+    # None for runs stored before code-quality analysis existed.
+    quality: QualitySummary | None
     created_at: datetime
 
 

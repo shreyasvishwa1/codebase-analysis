@@ -56,12 +56,33 @@ FastAPI (uvicorn)  ── auth, ownership, rate limits, validation
 | Analyzer | Module | Phase | Engine |
 | --- | --- | --- | --- |
 | Summary | 2 | 1 | Files, languages, lines of code, excluded paths |
-| Code quality | 3 | 2 | Ruff (pyflakes, pycodestyle, naming, docstrings, bugbear, simplify) and the existing AST diagnostics; duplicate blocks (token windows, all languages); TODO/FIXME markers |
+| Code quality | 3 | 2 | Ruff (pyflakes, pycodestyle, naming, docstrings, bugbear, simplify) and the existing unreachable-code AST diagnostic; duplicate blocks (normalized line windows, all languages); TODO/FIXME markers; very long files |
 | Security | 4 | 3 | Bandit (Python), pattern rules for JavaScript/TypeScript (XSS sinks, `eval`, SQL built from strings), the secret scan, insecure configuration checks; Semgrep when installed |
 | Complexity | 5 | 4 | Radon: cyclomatic complexity per function, maintainability index, classes and functions; a lightweight brace-based estimate for JavaScript/TypeScript |
 | Dependencies | 6 | 5 | Manifest inventory (`package.json`, `pyproject.toml`, `requirements*.txt`), latest versions from PyPI/npm, known vulnerabilities from OSV.dev |
 | Architecture | 7 | 6 | Evidence rules: frameworks (manifests and imports), entry points, API routes, database access, authentication code, configuration and infrastructure files; components and edges built from the import graph |
 | Health score | 8 | 7 | Documented formula over the results above (section 6) |
+
+### Code quality (phase 2)
+
+- **Ruff** runs as a subprocess on a private temporary copy that holds only the snapshot's
+  verified, readable Python files, never on repository storage. It runs with `--isolated`
+  (repository configuration files are ignored), a minimal environment (no application
+  secrets), a 240-second timeout and a 64 MiB cap on its report. Ruff parses source text and
+  never imports or runs it. If it cannot finish, the run records why and keeps the checks
+  that work for every language.
+- **Unreachable code** reuses the code explorer's AST diagnostic (statements after `return`,
+  `raise`, `break`, `continue`, an `if`/`else` where every branch leaves, or an endless loop).
+- **Duplication** compares windows of 6 significant lines (whitespace collapsed; blank,
+  comment-only, import and brace-only lines dropped) across all programming-language files.
+  Windows with fewer than 3 different lines (data tables) and overlapping repetition within
+  one file are ignored. Duplication % = lines inside a duplicated window / significant lines.
+- **Classification** is a documented table (`app/analysis/quality/rules.py`): the most
+  specific rule code wins (`F821` before `F8` before `F`). Every issue has a category, a
+  severity (high, medium, low, info), an explanation and a suggested correction. Ruff's own
+  fix message is used as the suggestion when it offers one.
+- **Limits**: every issue is counted; the 5,000 most severe are stored. A syntax error is
+  reported once per file (Ruff's follow-on errors are dropped).
 
 ## 4. Backend modules
 
@@ -91,7 +112,7 @@ it:
 | Table | Purpose | Key columns and relations |
 | --- | --- | --- |
 | `analysis_runs` | One completed full analysis | `id`, `analysis_job_id` (FK, unique), `repository_id` (FK), `project_id` (FK), file and line counts, `languages` (JSONB), `excluded_paths` count, timestamps; index (`repository_id`, `created_at`) |
-| `code_issues` | Code quality findings | `run_id` (FK), `path`, `line`, `column`, `tool`, `rule_id`, `category`, `severity`, `message`, `suggestion`; indexes (`run_id`, `severity`) and (`run_id`, `path`) |
+| `code_issues` | Code quality findings (migration 0005) | `run_id` (FK, cascade), `path`, `line`, `column`, `end_line`, `tool`, `rule_id`, `category`, `severity`, `message`, `explanation`, `suggestion`, `doc_url`; indexes (`run_id`, `severity`), (`run_id`, `category`), (`run_id`, `path`). The run's totals are in `analysis_runs.quality` (JSONB) |
 | `security_findings` | Security findings | `run_id`, `path`, `line`, `tool`, `rule_id`, `title`, `severity` (critical/high/medium/low), `confidence` (confirmed/potential), `cwe`, `description`, `remediation` |
 | `complexity_metrics` | Per-file complexity | `run_id`, `path`, `language`, `lines`, `functions`, `classes`, `avg_complexity`, `max_complexity`, `maintainability_index`, `rank` |
 | `complexity_functions` | Per-function complexity | `run_id`, `path`, `name`, `line`, `complexity`, `rank` |

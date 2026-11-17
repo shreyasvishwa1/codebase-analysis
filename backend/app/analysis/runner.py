@@ -12,15 +12,18 @@ for the snapshot it analyzed. A run row is written in the same transaction that 
 its job, so every run has complete results.
 """
 
+import tempfile
 import uuid
+from dataclasses import asdict, dataclass
 from datetime import timedelta
 from pathlib import Path
 
-from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy import and_, func, insert, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
+from app.analysis.quality.analyzer import QualityAnalyzer, QualityResult
 from app.analysis.snapshot import SnapshotRow, iter_snapshot
 from app.analysis.summary import Summary, SummaryBuilder
 from app.config import get_settings
@@ -29,6 +32,7 @@ from app.models import (
     AnalysisJobStatus,
     AnalysisJobType,
     AnalysisRun,
+    CodeIssue,
     File,
     Repository,
     RepositoryStatus,
@@ -70,12 +74,24 @@ class AnalysisRunError(Exception):
 # --- Analysis (runs in a worker thread) -------------------------------------------------------
 
 
-def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> Summary:
-    """Run every analyzer over the snapshot in one pass, reading one file at a time."""
+@dataclass(frozen=True)
+class RunResult:
+    summary: Summary
+    quality: QualityResult
+
+
+def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> RunResult:
+    """Run every analyzer over the snapshot in one pass, reading one file at a time.
+
+    The quality analyzer's private working copy (verified Python files for Ruff) lives in a
+    temporary directory that is removed when the analysis ends, whatever the outcome."""
     summary = SummaryBuilder()
-    for file in iter_snapshot(root, rows):
-        summary.add(file)
-    return summary.result()
+    with tempfile.TemporaryDirectory(prefix="cba-analysis-") as workdir:
+        quality = QualityAnalyzer(Path(workdir))
+        for file in iter_snapshot(root, rows):
+            summary.add(file)
+            quality.add(file)
+        return RunResult(summary.result(), quality.result())
 
 
 # --- API side ---------------------------------------------------------------------------------
@@ -225,7 +241,7 @@ async def _store_run(
     job: AnalysisJob,
     repository: Repository,
     snapshot: set[uuid.UUID],
-    summary: Summary,
+    result: RunResult,
 ) -> str:
     current = await _lock_current_snapshot(db, repository.id)
     if current != snapshot:
@@ -242,24 +258,31 @@ async def _store_run(
     if completed.scalar_one_or_none() is None:  # recovered as stale or cancelled meanwhile
         await db.rollback()
         return "skipped"
-    db.add(
-        AnalysisRun(
-            analysis_job_id=job.id,
-            repository_id=repository.id,
-            project_id=repository.project_id,
-            file_count=summary.file_count,
-            analyzed_file_count=summary.analyzed_file_count,
-            excluded_file_count=summary.excluded_file_count,
-            total_bytes=summary.total_bytes,
-            total_lines=summary.total_lines,
-            code_lines=summary.code_lines,
-            languages=summary.languages,
-            skipped=summary.skipped,
-            # The wall-clock time, not the transaction start: history order stays exact
-            # even for runs stored within one transaction.
-            created_at=func.clock_timestamp(),
-        )
+    summary = result.summary
+    run = AnalysisRun(
+        analysis_job_id=job.id,
+        repository_id=repository.id,
+        project_id=repository.project_id,
+        file_count=summary.file_count,
+        analyzed_file_count=summary.analyzed_file_count,
+        excluded_file_count=summary.excluded_file_count,
+        total_bytes=summary.total_bytes,
+        total_lines=summary.total_lines,
+        code_lines=summary.code_lines,
+        languages=summary.languages,
+        skipped=summary.skipped,
+        quality=result.quality.summary,
+        # The wall-clock time, not the transaction start: history order stays exact
+        # even for runs stored within one transaction.
+        created_at=func.clock_timestamp(),
     )
+    db.add(run)
+    await db.flush()
+    if result.quality.issues:
+        await db.execute(
+            insert(CodeIssue),
+            [{"run_id": run.id, **asdict(issue)} for issue in result.quality.issues],
+        )
     await db.commit()
     return "completed"
 
@@ -298,8 +321,8 @@ async def run_full_analysis_job(db: AsyncSession, job_id: uuid.UUID) -> str:
         await db.commit()  # no transaction is held while files are read
         snapshot_rows = [SnapshotRow(r.path, r.language, r.size_bytes, r.sha256) for r in rows]
         root = repository_storage_dir(get_settings(), repository.id)
-        summary = await run_in_threadpool(analyze_snapshot, root, snapshot_rows)
-        return await _store_run(db, job, repository, {r.id for r in rows}, summary)
+        result = await run_in_threadpool(analyze_snapshot, root, snapshot_rows)
+        return await _store_run(db, job, repository, {r.id for r in rows}, result)
     except Exception:
         await db.rollback()
         await _fail_processing(db, job_id, INTERNAL_FAILURE_MESSAGE)

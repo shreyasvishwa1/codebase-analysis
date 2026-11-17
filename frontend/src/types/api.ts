@@ -933,6 +933,8 @@ export interface AnalysisRun {
   code_lines: number
   languages: LanguageBreakdown[]
   skipped: { binary: number; too_large: number; unavailable: number; generated: number }
+  /** code-quality results; null for runs stored before code-quality analysis existed */
+  quality: QualitySummary | null
   created_at: string
 }
 
@@ -975,3 +977,87 @@ export interface DashboardSummary {
   recent_runs: RecentRun[]
 }
 
+// --- Code quality (phase 2) ----------------------------------------------------------------
+
+export type IssueSeverity = 'high' | 'medium' | 'low' | 'info'
+export type IssueCategory =
+  | 'syntax_error'
+  | 'bug_risk'
+  | 'unused_code'
+  | 'dead_code'
+  | 'duplication'
+  | 'naming'
+  | 'documentation'
+  | 'formatting'
+  | 'maintainability'
+
+export interface QualitySummary {
+  files_analyzed: number
+  python_files: number
+  /** Ruff's status: completed, skipped (no Python files), timeout, unavailable, failed, too_large */
+  ruff: string
+  /** every finding */
+  issues: number
+  /** the most severe findings, stored and listed */
+  stored_issues: number
+  by_severity: Record<IssueSeverity, number>
+  by_category: Record<IssueCategory, number>
+  duplication: {
+    percent: number
+    duplicated_lines: number
+    significant_lines: number
+    files: number
+    blocks: number
+    partial: boolean
+  }
+  top_files: ({ path: string; issues: number } & Record<IssueSeverity, number>)[]
+  top_rules: { rule_id: string; count: number; category: IssueCategory; severity: IssueSeverity }[]
+}
+
+export interface CodeIssue {
+  id: string
+  path: string
+  line: number
+  column: number | null
+  end_line: number
+  /** "ruff" or "codebase-analysis" */
+  tool: string
+  rule_id: string
+  category: IssueCategory
+  severity: IssueSeverity
+  message: string
+  explanation: string
+  suggestion: string
+  doc_url: string | null
+}
+
+export interface CodeIssueList {
+  items: CodeIssue[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface IssueFilters {
+  severity?: IssueSeverity
+  category?: IssueCategory
+  path?: string
+  q?: string
+  page?: number
+}
+
+export interface RepositoryQuality {
+  project_id: string
+  project_name: string
+  repository_id: string
+  repository_name: string
+  run_id: string
+  created_at: string
+  analyzed_file_count: number
+  code_lines: number
+  quality: QualitySummary
+}
+
+export interface QualityOverview {
+  repositories: RepositoryQuality[]
+}

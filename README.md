@@ -45,6 +45,7 @@ guesses.
 | Ingestion | ZIP upload or public GitHub archive, from one Upload Repository page; background jobs with status; pending jobs can be cancelled |
 | Full analysis | One background run analyzes a repository snapshot (dependency folders such as `node_modules/` and build output excluded) and stores the results; every run is kept in the repository's history |
 | Overview | Totals across all your repositories from their latest stored runs: projects, repositories, lines of code, analyses, active jobs, language distribution and recent analyses |
+| Code analysis | Each full analysis also finds code-quality issues: bug risks, syntax errors, unused and unreachable code, duplicate blocks (every language), naming, missing docstrings, formatting, TODO/FIXME markers and very long files. Python is checked with Ruff on a private copy, so repository code is never run. Each issue shows its file, line, category, severity, why it matters and a suggested fix, and links to the line in the explorer. Issues can be filtered by severity, category, file and text |
 | Dashboard | Per-repository overview: files, lines of code, languages, dependencies and secret findings; a health score from five checks; code distribution, largest files, file sizes, dependencies by ecosystem and job activity |
 | Browsing and search | File tree with a path filter, language statistics, plain-text file viewer, literal code search, exact Python symbol search |
 | Code intelligence | Outline, imports, importers, go to definition, find references, name occurrences, call hierarchy, type hierarchy, method overrides |
@@ -241,11 +242,11 @@ Results at the final development commit:
 
 | Check | Result |
 | --- | --- |
-| Frontend tests (Vitest, Testing Library, jsdom) | 1,246 passing in 40 files |
-| Backend tests (pytest) | 2,625 passing in 42 files; 30 skipped on Windows, where creating symlinks needs a privilege |
+| Frontend tests (Vitest, Testing Library, jsdom) | 1,262 passing in 41 files |
+| Backend tests (pytest) | 2,726 passing in 45 files; 30 skipped on Windows, where creating symlinks needs a privilege |
 | TypeScript typecheck and production build | Passing |
 | `ruff check` and mypy | Passing |
-| Mutation testing | 287/287 mutants caught in the final development phase |
+| Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine |
 
 - **Isolation**: frontend tests mock the API at the axios adapter, so no backend is needed.
   Backend database and API tests run against a throwaway, already-migrated PostgreSQL database
@@ -446,6 +447,7 @@ All endpoints are under `/api/v1`. Repository endpoints share the prefix
 | Repository analysis | `GET`/`POST …/analysis/code-metrics`, `GET …/analysis/dependencies`, `GET …/analysis/secrets` |
 | Full analysis | `POST …/analysis-runs` (start), `GET …/analysis-runs` (latest job and history), `GET …/analysis-runs/{run_id}` |
 | Overview | `GET /dashboard` |
+| Code analysis | `GET …/analysis-runs/{run_id}/issues` (filters: `severity`, `category`, `path`, `q`; paged), `GET /code-quality` (each repository's latest results) |
 | AI | `POST …/files/explain` |
 
 ## Limitations
