@@ -14,10 +14,18 @@ from app.config import ConfigurationError, Settings
 from app.models import AnalysisJob, Base, File, Project, Repository, User
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
-TABLES = {"users", "projects", "repositories", "files", "analysis_jobs", "file_metrics"}
+TABLES = {
+    "users",
+    "projects",
+    "repositories",
+    "files",
+    "analysis_jobs",
+    "file_metrics",
+    "analysis_runs",
+}
 
 
-def test_metadata_registers_exactly_the_six_tables() -> None:
+def test_metadata_registers_exactly_the_seven_tables() -> None:
     assert set(Base.metadata.tables) == TABLES
 
 
@@ -57,6 +65,9 @@ def test_foreign_keys_cascade_on_delete() -> None:
         ("file_metrics", "file_id"): ("files", "CASCADE"),
         ("file_metrics", "repository_id"): ("repositories", "CASCADE"),
         ("file_metrics", "analysis_job_id"): ("analysis_jobs", "SET NULL"),
+        ("analysis_runs", "analysis_job_id"): ("analysis_jobs", "CASCADE"),
+        ("analysis_runs", "repository_id"): ("repositories", "CASCADE"),
+        ("analysis_runs", "project_id"): ("projects", "CASCADE"),
     }
 
 
@@ -77,9 +88,11 @@ def test_unique_constraints_and_indexes() -> None:
         ("repositories", ("project_id",)),
         ("analysis_jobs", ("project_id",)),
         ("analysis_jobs", ("repository_id", "created_at")),
-        # Partial unique indexes: one active ingestion job, one active code-metrics job.
+        # Partial unique indexes: one active ingestion, code-metrics and full-analysis job.
         ("analysis_jobs", ("repository_id",)),
         ("file_metrics", ("repository_id",)),
+        ("analysis_runs", ("repository_id", "created_at")),
+        ("analysis_runs", ("project_id",)),
     }
 
 
@@ -151,7 +164,7 @@ def test_libpq_style_options_are_translated_for_asyncpg(
     assert "sslmode" not in kwargs and "channel_binding" not in kwargs
 
 
-def test_alembic_single_head_and_offline_sql_covers_the_six_tables() -> None:
+def test_alembic_single_head_and_offline_sql_covers_the_seven_tables() -> None:
     # Offline mode loads alembic/env.py and the app metadata without connecting.
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head", "--sql"],
@@ -171,7 +184,7 @@ def test_alembic_single_head_and_offline_sql_covers_the_six_tables() -> None:
         text=True,
         check=True,
     )
-    assert heads.stdout.split() == ["0003", "(head)"]
+    assert heads.stdout.split() == ["0004", "(head)"]
 
 
 @pytest.mark.skipif(
@@ -186,6 +199,6 @@ async def test_migrated_database_connectivity() -> None:
             names = await conn.run_sync(lambda c: set(inspect(c).get_table_names()))
             assert names == TABLES | {"alembic_version"}
             version = (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar()
-            assert version == "0003"
+            assert version == "0004"
     finally:
         await engine.dispose()

@@ -5,11 +5,14 @@ import { AppShell } from './layouts/AppShell'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
+import { OverviewPage } from './pages/OverviewPage'
 import { ProjectPage } from './pages/ProjectPage'
 import { ProjectsPage } from './pages/ProjectsPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import { RepositoryAnalysisPage } from './pages/RepositoryAnalysisPage'
 import { RepositoryPage } from './pages/RepositoryPage'
+import { UploadPage } from './pages/UploadPage'
 
 export default function App() {
   return (
@@ -20,12 +23,18 @@ export default function App() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
-          <Route path="/" element={<Navigate to="/projects" replace />} />
+          <Route path="/" element={<Navigate to="/overview" replace />} />
+          <Route path="/overview" element={<OverviewPage />} />
+          <Route path="/upload" element={<UploadPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<ProjectPage />} />
           <Route
             path="/projects/:projectId/repositories/:repositoryId"
             element={<RepositoryPage />}
+          />
+          <Route
+            path="/projects/:projectId/repositories/:repositoryId/analysis"
+            element={<RepositoryAnalysisPage />}
           />
         </Route>
       </Route>

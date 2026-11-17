@@ -31,7 +31,11 @@ function job(id: string, status: AnalysisJob['status'], extra: Partial<AnalysisJ
   }
 }
 
-const MESSAGES = { ingestion: 'Ingestion was cancelled', code_metrics: 'Analysis was cancelled' }
+const MESSAGES = {
+  ingestion: 'Ingestion was cancelled',
+  code_metrics: 'Analysis was cancelled',
+  full_analysis: 'Analysis was cancelled',
+}
 
 /** A tiny stateful server: GET lists the jobs, POST .../cancel fails a pending job. */
 function serve(initial: AnalysisJob[], cancelResponse?: (id: string) => MockResponse) {

@@ -11,6 +11,7 @@ import { IngestPanel } from '../components/IngestPanel'
 import { JobProgress } from '../components/JobProgress'
 import { LanguageStats } from '../components/LanguageStats'
 import { RepositoryDashboard } from '../components/RepositoryDashboard'
+import { RepositoryNav } from '../components/RepositoryNav'
 import { RepositorySettings } from '../components/RepositorySettings'
 import { SecretsPanel } from '../components/SecretsPanel'
 import { StatusBadge } from '../components/StatusBadge'
@@ -96,6 +97,8 @@ export function RepositoryPage() {
           repository={repo}
         />
       </div>
+
+      <RepositoryNav projectId={projectId} repositoryId={repositoryId} />
 
       <RepositoryDashboard
         projectId={projectId}

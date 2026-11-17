@@ -89,7 +89,7 @@ def test_analysis_job_columns_and_foreign_keys() -> None:
         "project_id": ("projects", "CASCADE"),
         "repository_id": ("repositories", "CASCADE"),
     }
-    assert table.c.job_type.type.enums == ["ingestion", "code_metrics"]  # 0003
+    assert table.c.job_type.type.enums == ["ingestion", "code_metrics", "full_analysis"]  # 0004
     assert table.c.status.type.enums == ["pending", "processing", "completed", "failed"]
     assert str(table.c.status.server_default.arg) == "pending"
 
@@ -182,7 +182,7 @@ async def test_migration_upgrade_downgrade_upgrade() -> None:
         await conn.close()
 
     _alembic(TEST_MIGRATION_DATABASE_URL, "upgrade", "head")
-    assert _alembic(TEST_MIGRATION_DATABASE_URL, "current").split() == ["0003", "(head)"]
+    assert _alembic(TEST_MIGRATION_DATABASE_URL, "current").split() == ["0004", "(head)"]
 
     conn = await asyncpg.connect(raw_url)
     try:
@@ -211,6 +211,7 @@ async def test_migration_upgrade_downgrade_upgrade() -> None:
             ("analysis_job_status", "failed"),
             ("analysis_job_type", "ingestion"),
             ("analysis_job_type", "code_metrics"),  # added by 0003
+            ("analysis_job_type", "full_analysis"),  # added by 0004
         ]
         fk = await conn.fetchval(
             "SELECT pg_get_constraintdef(oid) FROM pg_constraint "
@@ -270,7 +271,7 @@ async def test_migration_upgrade_downgrade_upgrade() -> None:
         await conn.close()
 
     _alembic(TEST_MIGRATION_DATABASE_URL, "upgrade", "head")  # upgrade again
-    assert _alembic(TEST_MIGRATION_DATABASE_URL, "current").split() == ["0003", "(head)"]
+    assert _alembic(TEST_MIGRATION_DATABASE_URL, "current").split() == ["0004", "(head)"]
     _alembic(TEST_MIGRATION_DATABASE_URL, "check")
 
 

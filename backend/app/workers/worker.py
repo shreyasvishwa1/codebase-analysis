@@ -19,6 +19,7 @@ from arq.cron import cron
 from arq.worker import func
 
 from app.database import get_engine, get_sessionmaker
+from app.analysis.runner import run_full_analysis_job
 from app.services.code_metrics import run_code_metrics_job
 from app.services.ingestion import run_ingestion_job
 from app.services.maintenance import (
@@ -28,6 +29,7 @@ from app.services.maintenance import (
 )
 from app.workers.queue import (
     CODE_METRICS_TASK,
+    FULL_ANALYSIS_TASK,
     INGESTION_TASK,
     deserialize_job,
     redis_settings,
@@ -62,6 +64,17 @@ async def analyze_code_metrics(ctx: dict[str, Any], analysis_job_id: str) -> str
         return await run_code_metrics_job(db, job_id)
 
 
+async def analyze_repository(ctx: dict[str, Any], analysis_job_id: str) -> str:
+    """Run one full-analysis job (payload: the AnalysisJob id only). Never raises for
+    analysis failures; they are recorded on the job."""
+    try:
+        job_id = uuid.UUID(str(analysis_job_id))
+    except ValueError:
+        return "invalid"
+    async with ctx["session_factory"]() as db:
+        return await run_full_analysis_job(db, job_id)
+
+
 async def startup(ctx: dict[str, Any]) -> None:
     if "session_factory" not in ctx:
         ctx["session_factory"] = get_sessionmaker()
@@ -77,6 +90,7 @@ class WorkerSettings:
     functions = [
         func(ingest_repository, name=INGESTION_TASK),
         func(analyze_code_metrics, name=CODE_METRICS_TASK),
+        func(analyze_repository, name=FULL_ANALYSIS_TASK),
     ]
     on_startup = startup
     on_shutdown = shutdown

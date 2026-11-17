@@ -1,5 +1,5 @@
-import { LogOut } from 'lucide-react'
-import { Link, Outlet } from 'react-router-dom'
+import { FolderGit2, LayoutDashboard, LogOut, UploadCloud } from 'lucide-react'
+import { Link, NavLink, Outlet } from 'react-router-dom'
 
 import { BrandMark } from '../components/AuthLayout'
 import { useAuth } from '../hooks/useAuth'
@@ -22,6 +22,35 @@ function HealthIndicator() {
       </span>
       {label}
     </span>
+  )
+}
+
+/**
+ * Main navigation. A section is listed only once its module works; later phases add Code
+ * Analysis, Security, Complexity, Dependencies, Architecture, AI chat, Reports and Settings.
+ */
+const NAVIGATION = [
+  { to: '/overview', label: 'Overview', icon: LayoutDashboard },
+  { to: '/projects', label: 'My Projects', icon: FolderGit2 },
+  { to: '/upload', label: 'Upload Repository', icon: UploadCloud },
+]
+
+function MainNavigation({ className }: { className: string }) {
+  return (
+    <nav aria-label="Main navigation" className={className}>
+      {NAVIGATION.map(({ to, label, icon: Icon }) => (
+        <NavLink
+          key={to}
+          to={to}
+          className={({ isActive }) =>
+            `flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition ${isActive ? 'bg-indigo-500/15 text-indigo-100' : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'}`
+          }
+        >
+          <Icon className="h-4 w-4" aria-hidden="true" />
+          {label}
+        </NavLink>
+      ))}
+    </nav>
   )
 }
 
@@ -65,9 +94,15 @@ export function AppShell() {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">
-        <Outlet />
-      </main>
+      <div className="mx-auto flex w-full max-w-7xl flex-1 gap-8 px-4 sm:px-6">
+        <aside className="hidden w-52 shrink-0 py-8 md:block">
+          <MainNavigation className="sticky top-24 space-y-1" />
+        </aside>
+        <main className="min-w-0 flex-1 py-6 md:py-8">
+          <MainNavigation className="mb-6 flex flex-wrap gap-1 md:hidden" />
+          <Outlet />
+        </main>
+      </div>
       <footer className="border-t border-slate-800/60 py-6 text-center text-xs text-slate-500">
         CodeBase Analysis · Codebase intelligence that never executes your code
       </footer>

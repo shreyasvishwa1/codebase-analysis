@@ -45,7 +45,7 @@ async def cancel_pending_ingestion_job(db: AsyncSession, job_id: uuid.UUID) -> b
     job_type = await db.scalar(select(AnalysisJob.job_type).where(AnalysisJob.id == job_id))
     message = (
         ANALYSIS_CANCELLED_MESSAGE
-        if job_type == AnalysisJobType.CODE_METRICS
+        if job_type in (AnalysisJobType.CODE_METRICS, AnalysisJobType.FULL_ANALYSIS)
         else CANCELLED_MESSAGE
     )
     if not await fail_pending_job(db, job_id, message):

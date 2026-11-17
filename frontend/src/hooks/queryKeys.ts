@@ -19,4 +19,7 @@ export const queryKeys = {
     ['projects', projectId, 'repositories', repositoryId, 'dependencies'] as const,
   secretScan: (projectId: string, repositoryId: string) =>
     ['projects', projectId, 'repositories', repositoryId, 'secret-scan'] as const,
+  analysisRuns: (projectId: string, repositoryId: string) =>
+    ['projects', projectId, 'repositories', repositoryId, 'analysis-runs'] as const,
+  dashboard: ['dashboard'] as const,
 }

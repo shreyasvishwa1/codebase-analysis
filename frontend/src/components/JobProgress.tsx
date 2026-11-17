@@ -12,6 +12,7 @@ import { StatusBadge } from './StatusBadge'
 const JOB_TYPE_LABELS: Record<AnalysisJobType, string> = {
   ingestion: 'Ingestion',
   code_metrics: 'Code analysis',
+  full_analysis: 'Full analysis',
 }
 
 interface CancelButtonProps {

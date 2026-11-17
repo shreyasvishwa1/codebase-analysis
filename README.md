@@ -42,7 +42,9 @@ guesses.
 
 | Area | Capabilities |
 | --- | --- |
-| Ingestion | ZIP upload or public GitHub archive; background jobs with status; pending jobs can be cancelled |
+| Ingestion | ZIP upload or public GitHub archive, from one Upload Repository page; background jobs with status; pending jobs can be cancelled |
+| Full analysis | One background run analyzes a repository snapshot (dependency folders such as `node_modules/` and build output excluded) and stores the results; every run is kept in the repository's history |
+| Overview | Totals across all your repositories from their latest stored runs: projects, repositories, lines of code, analyses, active jobs, language distribution and recent analyses |
 | Dashboard | Per-repository overview: files, lines of code, languages, dependencies and secret findings; a health score from five checks; code distribution, largest files, file sizes, dependencies by ecosystem and job activity |
 | Browsing and search | File tree with a path filter, language statistics, plain-text file viewer, literal code search, exact Python symbol search |
 | Code intelligence | Outline, imports, importers, go to definition, find references, name occurrences, call hierarchy, type hierarchy, method overrides |
@@ -53,6 +55,10 @@ guesses.
 | Accounts | Register, sign in, and reset a forgotten password through an emailed link (optional, needs SMTP) |
 
 ## Architecture
+
+The full design of the repository intelligence system (modules, database, analysis pipeline,
+health score, AI chat and the development phases) is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 
 ```
 Browser: React SPA (Vite dev server, http://127.0.0.1:5173)
@@ -235,7 +241,7 @@ Results at the final development commit:
 
 | Check | Result |
 | --- | --- |
-| Frontend tests (Vitest, Testing Library, jsdom) | 1,225 passing in 38 files |
+| Frontend tests (Vitest, Testing Library, jsdom) | 1,246 passing in 40 files |
 | Backend tests (pytest) | 2,625 passing in 42 files; 30 skipped on Windows, where creating symlinks needs a privilege |
 | TypeScript typecheck and production build | Passing |
 | `ruff check` and mypy | Passing |
@@ -438,6 +444,8 @@ All endpoints are under `/api/v1`. Repository endpoints share the prefix
 | Code intelligence | `GET …/files/outline`, `…/files/imports`, `…/files/importers`, `…/files/definition`, `…/files/references`, `…/files/occurrences`, `…/files/call-hierarchy`, `…/files/type-hierarchy`, `…/files/method-overrides` |
 | Diagnostics | `GET …/files/unused-imports`, `…/files/unbound-names`, `…/files/unused-variables`, `…/files/replaced-definitions`, `…/files/unreachable-code` |
 | Repository analysis | `GET`/`POST …/analysis/code-metrics`, `GET …/analysis/dependencies`, `GET …/analysis/secrets` |
+| Full analysis | `POST …/analysis-runs` (start), `GET …/analysis-runs` (latest job and history), `GET …/analysis-runs/{run_id}` |
+| Overview | `GET /dashboard` |
 | AI | `POST …/files/explain` |
 
 ## Limitations

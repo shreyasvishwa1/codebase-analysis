@@ -1,6 +1,7 @@
 """SQLAlchemy models. Importing this package registers every table on ``Base.metadata``."""
 
 from app.models.analysis_job import AnalysisJob
+from app.models.analysis_run import AnalysisRun
 from app.models.base import Base
 from app.models.enums import (
     AnalysisJobStatus,
@@ -16,6 +17,7 @@ from app.models.user import User
 
 __all__ = [
     "AnalysisJob",
+    "AnalysisRun",
     "AnalysisJobStatus",
     "AnalysisJobType",
     "Base",

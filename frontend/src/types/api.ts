@@ -3,7 +3,7 @@
 export type RepositoryStatus = 'pending' | 'processing' | 'ready' | 'failed'
 export type RepositorySourceType = 'zip' | 'github'
 export type AnalysisJobStatus = 'pending' | 'processing' | 'completed' | 'failed'
-export type AnalysisJobType = 'ingestion' | 'code_metrics'
+export type AnalysisJobType = 'ingestion' | 'code_metrics' | 'full_analysis'
 
 export interface User {
   id: string
@@ -906,3 +906,72 @@ export interface UnreachableCodeResult {
   summary: UnreachableCodeSummary
   truncated: boolean
 }
+
+// --- Full analysis runs (phase 1 of the repository intelligence pipeline) ---------------
+
+export interface LanguageBreakdown {
+  language: string | null
+  files: number
+  lines: number
+  code_lines: number
+  bytes: number
+}
+
+/** One completed full analysis of a repository snapshot. */
+export interface AnalysisRun {
+  id: string
+  analysis_job_id: string
+  repository_id: string
+  project_id: string
+  file_count: number
+  analyzed_file_count: number
+  /** files in excluded directories such as node_modules/ or dist/ */
+  excluded_file_count: number
+  total_bytes: number
+  total_lines: number
+  /** non-blank lines */
+  code_lines: number
+  languages: LanguageBreakdown[]
+  skipped: { binary: number; too_large: number; unavailable: number; generated: number }
+  created_at: string
+}
+
+export interface AnalysisRunList {
+  /** the latest full-analysis job, any status */
+  job: AnalysisJob | null
+  /** completed runs, newest first */
+  runs: AnalysisRun[]
+}
+
+export interface AnalysisRunJob {
+  job_id: string
+  repository_id: string
+  status: AnalysisJobStatus
+}
+
+export interface RecentRun {
+  run_id: string
+  project_id: string
+  project_name: string
+  repository_id: string
+  repository_name: string
+  created_at: string
+  file_count: number
+  code_lines: number
+  top_language: string | null
+}
+
+/** Totals across the user's projects; code size and languages from each repository's latest run. */
+export interface DashboardSummary {
+  projects: number
+  repositories: number
+  ready_repositories: number
+  analyzed_repositories: number
+  total_runs: number
+  active_jobs: number
+  analyzed_files: number
+  code_lines: number
+  languages: LanguageBreakdown[]
+  recent_runs: RecentRun[]
+}
+
