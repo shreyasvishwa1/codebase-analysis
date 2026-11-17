@@ -9,7 +9,7 @@
 # The ingestion worker is started explicitly (not a compose service), from backend/:
 #   arq app.workers.worker.WorkerSettings
 
-name: ai-software-engineer
+name: codebase-analysis
 
 services:
   postgres:
