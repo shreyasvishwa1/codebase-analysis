@@ -64,6 +64,8 @@ class AnalysisRun(UUIDPrimaryKeyMixin, Base):
     skipped: Mapped[dict[str, int]] = mapped_column(JSONB, nullable=False)
     # Code-quality totals (app.analysis.quality); NULL for runs stored before migration 0005.
     quality: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True), nullable=True)
+    # Security totals (app.analysis.security); NULL for runs stored before migration 0006.
+    security: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -57,11 +57,39 @@ FastAPI (uvicorn)  ── auth, ownership, rate limits, validation
 | --- | --- | --- | --- |
 | Summary | 2 | 1 | Files, languages, lines of code, excluded paths |
 | Code quality | 3 | 2 | Ruff (pyflakes, pycodestyle, naming, docstrings, bugbear, simplify) and the existing unreachable-code AST diagnostic; duplicate blocks (normalized line windows, all languages); TODO/FIXME markers; very long files |
-| Security | 4 | 3 | Bandit (Python), pattern rules for JavaScript/TypeScript (XSS sinks, `eval`, SQL built from strings), the secret scan, insecure configuration checks; Semgrep when installed |
+| Security | 4 | 3 | Bandit (Python); pattern rules for JavaScript/TypeScript (XSS sinks, `eval`, SQL and shell commands built from strings) and any language (TLS verification off, insecure JWT, CORS wildcard); the secret-scan rules; settings, `.env` and Dockerfile checks |
 | Complexity | 5 | 4 | Radon: cyclomatic complexity per function, maintainability index, classes and functions; a lightweight brace-based estimate for JavaScript/TypeScript |
 | Dependencies | 6 | 5 | Manifest inventory (`package.json`, `pyproject.toml`, `requirements*.txt`), latest versions from PyPI/npm, known vulnerabilities from OSV.dev |
 | Architecture | 7 | 6 | Evidence rules: frameworks (manifests and imports), entry points, API routes, database access, authentication code, configuration and infrastructure files; components and edges built from the import graph |
 | Health score | 8 | 7 | Documented formula over the results above (section 6) |
+
+### Security (phase 3)
+
+- **Bandit** runs on the same private working copy as Ruff (one copy per run, shared), with
+  the same safeguards (isolated, minimal environment, 300-second timeout, 64 MiB report cap).
+  `--ignore-nosec` reports findings even where the code says `# nosec`; B101 (`assert`) is
+  skipped as noise. Bandit's messages for hard-coded passwords (B105-B107) contain the value,
+  so they are replaced with a message that does not.
+- **Own checks** (`app/analysis/security/patterns.py`): the secret-scan rules on every line of
+  every text file (comments too); JavaScript/TypeScript rules for `eval`, `new Function`,
+  shell commands and SQL built from strings, and HTML sinks (`innerHTML`, `document.write`,
+  `dangerouslySetInnerHTML`); TLS verification off, insecure JWT options and CORS wildcards in
+  any language; `DEBUG = True` and `ALLOWED_HOSTS = ['*']` in Python settings files;
+  hard-coded credentials in other languages and configuration files (placeholders such as
+  `your-password` or `${TOKEN}` are ignored); committed `.env` files (templates such as
+  `.env.example` are not); Dockerfiles without an unprivileged `USER`, with an unpinned base
+  image, or with `ADD <url>`. Code rules skip comment lines; patterns are linear.
+- **Classification** (`app/analysis/security/rules.py`): severity critical/high/medium/low
+  (critical is reserved for committed credentials in a known format and private keys);
+  confidence **confirmed** (the insecure code or file is definitely present, including Bandit
+  findings with HIGH confidence) or **potential** (a pattern that needs review); an OWASP Top 10
+  (2021) category; a CWE when one applies; an explanation and a recommendation.
+- **Never claims a project is secure.** Every security view states that automated checks
+  find known patterns only. Matched secret values are never stored or returned.
+- **Limits**: every finding is counted; the 5,000 most severe are stored; at most 100 own
+  findings per file; one finding per rule and line.
+- **Not yet covered**: vulnerable dependency versions (OSV.dev) arrive with dependency
+  analysis in phase 5.
 
 ### Code quality (phase 2)
 
@@ -113,7 +141,7 @@ it:
 | --- | --- | --- |
 | `analysis_runs` | One completed full analysis | `id`, `analysis_job_id` (FK, unique), `repository_id` (FK), `project_id` (FK), file and line counts, `languages` (JSONB), `excluded_paths` count, timestamps; index (`repository_id`, `created_at`) |
 | `code_issues` | Code quality findings (migration 0005) | `run_id` (FK, cascade), `path`, `line`, `column`, `end_line`, `tool`, `rule_id`, `category`, `severity`, `message`, `explanation`, `suggestion`, `doc_url`; indexes (`run_id`, `severity`), (`run_id`, `category`), (`run_id`, `path`). The run's totals are in `analysis_runs.quality` (JSONB) |
-| `security_findings` | Security findings | `run_id`, `path`, `line`, `tool`, `rule_id`, `title`, `severity` (critical/high/medium/low), `confidence` (confirmed/potential), `cwe`, `description`, `remediation` |
+| `security_findings` | Security findings (migration 0006) | `run_id` (FK, cascade), `path`, `line`, `end_line`, `tool`, `rule_id`, `title`, `owasp` (A01-A10), `cwe`, `severity` (critical/high/medium/low), `confidence` (confirmed/potential), `message`, `explanation`, `recommendation`, `doc_url`; indexes (`run_id`, `severity`), (`run_id`, `owasp`), (`run_id`, `path`). The run's totals are in `analysis_runs.security` (JSONB) |
 | `complexity_metrics` | Per-file complexity | `run_id`, `path`, `language`, `lines`, `functions`, `classes`, `avg_complexity`, `max_complexity`, `maintainability_index`, `rank` |
 | `complexity_functions` | Per-function complexity | `run_id`, `path`, `name`, `line`, `complexity`, `rank` |
 | `dependency_records` | Dependency health | `run_id`, `manifest_path`, `ecosystem`, `name`, `specifier`, `scope`, `latest_version`, `outdated`, `vulnerabilities` (JSONB) |

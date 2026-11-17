@@ -8,7 +8,8 @@ from typing import Any
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import AnalysisRun, CodeIssue, Project, Repository
+from app.analysis.results import escape_like, latest_runs_with, run_entry
+from app.models import CodeIssue
 
 MAX_PAGE_SIZE = 200
 MAX_QUERY_CHARS = 200
@@ -26,10 +27,6 @@ class IssueFilters:
     query: str | None = None  # case-insensitive text in the message, path or rule
 
 
-def _escape_like(text: str) -> str:
-    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-
-
 async def list_issues(
     db: AsyncSession, run_id: uuid.UUID, filters: IssueFilters, page: int, page_size: int
 ) -> tuple[list[CodeIssue], int]:
@@ -41,7 +38,7 @@ async def list_issues(
     if filters.path:
         conditions.append(CodeIssue.path == filters.path)
     if filters.query:
-        pattern = f"%{_escape_like(filters.query[:MAX_QUERY_CHARS])}%"
+        pattern = f"%{escape_like(filters.query[:MAX_QUERY_CHARS])}%"
         conditions.append(
             or_(
                 CodeIssue.message.ilike(pattern, escape="\\"),
@@ -62,32 +59,7 @@ async def list_issues(
 
 async def quality_overview(db: AsyncSession, user_id: uuid.UUID) -> list[dict[str, Any]]:
     """Each of the user's repositories whose latest run has quality results, newest first."""
-    latest = (
-        select(AnalysisRun.id)
-        .join(Project, Project.id == AnalysisRun.project_id)
-        .where(Project.user_id == user_id)
-        .distinct(AnalysisRun.repository_id)
-        .order_by(AnalysisRun.repository_id, AnalysisRun.created_at.desc(), AnalysisRun.id.desc())
-    ).subquery()
-    rows = await db.execute(
-        select(AnalysisRun, Project.name, Repository.name)
-        .join(latest, latest.c.id == AnalysisRun.id)
-        .join(Project, Project.id == AnalysisRun.project_id)
-        .join(Repository, Repository.id == AnalysisRun.repository_id)
-        .where(AnalysisRun.quality.is_not(None))
-        .order_by(AnalysisRun.created_at.desc(), AnalysisRun.id.desc())
-    )
     return [
-        {
-            "project_id": run.project_id,
-            "project_name": project_name,
-            "repository_id": run.repository_id,
-            "repository_name": repository_name,
-            "run_id": run.id,
-            "created_at": run.created_at,
-            "analyzed_file_count": run.analyzed_file_count,
-            "code_lines": run.code_lines,
-            "quality": run.quality,
-        }
-        for run, project_name, repository_name in rows.all()
+        {**run_entry(run, project, repository), "quality": run.quality}
+        for run, project, repository in await latest_runs_with(db, user_id, "quality")
     ]

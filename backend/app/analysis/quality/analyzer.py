@@ -24,6 +24,7 @@ from app.analysis.quality.duplication import DuplicationDetector, DuplicationRes
 from app.analysis.quality.rules import CATEGORIES, OWN_RULES, SEVERITIES, RuleInfo, ruff_rule
 from app.analysis.quality.ruff_runner import RuffStatus, read_report, run_ruff
 from app.analysis.summary import SnapshotFile, is_analyzable
+from app.analysis.working_copy import PythonWorkingCopy
 from app.services.code_metrics import count_lines
 
 # The unreachable-code diagnostic of the code explorer, reused unchanged.
@@ -77,11 +78,10 @@ def _plural(count: int, word: str) -> str:
 
 
 class QualityAnalyzer:
-    def __init__(self, workdir: Path) -> None:
-        self._source = workdir / "src"
-        self._source.mkdir(parents=True, exist_ok=True)
+    def __init__(self, workdir: Path, copy: PythonWorkingCopy | None = None) -> None:
+        # The Python working copy may be shared with other analyzers of the same run.
+        self._copy = copy if copy is not None else PythonWorkingCopy(workdir)
         self._report = workdir / "ruff.jsonl"
-        self._written: dict[str, str] = {}  # casefolded working-copy path -> snapshot path
         self._duplication = DuplicationDetector()
         self._issues: list[Issue] = []
         self._total = 0
@@ -137,7 +137,7 @@ class QualityAnalyzer:
         self._duplication.add(file.path, file.language, text)
         if _is_python(file.language, PurePosixPath(file.path).suffix.lstrip(".")):
             self._python += 1
-            self._write_copy(file.path, text)
+            self._copy.add(file.path, text)
             self._unreachable(file.path, text)
 
     def _markers(self, path: str, text: str) -> None:
@@ -172,30 +172,17 @@ class QualityAnalyzer:
                 f"{count} after {cause} on line {region.cause_line}.",
             )
 
-    def _write_copy(self, path: str, text: str) -> None:
-        parts = PurePosixPath(path).parts
-        if not parts or ".." in parts or PurePosixPath(path).is_absolute():
-            return
-        key = path.casefold()
-        if key in self._written:
-            return  # differs only by letter case from a file already copied
-        target = self._source.joinpath(*parts)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with target.open("w", encoding="utf-8", newline="") as out:
-            out.write(text)
-        self._written[key] = path
-
     # --- results --------------------------------------------------------------------------
 
     def _ruff(self) -> RuffStatus:
-        if not self._written:
+        if not len(self._copy):
             return "skipped"
-        status = run_ruff(self._source, self._report)
+        status = run_ruff(self._copy.source, self._report)
         if status != "completed":
             return status
         unparsable: set[str] = set()
-        for finding in read_report(self._source, self._report):
-            path = self._written.get(finding.path.casefold())
+        for finding in read_report(self._copy.source, self._report):
+            path = self._copy.snapshot_path(finding.path)
             if path is None:
                 continue
             if not finding.code:

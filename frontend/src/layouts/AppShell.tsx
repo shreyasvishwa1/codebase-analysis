@@ -1,4 +1,4 @@
-import { FileSearch, FolderGit2, LayoutDashboard, LogOut, UploadCloud } from 'lucide-react'
+import { FileSearch, FolderGit2, LayoutDashboard, LogOut, ShieldCheck, UploadCloud } from 'lucide-react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 
 import { BrandMark } from '../components/AuthLayout'
@@ -34,6 +34,7 @@ const NAVIGATION = [
   { to: '/projects', label: 'My Projects', icon: FolderGit2 },
   { to: '/upload', label: 'Upload Repository', icon: UploadCloud },
   { to: '/code-analysis', label: 'Code Analysis', icon: FileSearch },
+  { to: '/security', label: 'Security', icon: ShieldCheck },
 ]
 
 function MainNavigation({ className }: { className: string }) {

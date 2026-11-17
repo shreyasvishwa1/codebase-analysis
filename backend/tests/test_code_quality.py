@@ -17,6 +17,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.analysis.quality import analyzer as analyzer_module
+from app.analysis import tools
 from app.analysis.quality import duplication, ruff_runner
 from app.analysis.quality.analyzer import QualityAnalyzer
 from app.analysis.quality.duplication import DuplicationDetector, significant_lines
@@ -275,7 +276,7 @@ def test_ruff_failures_keep_the_other_checks(
     def fail(*args: Any, **kwargs: Any) -> None:
         raise failure
 
-    monkeypatch.setattr(ruff_runner.subprocess, "run", fail)
+    monkeypatch.setattr(tools.subprocess, "run", fail)
     result = _analyze(tmp_path, [_text("app/main.py", MAIN_PY)])
     assert result.summary["ruff"] == status
     assert {issue.tool for issue in result.issues} == {"codebase-analysis"}  # unreachable code
@@ -287,7 +288,7 @@ def test_ruff_nonzero_exit_and_oversized_report(
     def exit_two(*args: Any, **kwargs: Any) -> subprocess.CompletedProcess[bytes]:
         return subprocess.CompletedProcess(args, 2)
 
-    monkeypatch.setattr(ruff_runner.subprocess, "run", exit_two)
+    monkeypatch.setattr(tools.subprocess, "run", exit_two)
     assert _analyze(tmp_path / "a", [_text("m.py", "x = 1\n")]).summary["ruff"] == "failed"
 
     monkeypatch.undo()
@@ -311,7 +312,7 @@ def test_ruff_runs_isolated_with_a_minimal_environment(
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setenv("SECRET_KEY", "must-not-leak")
-    monkeypatch.setattr(ruff_runner.subprocess, "run", record)
+    monkeypatch.setattr(tools.subprocess, "run", record)
     _analyze(tmp_path, [_text("m.py", "x = 1\n")])
     command, kwargs = seen["command"], seen["kwargs"]
     assert command[1:4] == ["-m", "ruff", "check"]

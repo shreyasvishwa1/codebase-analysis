@@ -935,6 +935,8 @@ export interface AnalysisRun {
   skipped: { binary: number; too_large: number; unavailable: number; generated: number }
   /** code-quality results; null for runs stored before code-quality analysis existed */
   quality: QualitySummary | null
+  /** security results; null for runs stored before security analysis existed */
+  security: SecuritySummary | null
   created_at: string
 }
 
@@ -1060,4 +1062,77 @@ export interface RepositoryQuality {
 
 export interface QualityOverview {
   repositories: RepositoryQuality[]
+}
+
+// --- Security (phase 3) ----------------------------------------------------------------------
+
+export type SecuritySeverity = 'critical' | 'high' | 'medium' | 'low'
+/** confirmed: the insecure code is definitely present; potential: a pattern that needs review */
+export type FindingConfidence = 'confirmed' | 'potential'
+export type OwaspCategory = 'A01' | 'A02' | 'A03' | 'A04' | 'A05' | 'A06' | 'A07' | 'A08' | 'A09' | 'A10'
+
+export interface SecuritySummary {
+  files_scanned: number
+  python_files: number
+  /** Bandit's status: completed, skipped (no Python files), timeout, unavailable, failed, too_large */
+  bandit: string
+  /** every finding */
+  findings: number
+  /** the most severe findings, stored and listed */
+  stored_findings: number
+  by_severity: Record<SecuritySeverity, number>
+  by_confidence: Record<FindingConfidence, number>
+  by_owasp: Record<OwaspCategory, number>
+  top_files: ({ path: string; findings: number } & Record<SecuritySeverity, number>)[]
+  top_rules: { rule_id: string; count: number; title: string; severity: SecuritySeverity }[]
+}
+
+export interface SecurityFinding {
+  id: string
+  path: string
+  line: number
+  end_line: number
+  /** "bandit" or "codebase-analysis" */
+  tool: string
+  rule_id: string
+  title: string
+  owasp: OwaspCategory
+  cwe: number | null
+  severity: SecuritySeverity
+  confidence: FindingConfidence
+  message: string
+  explanation: string
+  recommendation: string
+  doc_url: string | null
+}
+
+export interface SecurityFindingList {
+  items: SecurityFinding[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface FindingFilters {
+  severity?: SecuritySeverity
+  confidence?: FindingConfidence
+  owasp?: OwaspCategory
+  path?: string
+  q?: string
+  page?: number
+}
+
+export interface RepositorySecurity {
+  project_id: string
+  project_name: string
+  repository_id: string
+  repository_name: string
+  run_id: string
+  created_at: string
+  analyzed_file_count: number
+  security: SecuritySummary
+}
+
+export interface SecurityOverview {
+  repositories: RepositorySecurity[]
 }

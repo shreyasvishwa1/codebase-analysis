@@ -14,3 +14,5 @@ arq==0.28.0
 anthropic==1.11.0
 # Code-quality analysis (Python linting of uploaded repositories; static, never runs code).
 ruff==0.8.4
+# Security analysis (Python security linting; static, never runs code).
+bandit==1.9.4

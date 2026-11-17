@@ -1,4 +1,4 @@
-import type { IssueFilters } from '../types/api'
+import type { FindingFilters, IssueFilters } from '../types/api'
 
 export const queryKeys = {
   health: ['health'] as const,
@@ -27,4 +27,7 @@ export const queryKeys = {
   runIssues: (projectId: string, repositoryId: string, runId: string, filters: IssueFilters) =>
     ['projects', projectId, 'repositories', repositoryId, 'analysis-runs', runId, 'issues', filters] as const,
   qualityOverview: ['code-quality'] as const,
+  runSecurityFindings: (projectId: string, repositoryId: string, runId: string, filters: FindingFilters) =>
+    ['projects', projectId, 'repositories', repositoryId, 'analysis-runs', runId, 'security-findings', filters] as const,
+  securityOverview: ['security'] as const,
 }

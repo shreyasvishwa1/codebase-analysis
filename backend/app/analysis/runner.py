@@ -24,8 +24,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
 from app.analysis.quality.analyzer import QualityAnalyzer, QualityResult
+from app.analysis.security.analyzer import SecurityAnalyzer, SecurityResult
 from app.analysis.snapshot import SnapshotRow, iter_snapshot
 from app.analysis.summary import Summary, SummaryBuilder
+from app.analysis.working_copy import PythonWorkingCopy
 from app.config import get_settings
 from app.models import (
     AnalysisJob,
@@ -36,6 +38,7 @@ from app.models import (
     File,
     Repository,
     RepositoryStatus,
+    SecurityFinding,
 )
 from app.services.analysis_jobs import claim_pending_job, fail_pending_job
 
@@ -78,20 +81,25 @@ class AnalysisRunError(Exception):
 class RunResult:
     summary: Summary
     quality: QualityResult
+    security: SecurityResult
 
 
 def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> RunResult:
     """Run every analyzer over the snapshot in one pass, reading one file at a time.
 
-    The quality analyzer's private working copy (verified Python files for Ruff) lives in a
-    temporary directory that is removed when the analysis ends, whatever the outcome."""
+    The private working copy of the verified Python files, shared by Ruff and Bandit, lives
+    in a temporary directory that is removed when the analysis ends, whatever the outcome."""
     summary = SummaryBuilder()
-    with tempfile.TemporaryDirectory(prefix="cba-analysis-") as workdir:
-        quality = QualityAnalyzer(Path(workdir))
+    with tempfile.TemporaryDirectory(prefix="cba-analysis-") as directory:
+        workdir = Path(directory)
+        copy = PythonWorkingCopy(workdir)
+        quality = QualityAnalyzer(workdir, copy)
+        security = SecurityAnalyzer(workdir, copy)
         for file in iter_snapshot(root, rows):
             summary.add(file)
             quality.add(file)
-        return RunResult(summary.result(), quality.result())
+            security.add(file)
+        return RunResult(summary.result(), quality.result(), security.result())
 
 
 # --- API side ---------------------------------------------------------------------------------
@@ -272,6 +280,7 @@ async def _store_run(
         languages=summary.languages,
         skipped=summary.skipped,
         quality=result.quality.summary,
+        security=result.security.summary,
         # The wall-clock time, not the transaction start: history order stays exact
         # even for runs stored within one transaction.
         created_at=func.clock_timestamp(),
@@ -282,6 +291,11 @@ async def _store_run(
         await db.execute(
             insert(CodeIssue),
             [{"run_id": run.id, **asdict(issue)} for issue in result.quality.issues],
+        )
+    if result.security.findings:
+        await db.execute(
+            insert(SecurityFinding),
+            [{"run_id": run.id, **asdict(finding)} for finding in result.security.findings],
         )
     await db.commit()
     return "completed"

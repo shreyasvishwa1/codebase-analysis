@@ -35,6 +35,7 @@ from app.api.v1.routes import (
     repositories,
     repository_files,
     secret_scan,
+    security,
     symbol_search,
 )
 
@@ -51,6 +52,8 @@ api_router.include_router(analysis_runs.router)
 api_router.include_router(analysis_runs.dashboard_router)
 api_router.include_router(code_quality.router)
 api_router.include_router(code_quality.overview_router)
+api_router.include_router(security.router)
+api_router.include_router(security.overview_router)
 api_router.include_router(dependencies.router)
 api_router.include_router(file_explanation.router)
 api_router.include_router(secret_scan.router)

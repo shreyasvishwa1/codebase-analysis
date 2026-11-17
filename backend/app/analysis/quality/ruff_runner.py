@@ -6,26 +6,24 @@ by the quality analyzer), never on repository storage, so excluded directories, 
 configuration files in the repository can not influence it. ``--isolated`` ignores every
 configuration file; the rule selection is ours.
 
-The process gets a minimal environment, a timeout and a cap on its output; its JSON-lines
-report goes to a file and is parsed one line at a time.
+It runs through app.analysis.tools (minimal environment, timeout, report size cap); its
+JSON-lines report goes to a file and is parsed one line at a time.
 """
 
 import json
-import os
-import subprocess
 import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal
 
 from app.analysis.quality.rules import RUFF_IGNORE, RUFF_SELECT
+from app.analysis.tools import ToolStatus, run_tool
 
 RUFF_TIMEOUT_SECONDS = 240
 MAX_REPORT_BYTES = 64 * 1024 * 1024
 LINE_LENGTH = 100
 
-RuffStatus = Literal["completed", "timeout", "unavailable", "failed", "too_large", "skipped"]
+RuffStatus = ToolStatus
 
 
 @dataclass(frozen=True)
@@ -63,35 +61,16 @@ def ruff_command(source_dir: Path) -> list[str]:
     ]
 
 
-def _environment() -> dict[str, str]:
-    keep = ("PATH", "SYSTEMROOT", "TEMP", "TMP", "HOME", "USERPROFILE", "LANG")
-    return {key: value for key in keep if (value := os.environ.get(key)) is not None}
-
-
 def run_ruff(source_dir: Path, report: Path) -> RuffStatus:
     """Run Ruff on ``source_dir``, writing its report to ``report``."""
-    try:
-        with report.open("wb") as out:
-            completed = subprocess.run(  # noqa: S603 - fixed argument list, no shell
-                ruff_command(source_dir),
-                cwd=source_dir,
-                env=_environment(),
-                stdin=subprocess.DEVNULL,
-                stdout=out,
-                stderr=subprocess.DEVNULL,
-                timeout=RUFF_TIMEOUT_SECONDS,
-                check=False,
-            )
-    except subprocess.TimeoutExpired:
-        return "timeout"
-    except OSError:
-        return "unavailable"
-    if completed.returncode != 0:
-        # --exit-zero: a non-zero exit is a Ruff failure, including "No module named ruff".
-        return "failed"
-    if report.stat().st_size > MAX_REPORT_BYTES:
-        return "too_large"
-    return "completed"
+    return run_tool(
+        ruff_command(source_dir),
+        source_dir,
+        report,
+        timeout=RUFF_TIMEOUT_SECONDS,
+        max_report_bytes=MAX_REPORT_BYTES,
+        report_on_stdout=True,
+    )
 
 
 def read_report(source_dir: Path, report: Path) -> Iterator[RuffFinding]:

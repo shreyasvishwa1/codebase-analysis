@@ -14,6 +14,7 @@ from app.models.file import File
 from app.models.file_metric import FileMetric
 from app.models.project import Project
 from app.models.repository import Repository
+from app.models.security_finding import SecurityFinding
 from app.models.user import User
 
 __all__ = [
@@ -29,5 +30,6 @@ __all__ = [
     "Repository",
     "RepositorySourceType",
     "RepositoryStatus",
+    "SecurityFinding",
     "User",
 ]
