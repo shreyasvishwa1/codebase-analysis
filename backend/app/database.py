@@ -25,7 +25,14 @@ def get_database_url() -> URL:
         raise ConfigurationError("DATABASE_URL is not a valid database URL") from None
     if url.drivername != REQUIRED_DRIVER:
         raise ConfigurationError(f"DATABASE_URL must use the {REQUIRED_DRIVER}:// scheme")
-    return url
+    # Hosted databases (for example Neon) hand out libpq-style URLs. asyncpg calls the TLS
+    # mode "ssl" (same values) and has no channel-binding option, so translate both.
+    query = dict(url.query)
+    if "sslmode" in query:
+        mode = query.pop("sslmode")
+        query.setdefault("ssl", mode)  # an explicit ssl= wins
+    query.pop("channel_binding", None)
+    return url.set(query=query)
 
 
 @lru_cache

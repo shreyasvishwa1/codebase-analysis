@@ -451,8 +451,10 @@ All endpoints are under `/api/v1`. Repository endpoints share the prefix
   fails.
 - **Bundle size**: the main frontend bundle is about 739 kB, above Vite's 500 kB warning.
 - **Deployment**: single-server only. The root `docker-compose.yml` is for local development;
-  for hosting, see [DEPLOY.md](DEPLOY.md) (Railway) or [DEPLOY-ORACLE.md](DEPLOY-ORACLE.md)
-  (free, on an Oracle Cloud Always Free server).
+  for hosting, see [DEPLOY.md](DEPLOY.md) (Railway), [DEPLOY-ORACLE.md](DEPLOY-ORACLE.md)
+  (free, on an Oracle Cloud Always Free server) or [DEPLOY-HUGGINGFACE.md](DEPLOY-HUGGINGFACE.md)
+  (free, no card: Hugging Face Spaces with a Neon database; uploaded code must be ingested
+  again after the Space restarts).
 
 ## Future Scope
 

@@ -126,6 +126,31 @@ def test_invalid_database_url_rejected_without_leaking(
     assert "SECRET-MARKER" not in str(excinfo.value)
 
 
+@pytest.mark.parametrize(
+    ("query", "expected"),
+    [
+        ("", {}),
+        ("?sslmode=require&channel_binding=require", {"ssl": "require"}),
+        ("?sslmode=verify-full", {"ssl": "verify-full"}),
+        ("?ssl=verify-full&sslmode=require", {"ssl": "verify-full"}),
+        ("?channel_binding=prefer&application_name=x", {"application_name": "x"}),
+    ],
+)
+def test_libpq_style_options_are_translated_for_asyncpg(
+    monkeypatch: pytest.MonkeyPatch, query: str, expected: dict[str, str]
+) -> None:
+    raw = f"postgresql+asyncpg://user:pw@ep-demo.neon.tech/neondb{query}"
+    fake = Settings(_env_file=None, secret_key="x" * 40, database_url=raw)  # type: ignore[call-arg]
+    monkeypatch.setattr(database, "get_settings", lambda: fake)
+    url = database.get_database_url()
+    assert dict(url.query) == expected
+    assert (url.host, url.database, url.username) == ("ep-demo.neon.tech", "neondb", "user")
+    # What the driver receives: no keyword asyncpg would reject.
+    engine = create_async_engine(url)
+    kwargs = engine.dialect.create_connect_args(url)[1]
+    assert "sslmode" not in kwargs and "channel_binding" not in kwargs
+
+
 def test_alembic_single_head_and_offline_sql_covers_the_six_tables() -> None:
     # Offline mode loads alembic/env.py and the app metadata without connecting.
     result = subprocess.run(
