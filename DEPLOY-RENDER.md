@@ -30,7 +30,7 @@ settings, including a generated `SECRET_KEY`.
 ## 2. Create the service on Render (about 10 minutes, plus the first build)
 
 1. Sign up at https://render.com with **GitHub**, and allow Render to access the
-   `ai-software-engineer-codebase` repository.
+   `codebase-analysis` repository.
 2. In the dashboard, click **New → Blueprint** and pick the repository. Render reads
    `render.yaml` and shows one web service, `ai-software-engineer`, on the **Free** plan.
 3. Fill in the values Render asks for:

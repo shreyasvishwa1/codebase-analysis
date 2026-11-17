@@ -52,7 +52,7 @@ ssh -i path/to/ssh-key.key ubuntu@YOUR_SERVER_IP
 On the server, run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/shreyasvishwa1/ai-software-engineer-codebase/main/deploy/oracle/setup.sh -o setup.sh
+curl -fsSL https://raw.githubusercontent.com/shreyasvishwa1/codebase-analysis/main/deploy/oracle/setup.sh -o setup.sh
 bash setup.sh
 ```
 
@@ -67,8 +67,8 @@ To use your own domain instead, point its DNS `A` record at the server IP and ru
 Edit the settings file on the server, then restart:
 
 ```bash
-nano ~/ai-software-engineer-codebase/deploy/oracle/.env
-cd ~/ai-software-engineer-codebase/deploy/oracle && sudo docker compose up -d
+nano ~/codebase-analysis/deploy/oracle/.env
+cd ~/codebase-analysis/deploy/oracle && sudo docker compose up -d
 ```
 
 - **AI explanations (free)**: set `GEMINI_API_KEY` to a key from https://aistudio.google.com/apikey.
@@ -85,12 +85,12 @@ not change `POSTGRES_PASSWORD` after the first start.
 After new commits are pushed to GitHub:
 
 ```bash
-cd ~/ai-software-engineer-codebase && git pull && cd deploy/oracle && sudo docker compose up -d --build
+cd ~/codebase-analysis && git pull && cd deploy/oracle && sudo docker compose up -d --build
 ```
 
 ## Useful commands
 
-All of these run from `~/ai-software-engineer-codebase/deploy/oracle`.
+All of these run from `~/codebase-analysis/deploy/oracle`.
 
 | Task | Command |
 | --- | --- |

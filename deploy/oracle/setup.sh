@@ -9,8 +9,8 @@
 # Safe to re-run: an existing .env is kept, so secrets and data survive.
 set -euo pipefail
 
-REPO_URL="https://github.com/shreyasvishwa1/ai-software-engineer-codebase.git"
-APP_DIR="$HOME/ai-software-engineer-codebase"
+REPO_URL="https://github.com/shreyasvishwa1/codebase-analysis.git"
+APP_DIR="$HOME/codebase-analysis"
 SITE_ADDRESS="${1:-}"
 
 echo "==> Installing Docker and Git"
