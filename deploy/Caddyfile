@@ -3,7 +3,18 @@
 	servers {
 		# The hosting platform's edge proxy sets X-Forwarded-For; trust it only from private
 		# and shared address ranges so the backend sees each visitor's real IP for rate limits.
+		# Strict mode reads the chain right to left and takes the first untrusted address, so a
+		# visitor cannot pick their own IP by sending an X-Forwarded-For header.
 		trusted_proxies static private_ranges 100.64.0.0/10
+		trusted_proxies_strict
+	}
+}
+
+# Hand the API only the visitor's address as Caddy resolved it. Passing the whole chain made
+# uvicorn take the last hop (the platform proxy or this host), so every visitor shared one IP.
+(api) {
+	reverse_proxy 127.0.0.1:8000 {
+		header_up X-Forwarded-For {client_ip}
 	}
 }
 
@@ -11,10 +22,10 @@
 	encode gzip
 
 	handle /api/* {
-		reverse_proxy 127.0.0.1:8000
+		import api
 	}
 	handle /health {
-		reverse_proxy 127.0.0.1:8000
+		import api
 	}
 
 	# The single-page app: unknown paths fall back to index.html for client-side routes.
