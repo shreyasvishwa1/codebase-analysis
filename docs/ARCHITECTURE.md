@@ -60,8 +60,41 @@ FastAPI (uvicorn)  ── auth, ownership, rate limits, validation
 | Security | 4 | 3 | Bandit (Python); pattern rules for JavaScript/TypeScript (XSS sinks, `eval`, SQL and shell commands built from strings) and any language (TLS verification off, insecure JWT, CORS wildcard); the secret-scan rules; settings, `.env` and Dockerfile checks |
 | Complexity | 5 | 4 | Lizard: cyclomatic complexity, lines and parameters of every function in about twenty languages; Radon: the maintainability index of Python files (the same formula estimated from Lizard's tokens elsewhere); classes |
 | Dependencies | 6 | 5 | The existing manifest parsers (`package.json`, `pyproject.toml`, `requirements*.txt`); latest versions from PyPI and npm; known vulnerabilities from OSV.dev (CVSS v3 scores computed from the published vectors); conflicting declarations; vulnerable versions also become security findings (A06) |
-| Architecture | 7 | 6 | Evidence rules: frameworks (manifests and imports), entry points, API routes, database access, authentication code, configuration and infrastructure files; components and edges built from the import graph |
+| Architecture | 7 | 6 | Components (directories) and the imports between them (Python syntax trees and the code explorer's module index; JavaScript/TypeScript relative and `@/` imports); technologies from manifests and imports; data stores; API routes (FastAPI/Flask/Django, Express-style, Next.js); entry points; Dockerfiles, Docker Compose, CI, deployment and Kubernetes files; rule-based observations with evidence |
 | Health score | 8 | 7 | Documented formula over the results above (section 6) |
+
+### Architecture (phase 6)
+
+- **Components** are directories. The depth shown is the deepest (at most 4) that gives at
+  most 40 components, so large repositories stay readable.
+- **Edges** are imports between files of different components, resolved to repository
+  files: Python with the code explorer's module index (absolute and relative imports;
+  ambiguous matches go to the file nearest the importer), JavaScript/TypeScript by relative
+  path with the usual extensions, `index` files, `.js` imports of `.ts` sources and the `@/`
+  alias for `src/`. Each edge keeps up to three example imports (file and line). Dependency
+  cycles are the strongly connected components (Tarjan) of the component graph.
+- **Roles** come from files: tests (directories or names), user interface (`.tsx/.jsx/.vue/
+  .svelte`), API (route declarations), data access (`models/`, `db/`, ...), authentication
+  (`auth`, `login`, `jwt`, ... in the path), workers and configuration. A component's primary
+  role places it in the diagram; API and data access count from a single file, the others
+  need half of the files.
+- **Technologies** are known packages (a catalog of about 70) declared in a manifest or
+  imported. **Data stores** come from database drivers and Docker Compose images.
+- **Routes**: FastAPI/Flask decorators (with the router prefix declared in the same file),
+  Django `path()`, Express-style `app.get('/...')` and Next.js file routes. **Entry points**:
+  web applications, `__main__` scripts, frontend mounts, servers that listen, `package.json`
+  main/bin/scripts and `index.html`. **Infrastructure**: Dockerfiles (images, ports,
+  commands), Docker Compose (read with PyYAML's safe loader, at most 256 KiB), CI, deployment,
+  web-server, Terraform and Kubernetes files.
+- **Observations** are fixed rules, each with evidence: frontend and backend in separate
+  top-level directories, a layered structure (API and data-access components), circular
+  dependencies, the most depended-on component (3 or more importers), containers,
+  continuous integration, no tests.
+- **Diagram** (frontend): components in columns by role (tests, interface, API, core and
+  services, data access, data stores), columns wrapping after 7 rows, drawn at natural size in
+  a scrollable box with zoom. Arrow width follows the number of imports; red arrows join two
+  components that import each other; dashed arrows lead to data stores. Selecting a
+  component shows its roles' evidence, its imports and its users.
 
 ### Dependencies (phase 5)
 
@@ -191,7 +224,7 @@ it:
 | `complexity_files` | Per-file complexity (migration 0007) | `run_id` (FK, cascade), `path` (unique per run), `language`, `nloc`, `functions`, `classes`, `total_cyclomatic`, `max_cyclomatic`, `average_cyclomatic`, `rank`, `maintainability_index`, `maintainability`, `mi_estimated`; index (`run_id`, `max_cyclomatic`) |
 | `complexity_functions` | Per-function complexity (migration 0007) | `run_id` (FK, cascade), `path`, `name`, `line`, `end_line`, `cyclomatic`, `nloc`, `parameters`, `rank`; indexes (`run_id`, `cyclomatic`), (`run_id`, `path`). The run's totals are in `analysis_runs.complexity` (JSONB) |
 | `dependency_records` | Dependency health (migration 0008) | `run_id` (FK, cascade), `manifest`, `ecosystem`, `name`, `specifier`, `scope`, `line`, `version`, `version_source` (pinned/minimum/none), `latest_version`, `update`, `vulnerability_count`, `max_severity`, `vulnerabilities` (JSONB: id, aliases, summary, severity, score, fixed_in, cwe, url), `conflict`; indexes (`run_id`, `name`), (`run_id`, `vulnerability_count`). The run's totals are in `analysis_runs.dependencies` (JSONB) |
-| `architecture_insights` | Architecture model | `run_id` (PK), `stack`, `components`, `edges`, `entry_points`, `observations` (JSONB, each item with evidence) |
+| `architecture_reports` | Architecture model (migration 0009) | `run_id` (FK, cascade, unique), `document` (JSONB: depth, components with roles and evidence, edges with example imports, cycles, technologies, data stores, routes, entry points, infrastructure, Compose services, observations, truncation flags). The run's counts are in `analysis_runs.architecture` (JSONB) |
 | `health_scores` | Scores per run | `run_id` (PK), overall and six dimension scores, `details`, `weights`, `methodology_version` |
 | `code_chunks` | Retrieval units for the chat | `run_id`, `path`, `start_line`, `end_line`, `symbol`, `content`, `search` (tsvector, GIN index), `embedding` (vector, nullable) |
 | `chat_conversations` / `chat_messages` | Chat history per user and repository | conversation: `user_id`, `repository_id`, `run_id`, `title`; message: `role`, `content`, `citations` (JSONB) |

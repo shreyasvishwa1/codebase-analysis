@@ -44,4 +44,7 @@ export const queryKeys = {
   runDependencies: (projectId: string, repositoryId: string, runId: string, filters: DependencyFilters) =>
     ['projects', projectId, 'repositories', repositoryId, 'analysis-runs', runId, 'dependencies', filters] as const,
   dependencyOverview: ['dependency-analysis'] as const,
+  runArchitecture: (projectId: string, repositoryId: string, runId: string) =>
+    ['projects', projectId, 'repositories', repositoryId, 'analysis-runs', runId, 'architecture'] as const,
+  architectureOverview: ['architecture'] as const,
 }

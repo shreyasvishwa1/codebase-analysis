@@ -941,6 +941,8 @@ export interface AnalysisRun {
   complexity: ComplexitySummary | null
   /** dependency results; null for runs stored before dependency analysis existed */
   dependencies: DependencyAnalysisSummary | null
+  /** architecture summary; null for runs stored before architecture analysis existed */
+  architecture: ArchitectureSummary | null
   created_at: string
 }
 
@@ -1336,4 +1338,87 @@ export interface RepositoryDependencies {
 
 export interface DependencyOverview {
   repositories: RepositoryDependencies[]
+}
+
+// --- Architecture (phase 6) --------------------------------------------------------------------
+
+export type ComponentRole = 'ui' | 'api' | 'auth' | 'worker' | 'core' | 'data' | 'config' | 'test'
+
+export interface EvidenceItem {
+  path: string
+  line: number
+  detail: string
+}
+
+export interface ArchitectureComponent {
+  /** the component's directory; "(root)" for files at the repository root */
+  id: string
+  files: number
+  code_lines: number
+  languages: string[]
+  /** places the component in the diagram */
+  role: ComponentRole
+  roles: ComponentRole[]
+  evidence: Partial<Record<ComponentRole, EvidenceItem[]>>
+  depends_on: number
+  used_by: number
+}
+
+export interface ArchitectureEdge {
+  source: string
+  target: string
+  imports: number
+  examples: EvidenceItem[]
+}
+
+export interface ArchitectureDocument {
+  depth: number
+  components: ArchitectureComponent[]
+  edges: ArchitectureEdge[]
+  cycles: string[][]
+  technologies: { name: string; category: string; ecosystem: string; evidence: EvidenceItem[] }[]
+  data_stores: { name: string; evidence: EvidenceItem[] }[]
+  routes: { method: string; path: string; file: string; line: number; framework: string }[]
+  entry_points: { kind: string; path: string; line: number; detail: string }[]
+  infrastructure: { kind: string; path: string; line: number; detail: string }[]
+  services: { name: string; file: string; image: string | null; build: boolean; ports: string[]; depends_on: string[]; data_store: string | null }[]
+  observations: { title: string; detail: string; evidence: EvidenceItem[] }[]
+  truncated: { edges: boolean; routes: boolean; entry_points: boolean; infrastructure: boolean }
+}
+
+export interface ArchitectureSummary {
+  source_files: number
+  components: number
+  edges: number
+  imports: number
+  routes: number
+  entry_points: number
+  technologies: string[]
+  data_stores: string[]
+  infrastructure: number
+  services: number
+  cycles: number
+  observations: number
+}
+
+export interface ArchitectureReport {
+  run_id: string
+  created_at: string
+  document: ArchitectureDocument
+}
+
+export interface RepositoryArchitecture {
+  project_id: string
+  project_name: string
+  repository_id: string
+  repository_name: string
+  run_id: string
+  created_at: string
+  analyzed_file_count: number
+  code_lines: number
+  architecture: ArchitectureSummary
+}
+
+export interface ArchitectureOverview {
+  repositories: RepositoryArchitecture[]
 }

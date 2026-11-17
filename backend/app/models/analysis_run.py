@@ -74,6 +74,10 @@ class AnalysisRun(UUIDPrimaryKeyMixin, Base):
     dependencies: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB(none_as_null=True), nullable=True
     )
+    # Architecture summary (app.analysis.architecture); NULL for runs stored before 0009.
+    architecture: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(none_as_null=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

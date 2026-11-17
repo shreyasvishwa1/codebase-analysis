@@ -21,3 +21,5 @@ lizard==1.26.1
 radon==6.0.1
 # Dependency analysis (PEP 440 version comparison).
 packaging==26.3
+# Architecture analysis (Docker Compose files, read with the safe loader).
+pyyaml==6.0.3

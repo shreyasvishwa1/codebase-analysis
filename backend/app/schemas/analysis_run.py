@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 from app.models.enums import AnalysisJobStatus
 from app.schemas.analysis_job import AnalysisJobResponse
+from app.schemas.architecture import ArchitectureSummary
 from app.schemas.code_issue import QualitySummary
 from app.schemas.complexity import ComplexitySummary
 from app.schemas.dependency_record import DependencySummary
@@ -49,6 +50,8 @@ class AnalysisRunResponse(BaseModel):
     complexity: ComplexitySummary | None
     # None for runs stored before dependency analysis existed.
     dependencies: DependencySummary | None
+    # None for runs stored before architecture analysis existed.
+    architecture: ArchitectureSummary | None
     created_at: datetime
 
 

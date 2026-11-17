@@ -23,6 +23,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
+from app.analysis.architecture.analyzer import ArchitectureAnalyzer, ArchitectureResult
 from app.analysis.complexity.analyzer import ComplexityAnalyzer, ComplexityResult
 from app.analysis.dependencies.analyzer import DependencyAnalyzer
 from app.analysis.quality.analyzer import QualityAnalyzer, QualityResult
@@ -36,6 +37,7 @@ from app.models import (
     AnalysisJobStatus,
     AnalysisJobType,
     AnalysisRun,
+    ArchitectureReport,
     CodeIssue,
     ComplexityFile,
     ComplexityFunction,
@@ -89,6 +91,7 @@ class RunResult:
     security: SecurityResult
     complexity: ComplexityResult
     dependencies: DependencyAnalyzer  # declarations; looked up after the pass
+    architecture: ArchitectureResult
 
 
 def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> RunResult:
@@ -104,18 +107,21 @@ def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> RunResult:
         security = SecurityAnalyzer(workdir, copy)
         complexity = ComplexityAnalyzer()
         dependencies = DependencyAnalyzer()
+        architecture = ArchitectureAnalyzer()
         for file in iter_snapshot(root, rows):
             summary.add(file)
             quality.add(file)
             security.add(file)
             complexity.add(file)
             dependencies.add(file)
+            architecture.add(file)
         return RunResult(
             summary.result(),
             quality.result(),
             security.result(),
             complexity.result(),
             dependencies,
+            architecture.result(dependencies.records),
         )
 
 
@@ -309,6 +315,7 @@ async def _store_run(
         security=result.security.summary,
         complexity=result.complexity.summary,
         dependencies=result.dependencies.summary(),
+        architecture=result.architecture.summary,
         # The wall-clock time, not the transaction start: history order stays exact
         # even for runs stored within one transaction.
         created_at=func.clock_timestamp(),
@@ -340,6 +347,7 @@ async def _store_run(
             insert(DependencyRecord),
             [{"run_id": run.id, **asdict(record)} for record in result.dependencies.records],
         )
+    db.add(ArchitectureReport(run_id=run.id, document=result.architecture.document))
     await db.commit()
     return "completed"
 

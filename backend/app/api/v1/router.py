@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from app.api.v1.routes import (
     analysis_jobs,
     analysis_runs,
+    architecture,
     auth,
     code_call_hierarchy,
     complexity,
@@ -60,6 +61,8 @@ api_router.include_router(complexity.router)
 api_router.include_router(complexity.overview_router)
 api_router.include_router(dependency_analysis.router)
 api_router.include_router(dependency_analysis.overview_router)
+api_router.include_router(architecture.router)
+api_router.include_router(architecture.overview_router)
 api_router.include_router(dependencies.router)
 api_router.include_router(file_explanation.router)
 api_router.include_router(secret_scan.router)
