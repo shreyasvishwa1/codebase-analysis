@@ -352,6 +352,7 @@ below exists in the code.
 | `SMTP_USERNAME`, `SMTP_PASSWORD` | Optional | empty | Mail server login; for Gmail, the address and a Google app password (not the account password) |
 | `SMTP_FROM` | Optional | empty | Sender address of reset emails |
 | `APP_BASE_URL` | Optional | empty | Public origin of the frontend, such as `http://127.0.0.1:5173`; reset links point to `<APP_BASE_URL>/reset-password` |
+| `CLIENT_IP_HEADER` | Optional (deployments) | `X-Forwarded-For` | Header the bundled Caddy reads the visitor's address from; `Cf-Connecting-Ip` behind Cloudflare (set in `render.yaml`) |
 | `REGISTER_IP_LIMIT` | Optional | `5` | Sign-ups per hour from one network address; raise it for a class sharing one Wi-Fi |
 | `LOGIN_IP_LIMIT` | Optional | `10` | Login attempts per minute from one network address; raise it the same way |
 | `BREVO_API_KEY` | Optional | empty | Sends reset emails through Brevo's HTTPS API instead of SMTP (for hosts that block SMTP, such as Render's free plan) |
