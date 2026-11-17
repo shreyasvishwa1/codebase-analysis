@@ -24,10 +24,12 @@ TABLES = {
     "analysis_runs",
     "code_issues",
     "security_findings",
+    "complexity_files",
+    "complexity_functions",
 }
 
 
-def test_metadata_registers_exactly_the_nine_tables() -> None:
+def test_metadata_registers_exactly_the_eleven_tables() -> None:
     assert set(Base.metadata.tables) == TABLES
 
 
@@ -72,6 +74,8 @@ def test_foreign_keys_cascade_on_delete() -> None:
         ("analysis_runs", "project_id"): ("projects", "CASCADE"),
         ("code_issues", "run_id"): ("analysis_runs", "CASCADE"),
         ("security_findings", "run_id"): ("analysis_runs", "CASCADE"),
+        ("complexity_files", "run_id"): ("analysis_runs", "CASCADE"),
+        ("complexity_functions", "run_id"): ("analysis_runs", "CASCADE"),
     }
 
 
@@ -103,6 +107,9 @@ def test_unique_constraints_and_indexes() -> None:
         ("security_findings", ("run_id", "severity")),
         ("security_findings", ("run_id", "owasp")),
         ("security_findings", ("run_id", "path")),
+        ("complexity_files", ("run_id", "max_cyclomatic")),
+        ("complexity_functions", ("run_id", "cyclomatic")),
+        ("complexity_functions", ("run_id", "path")),
     }
 
 
@@ -174,7 +181,7 @@ def test_libpq_style_options_are_translated_for_asyncpg(
     assert "sslmode" not in kwargs and "channel_binding" not in kwargs
 
 
-def test_alembic_single_head_and_offline_sql_covers_the_nine_tables() -> None:
+def test_alembic_single_head_and_offline_sql_covers_the_eleven_tables() -> None:
     # Offline mode loads alembic/env.py and the app metadata without connecting.
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head", "--sql"],
@@ -194,7 +201,7 @@ def test_alembic_single_head_and_offline_sql_covers_the_nine_tables() -> None:
         text=True,
         check=True,
     )
-    assert heads.stdout.split() == ["0006", "(head)"]
+    assert heads.stdout.split() == ["0007", "(head)"]
 
 
 @pytest.mark.skipif(
@@ -209,6 +216,6 @@ async def test_migrated_database_connectivity() -> None:
             names = await conn.run_sync(lambda c: set(inspect(c).get_table_names()))
             assert names == TABLES | {"alembic_version"}
             version = (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar()
-            assert version == "0006"
+            assert version == "0007"
     finally:
         await engine.dispose()

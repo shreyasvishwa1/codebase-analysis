@@ -1,4 +1,9 @@
-import type { FindingFilters, IssueFilters } from '../types/api'
+import type {
+  ComplexityFileFilters,
+  ComplexityFunctionFilters,
+  FindingFilters,
+  IssueFilters,
+} from '../types/api'
 
 export const queryKeys = {
   health: ['health'] as const,
@@ -30,4 +35,9 @@ export const queryKeys = {
   runSecurityFindings: (projectId: string, repositoryId: string, runId: string, filters: FindingFilters) =>
     ['projects', projectId, 'repositories', repositoryId, 'analysis-runs', runId, 'security-findings', filters] as const,
   securityOverview: ['security'] as const,
+  complexityFiles: (projectId: string, repositoryId: string, runId: string, filters: ComplexityFileFilters) =>
+    ['projects', projectId, 'repositories', repositoryId, 'analysis-runs', runId, 'complexity-files', filters] as const,
+  complexityFunctions: (projectId: string, repositoryId: string, runId: string, filters: ComplexityFunctionFilters) =>
+    ['projects', projectId, 'repositories', repositoryId, 'analysis-runs', runId, 'complexity-functions', filters] as const,
+  complexityOverview: ['complexity'] as const,
 }

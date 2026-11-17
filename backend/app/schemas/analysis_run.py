@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict
 from app.models.enums import AnalysisJobStatus
 from app.schemas.analysis_job import AnalysisJobResponse
 from app.schemas.code_issue import QualitySummary
+from app.schemas.complexity import ComplexitySummary
 from app.schemas.security_finding import SecuritySummary
 
 
@@ -43,6 +44,8 @@ class AnalysisRunResponse(BaseModel):
     quality: QualitySummary | None
     # None for runs stored before security analysis existed.
     security: SecuritySummary | None
+    # None for runs stored before complexity analysis existed.
+    complexity: ComplexitySummary | None
     created_at: datetime
 
 

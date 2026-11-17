@@ -11,6 +11,7 @@ from app.api.v1.routes import (
     analysis_runs,
     auth,
     code_call_hierarchy,
+    complexity,
     code_definition,
     code_importers,
     code_imports,
@@ -54,6 +55,8 @@ api_router.include_router(code_quality.router)
 api_router.include_router(code_quality.overview_router)
 api_router.include_router(security.router)
 api_router.include_router(security.overview_router)
+api_router.include_router(complexity.router)
+api_router.include_router(complexity.overview_router)
 api_router.include_router(dependencies.router)
 api_router.include_router(file_explanation.router)
 api_router.include_router(secret_scan.router)

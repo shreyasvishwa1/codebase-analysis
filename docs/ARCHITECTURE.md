@@ -58,10 +58,30 @@ FastAPI (uvicorn)  ── auth, ownership, rate limits, validation
 | Summary | 2 | 1 | Files, languages, lines of code, excluded paths |
 | Code quality | 3 | 2 | Ruff (pyflakes, pycodestyle, naming, docstrings, bugbear, simplify) and the existing unreachable-code AST diagnostic; duplicate blocks (normalized line windows, all languages); TODO/FIXME markers; very long files |
 | Security | 4 | 3 | Bandit (Python); pattern rules for JavaScript/TypeScript (XSS sinks, `eval`, SQL and shell commands built from strings) and any language (TLS verification off, insecure JWT, CORS wildcard); the secret-scan rules; settings, `.env` and Dockerfile checks |
-| Complexity | 5 | 4 | Radon: cyclomatic complexity per function, maintainability index, classes and functions; a lightweight brace-based estimate for JavaScript/TypeScript |
+| Complexity | 5 | 4 | Lizard: cyclomatic complexity, lines and parameters of every function in about twenty languages; Radon: the maintainability index of Python files (the same formula estimated from Lizard's tokens elsewhere); classes |
 | Dependencies | 6 | 5 | Manifest inventory (`package.json`, `pyproject.toml`, `requirements*.txt`), latest versions from PyPI/npm, known vulnerabilities from OSV.dev |
 | Architecture | 7 | 6 | Evidence rules: frameworks (manifests and imports), entry points, API routes, database access, authentication code, configuration and infrastructure files; components and edges built from the import graph |
 | Health score | 8 | 7 | Documented formula over the results above (section 6) |
+
+### Complexity (phase 4)
+
+- **Lizard** measures every function of each measurable file (a programming language Lizard
+  has a reader for; not excluded, not generated, at most 512 KiB): cyclomatic complexity
+  (McCabe: 1 + decision points), lines of code without comments and blanks (NLOC) and
+  parameters. It runs in-process on text that was read through the verified reader; it
+  tokenizes and never runs code.
+- **Maintainability index** (0-100) uses the Radon / Visual Studio formula
+  `max(0, (171 - 5.2 ln V - 0.23 G - 16.2 ln L) * 100 / 171)`. Python files use Radon's own
+  value (it also credits comments). Other languages use the formula with Halstead volume
+  V = N log2 n from Lizard's tokens and are marked "estimated". The repository's index is the
+  mean over files, so a few very long files cannot hide the rest of the code base.
+- **Ranks**: functions are low (1-10), medium (11-20) or high (21+); a file is as complex as
+  its most complex function. Maintainability is good (20+), moderate (10-19) or poor (<10).
+- **Classes** are counted from the Python syntax tree, or from class, interface, struct,
+  enum and trait declarations elsewhere.
+- **Limits**: every measured file and function is counted; up to 20,000 files and the 10,000
+  most complex functions are stored. A file a tool cannot handle is counted, never fatal.
+- The Complexity page also shows the run's duplication percentage from the code analysis.
 
 ### Security (phase 3)
 
@@ -142,8 +162,8 @@ it:
 | `analysis_runs` | One completed full analysis | `id`, `analysis_job_id` (FK, unique), `repository_id` (FK), `project_id` (FK), file and line counts, `languages` (JSONB), `excluded_paths` count, timestamps; index (`repository_id`, `created_at`) |
 | `code_issues` | Code quality findings (migration 0005) | `run_id` (FK, cascade), `path`, `line`, `column`, `end_line`, `tool`, `rule_id`, `category`, `severity`, `message`, `explanation`, `suggestion`, `doc_url`; indexes (`run_id`, `severity`), (`run_id`, `category`), (`run_id`, `path`). The run's totals are in `analysis_runs.quality` (JSONB) |
 | `security_findings` | Security findings (migration 0006) | `run_id` (FK, cascade), `path`, `line`, `end_line`, `tool`, `rule_id`, `title`, `owasp` (A01-A10), `cwe`, `severity` (critical/high/medium/low), `confidence` (confirmed/potential), `message`, `explanation`, `recommendation`, `doc_url`; indexes (`run_id`, `severity`), (`run_id`, `owasp`), (`run_id`, `path`). The run's totals are in `analysis_runs.security` (JSONB) |
-| `complexity_metrics` | Per-file complexity | `run_id`, `path`, `language`, `lines`, `functions`, `classes`, `avg_complexity`, `max_complexity`, `maintainability_index`, `rank` |
-| `complexity_functions` | Per-function complexity | `run_id`, `path`, `name`, `line`, `complexity`, `rank` |
+| `complexity_files` | Per-file complexity (migration 0007) | `run_id` (FK, cascade), `path` (unique per run), `language`, `nloc`, `functions`, `classes`, `total_cyclomatic`, `max_cyclomatic`, `average_cyclomatic`, `rank`, `maintainability_index`, `maintainability`, `mi_estimated`; index (`run_id`, `max_cyclomatic`) |
+| `complexity_functions` | Per-function complexity (migration 0007) | `run_id` (FK, cascade), `path`, `name`, `line`, `end_line`, `cyclomatic`, `nloc`, `parameters`, `rank`; indexes (`run_id`, `cyclomatic`), (`run_id`, `path`). The run's totals are in `analysis_runs.complexity` (JSONB) |
 | `dependency_records` | Dependency health | `run_id`, `manifest_path`, `ecosystem`, `name`, `specifier`, `scope`, `latest_version`, `outdated`, `vulnerabilities` (JSONB) |
 | `architecture_insights` | Architecture model | `run_id` (PK), `stack`, `components`, `edges`, `entry_points`, `observations` (JSONB, each item with evidence) |
 | `health_scores` | Scores per run | `run_id` (PK), overall and six dimension scores, `details`, `weights`, `methodology_version` |

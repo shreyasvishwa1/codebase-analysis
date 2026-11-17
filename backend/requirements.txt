@@ -16,3 +16,6 @@ anthropic==1.11.0
 ruff==0.8.4
 # Security analysis (Python security linting; static, never runs code).
 bandit==1.9.4
+# Complexity analysis (cyclomatic complexity and maintainability; static, never runs code).
+lizard==1.26.1
+radon==6.0.1

@@ -45,6 +45,7 @@ guesses.
 | Ingestion | ZIP upload or public GitHub archive, from one Upload Repository page; background jobs with status; pending jobs can be cancelled |
 | Full analysis | One background run analyzes a repository snapshot (dependency folders such as `node_modules/` and build output excluded) and stores the results; every run is kept in the repository's history |
 | Overview | Totals across all your repositories from their latest stored runs: projects, repositories, lines of code, analyses, active jobs, language distribution and recent analyses |
+| Complexity | Each full analysis also measures complexity: the cyclomatic complexity of every function (Lizard, about twenty languages) rated Low, Medium or High, the maintainability index of every file (Radon for Python; the same formula estimated for other languages), functions, classes, lines of code and duplication. The most complex functions open in the explorer at their line; files can be sorted by complexity, maintainability or size |
 | Security | Each full analysis also checks security: committed secrets and `.env` files, injection risks (SQL and shell commands built from strings, `eval`), XSS sinks, disabled TLS verification, insecure JWT and CORS settings, debug settings and Dockerfiles that run as root, plus Bandit for Python. Findings are rated Critical, High, Medium or Low, marked confirmed or potential, and mapped to the OWASP Top 10 with a CWE; each explains the risk and the fix. Secret values are never shown, and the page never calls a project secure |
 | Code analysis | Each full analysis also finds code-quality issues: bug risks, syntax errors, unused and unreachable code, duplicate blocks (every language), naming, missing docstrings, formatting, TODO/FIXME markers and very long files. Python is checked with Ruff on a private copy, so repository code is never run. Each issue shows its file, line, category, severity, why it matters and a suggested fix, and links to the line in the explorer. Issues can be filtered by severity, category, file and text |
 | Dashboard | Per-repository overview: files, lines of code, languages, dependencies and secret findings; a health score from five checks; code distribution, largest files, file sizes, dependencies by ecosystem and job activity |
@@ -243,11 +244,11 @@ Results at the final development commit:
 
 | Check | Result |
 | --- | --- |
-| Frontend tests (Vitest, Testing Library, jsdom) | 1,276 passing in 42 files |
-| Backend tests (pytest) | 2,795 passing in 46 files; 30 skipped on Windows, where creating symlinks needs a privilege |
+| Frontend tests (Vitest, Testing Library, jsdom) | 1,290 passing in 43 files |
+| Backend tests (pytest) | 2,841 passing in 47 files; 30 skipped on Windows, where creating symlinks needs a privilege |
 | TypeScript typecheck and production build | Passing |
 | `ruff check` and mypy | Passing |
-| Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine; 23/23 for security analysis |
+| Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine; 23/23 for security analysis; 21/21 for complexity analysis |
 
 - **Isolation**: frontend tests mock the API at the axios adapter, so no backend is needed.
   Backend database and API tests run against a throwaway, already-migrated PostgreSQL database
@@ -448,6 +449,7 @@ All endpoints are under `/api/v1`. Repository endpoints share the prefix
 | Repository analysis | `GET`/`POST …/analysis/code-metrics`, `GET …/analysis/dependencies`, `GET …/analysis/secrets` |
 | Full analysis | `POST …/analysis-runs` (start), `GET …/analysis-runs` (latest job and history), `GET …/analysis-runs/{run_id}` |
 | Overview | `GET /dashboard` |
+| Complexity | `GET …/analysis-runs/{run_id}/complexity/files` (filters: `rank`, `maintainability`, `q`; `sort`; paged), `GET …/complexity/functions` (filters: `rank`, `path`, `q`; paged), `GET /complexity` (each repository's latest results) |
 | Security | `GET …/analysis-runs/{run_id}/security-findings` (filters: `severity`, `confidence`, `owasp`, `path`, `q`; paged), `GET /security` (each repository's latest results) |
 | Code analysis | `GET …/analysis-runs/{run_id}/issues` (filters: `severity`, `category`, `path`, `q`; paged), `GET /code-quality` (each repository's latest results) |
 | AI | `POST …/files/explain` |

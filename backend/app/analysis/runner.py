@@ -23,6 +23,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
+from app.analysis.complexity.analyzer import ComplexityAnalyzer, ComplexityResult
 from app.analysis.quality.analyzer import QualityAnalyzer, QualityResult
 from app.analysis.security.analyzer import SecurityAnalyzer, SecurityResult
 from app.analysis.snapshot import SnapshotRow, iter_snapshot
@@ -35,6 +36,8 @@ from app.models import (
     AnalysisJobType,
     AnalysisRun,
     CodeIssue,
+    ComplexityFile,
+    ComplexityFunction,
     File,
     Repository,
     RepositoryStatus,
@@ -82,6 +85,7 @@ class RunResult:
     summary: Summary
     quality: QualityResult
     security: SecurityResult
+    complexity: ComplexityResult
 
 
 def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> RunResult:
@@ -95,11 +99,13 @@ def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> RunResult:
         copy = PythonWorkingCopy(workdir)
         quality = QualityAnalyzer(workdir, copy)
         security = SecurityAnalyzer(workdir, copy)
+        complexity = ComplexityAnalyzer()
         for file in iter_snapshot(root, rows):
             summary.add(file)
             quality.add(file)
             security.add(file)
-        return RunResult(summary.result(), quality.result(), security.result())
+            complexity.add(file)
+        return RunResult(summary.result(), quality.result(), security.result(), complexity.result())
 
 
 # --- API side ---------------------------------------------------------------------------------
@@ -281,6 +287,7 @@ async def _store_run(
         skipped=summary.skipped,
         quality=result.quality.summary,
         security=result.security.summary,
+        complexity=result.complexity.summary,
         # The wall-clock time, not the transaction start: history order stays exact
         # even for runs stored within one transaction.
         created_at=func.clock_timestamp(),
@@ -296,6 +303,16 @@ async def _store_run(
         await db.execute(
             insert(SecurityFinding),
             [{"run_id": run.id, **asdict(finding)} for finding in result.security.findings],
+        )
+    if result.complexity.files:
+        await db.execute(
+            insert(ComplexityFile),
+            [{"run_id": run.id, **asdict(file)} for file in result.complexity.files],
+        )
+    if result.complexity.functions:
+        await db.execute(
+            insert(ComplexityFunction),
+            [{"run_id": run.id, **asdict(function)} for function in result.complexity.functions],
         )
     await db.commit()
     return "completed"

@@ -55,6 +55,7 @@ const run = (overrides: Partial<AnalysisRun> = {}): AnalysisRun => ({
   skipped: { binary: 1, too_large: 0, unavailable: 0, generated: 0 },
   quality: null,
   security: null,
+  complexity: null,
   created_at: '2026-11-17T10:00:00Z',
   ...overrides,
 })

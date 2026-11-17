@@ -937,6 +937,8 @@ export interface AnalysisRun {
   quality: QualitySummary | null
   /** security results; null for runs stored before security analysis existed */
   security: SecuritySummary | null
+  /** complexity results; null for runs stored before complexity analysis existed */
+  complexity: ComplexitySummary | null
   created_at: string
 }
 
@@ -1135,4 +1137,109 @@ export interface RepositorySecurity {
 
 export interface SecurityOverview {
   repositories: RepositorySecurity[]
+}
+
+// --- Complexity (phase 4) ----------------------------------------------------------------------
+
+/** cyclomatic complexity: 1-10 low, 11-20 medium, 21+ high */
+export type ComplexityRank = 'low' | 'medium' | 'high'
+/** maintainability index: 20+ good, 10-19 moderate, below 10 poor */
+export type MaintainabilityLevel = 'good' | 'moderate' | 'poor'
+export type ComplexityFileSort = 'complexity' | 'maintainability' | 'size' | 'path'
+
+export interface ComplexitySummary {
+  files_measured: number
+  files_skipped: { too_large: number; unparsable: number }
+  languages: { language: string; files: number }[]
+  /** lines of code without comments and blanks */
+  nloc: number
+  functions: number
+  classes: number
+  total_cyclomatic: number
+  average_cyclomatic: number
+  max_cyclomatic: number
+  functions_by_rank: Record<ComplexityRank, number>
+  files_by_rank: Record<ComplexityRank, number>
+  /** mean over files, 0-100; null when no file has code */
+  maintainability_index: number | null
+  maintainability: MaintainabilityLevel | null
+  files_by_maintainability: Record<MaintainabilityLevel, number>
+  /** files whose index was estimated from Lizard's tokens (not Python) */
+  mi_estimated_files: number
+  stored_files: number
+  stored_functions: number
+  top_functions: { path: string; name: string; line: number; cyclomatic: number; nloc: number; rank: ComplexityRank }[]
+}
+
+export interface ComplexityFile {
+  id: string
+  path: string
+  language: string
+  nloc: number
+  functions: number
+  classes: number
+  total_cyclomatic: number
+  max_cyclomatic: number
+  average_cyclomatic: number
+  rank: ComplexityRank
+  maintainability_index: number | null
+  maintainability: MaintainabilityLevel | null
+  mi_estimated: boolean
+}
+
+export interface ComplexityFunction {
+  id: string
+  path: string
+  name: string
+  line: number
+  end_line: number
+  cyclomatic: number
+  nloc: number
+  parameters: number
+  rank: ComplexityRank
+}
+
+export interface ComplexityFileList {
+  items: ComplexityFile[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface ComplexityFunctionList {
+  items: ComplexityFunction[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface ComplexityFileFilters {
+  rank?: ComplexityRank
+  maintainability?: MaintainabilityLevel
+  q?: string
+  sort?: ComplexityFileSort
+  page?: number
+}
+
+export interface ComplexityFunctionFilters {
+  rank?: ComplexityRank
+  path?: string
+  q?: string
+  page?: number
+}
+
+export interface RepositoryComplexity {
+  project_id: string
+  project_name: string
+  repository_id: string
+  repository_name: string
+  run_id: string
+  created_at: string
+  analyzed_file_count: number
+  code_lines: number
+  complexity: ComplexitySummary
+}
+
+export interface ComplexityOverview {
+  repositories: RepositoryComplexity[]
 }

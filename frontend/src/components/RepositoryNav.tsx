@@ -1,4 +1,4 @@
-import { FileSearch, FolderTree, Gauge, ShieldCheck } from 'lucide-react'
+import { Activity, FileSearch, FolderTree, Gauge, ShieldCheck } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
 /**
@@ -12,6 +12,7 @@ export function RepositoryNav({ projectId, repositoryId }: { projectId: string; 
     { to: `${base}/analysis`, label: 'Full analysis', icon: Gauge, end: false },
     { to: `${base}/code-analysis`, label: 'Code analysis', icon: FileSearch, end: false },
     { to: `${base}/security`, label: 'Security', icon: ShieldCheck, end: false },
+    { to: `${base}/complexity`, label: 'Complexity', icon: Activity, end: false },
   ]
   return (
     <nav aria-label="Repository sections" className="flex flex-wrap gap-2">

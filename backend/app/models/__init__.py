@@ -4,6 +4,7 @@ from app.models.analysis_job import AnalysisJob
 from app.models.analysis_run import AnalysisRun
 from app.models.base import Base
 from app.models.code_issue import CodeIssue
+from app.models.complexity import ComplexityFile, ComplexityFunction
 from app.models.enums import (
     AnalysisJobStatus,
     AnalysisJobType,
@@ -24,6 +25,8 @@ __all__ = [
     "AnalysisJobType",
     "Base",
     "CodeIssue",
+    "ComplexityFile",
+    "ComplexityFunction",
     "File",
     "FileMetric",
     "Project",
