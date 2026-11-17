@@ -20,8 +20,11 @@
 
 :{$PORT:8080} {
 	encode gzip
+	# TEMPORARY diagnostic: log request headers of /health checks only (no auth or content).
+	log
 
 	handle /api/* {
+		log_skip
 		import api
 	}
 	handle /health {
@@ -30,6 +33,7 @@
 
 	# The single-page app: unknown paths fall back to index.html for client-side routes.
 	handle {
+		log_skip
 		root * /app/frontend/dist
 		try_files {path} /index.html
 		file_server
