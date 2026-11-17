@@ -59,9 +59,35 @@ FastAPI (uvicorn)  ── auth, ownership, rate limits, validation
 | Code quality | 3 | 2 | Ruff (pyflakes, pycodestyle, naming, docstrings, bugbear, simplify) and the existing unreachable-code AST diagnostic; duplicate blocks (normalized line windows, all languages); TODO/FIXME markers; very long files |
 | Security | 4 | 3 | Bandit (Python); pattern rules for JavaScript/TypeScript (XSS sinks, `eval`, SQL and shell commands built from strings) and any language (TLS verification off, insecure JWT, CORS wildcard); the secret-scan rules; settings, `.env` and Dockerfile checks |
 | Complexity | 5 | 4 | Lizard: cyclomatic complexity, lines and parameters of every function in about twenty languages; Radon: the maintainability index of Python files (the same formula estimated from Lizard's tokens elsewhere); classes |
-| Dependencies | 6 | 5 | Manifest inventory (`package.json`, `pyproject.toml`, `requirements*.txt`), latest versions from PyPI/npm, known vulnerabilities from OSV.dev |
+| Dependencies | 6 | 5 | The existing manifest parsers (`package.json`, `pyproject.toml`, `requirements*.txt`); latest versions from PyPI and npm; known vulnerabilities from OSV.dev (CVSS v3 scores computed from the published vectors); conflicting declarations; vulnerable versions also become security findings (A06) |
 | Architecture | 7 | 6 | Evidence rules: frameworks (manifests and imports), entry points, API routes, database access, authentication code, configuration and infrastructure files; components and edges built from the import graph |
 | Health score | 8 | 7 | Documented formula over the results above (section 6) |
+
+### Dependencies (phase 5)
+
+- **Declarations** come from the existing manifest parsers, in the same pass as the other
+  analyzers (manifests in excluded directories such as `node_modules/` are skipped). Each
+  declaration records its manifest, line, scope and the version to check: `pinned`
+  (`==2.25.0`, `2.25.0`), `minimum` (the lowest version a range allows: `>=2.25`, `^4.17.1`) or
+  `none` (no constraint, a tag, a URL, a path or a git reference). Python versions follow
+  PEP 440 (`packaging`), npm versions semver.
+- **Lookups** run after the pass, outside any database transaction, unless
+  `DEPENDENCY_LOOKUPS=false`: the latest version from PyPI (`/pypi/<name>/json`) or npm
+  (`/<name>/latest`), and advisories from OSV.dev (one `querybatch`, then `/v1/vulns/<id>`).
+  Only these fixed HTTPS hosts are contacted, with quoted, validated names; no redirects,
+  no proxy settings, timeouts, response size caps, at most 500 packages, 300 advisories, 8
+  requests at a time and 120 seconds in total. What is sent: package names and versions.
+  Whatever is not answered in time is reported as `partial` or `failed`, never guessed.
+- **Advisories** for the same vulnerability (a PYSEC and a GHSA record of one CVE) are merged.
+  Severity is the CVSS v3 rating computed from the published vector, else the advisory
+  database's rating, else "unrated". The fix is the lowest fixed version newer than the checked one.
+- **Updates** compare the checked version with the latest release: major, minor, patch, up to
+  date or unknown. A **conflict** is a package declared with different specifiers.
+- **Security**: each advisory of a checked version becomes a security finding (OWASP A06,
+  the advisory's CWE or CWE-1395): confirmed for a pinned version, potential when only the
+  lowest version of a range is affected; unrated advisories count as medium.
+- Results describe the advisories published when the run was analyzed; a new run picks up
+  newer ones.
 
 ### Complexity (phase 4)
 
@@ -164,7 +190,7 @@ it:
 | `security_findings` | Security findings (migration 0006) | `run_id` (FK, cascade), `path`, `line`, `end_line`, `tool`, `rule_id`, `title`, `owasp` (A01-A10), `cwe`, `severity` (critical/high/medium/low), `confidence` (confirmed/potential), `message`, `explanation`, `recommendation`, `doc_url`; indexes (`run_id`, `severity`), (`run_id`, `owasp`), (`run_id`, `path`). The run's totals are in `analysis_runs.security` (JSONB) |
 | `complexity_files` | Per-file complexity (migration 0007) | `run_id` (FK, cascade), `path` (unique per run), `language`, `nloc`, `functions`, `classes`, `total_cyclomatic`, `max_cyclomatic`, `average_cyclomatic`, `rank`, `maintainability_index`, `maintainability`, `mi_estimated`; index (`run_id`, `max_cyclomatic`) |
 | `complexity_functions` | Per-function complexity (migration 0007) | `run_id` (FK, cascade), `path`, `name`, `line`, `end_line`, `cyclomatic`, `nloc`, `parameters`, `rank`; indexes (`run_id`, `cyclomatic`), (`run_id`, `path`). The run's totals are in `analysis_runs.complexity` (JSONB) |
-| `dependency_records` | Dependency health | `run_id`, `manifest_path`, `ecosystem`, `name`, `specifier`, `scope`, `latest_version`, `outdated`, `vulnerabilities` (JSONB) |
+| `dependency_records` | Dependency health (migration 0008) | `run_id` (FK, cascade), `manifest`, `ecosystem`, `name`, `specifier`, `scope`, `line`, `version`, `version_source` (pinned/minimum/none), `latest_version`, `update`, `vulnerability_count`, `max_severity`, `vulnerabilities` (JSONB: id, aliases, summary, severity, score, fixed_in, cwe, url), `conflict`; indexes (`run_id`, `name`), (`run_id`, `vulnerability_count`). The run's totals are in `analysis_runs.dependencies` (JSONB) |
 | `architecture_insights` | Architecture model | `run_id` (PK), `stack`, `components`, `edges`, `entry_points`, `observations` (JSONB, each item with evidence) |
 | `health_scores` | Scores per run | `run_id` (PK), overall and six dimension scores, `details`, `weights`, `methodology_version` |
 | `code_chunks` | Retrieval units for the chat | `run_id`, `path`, `start_line`, `end_line`, `symbol`, `content`, `search` (tsvector, GIN index), `embedding` (vector, nullable) |

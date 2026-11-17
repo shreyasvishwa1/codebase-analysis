@@ -14,7 +14,7 @@ its job, so every run has complete results.
 
 import tempfile
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import timedelta
 from pathlib import Path
 
@@ -24,8 +24,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
 from app.analysis.complexity.analyzer import ComplexityAnalyzer, ComplexityResult
+from app.analysis.dependencies.analyzer import DependencyAnalyzer
 from app.analysis.quality.analyzer import QualityAnalyzer, QualityResult
-from app.analysis.security.analyzer import SecurityAnalyzer, SecurityResult
+from app.analysis.security.analyzer import SecurityAnalyzer, SecurityResult, with_extra_findings
 from app.analysis.snapshot import SnapshotRow, iter_snapshot
 from app.analysis.summary import Summary, SummaryBuilder
 from app.analysis.working_copy import PythonWorkingCopy
@@ -38,6 +39,7 @@ from app.models import (
     CodeIssue,
     ComplexityFile,
     ComplexityFunction,
+    DependencyRecord,
     File,
     Repository,
     RepositoryStatus,
@@ -86,6 +88,7 @@ class RunResult:
     quality: QualityResult
     security: SecurityResult
     complexity: ComplexityResult
+    dependencies: DependencyAnalyzer  # declarations; looked up after the pass
 
 
 def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> RunResult:
@@ -100,12 +103,29 @@ def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> RunResult:
         quality = QualityAnalyzer(workdir, copy)
         security = SecurityAnalyzer(workdir, copy)
         complexity = ComplexityAnalyzer()
+        dependencies = DependencyAnalyzer()
         for file in iter_snapshot(root, rows):
             summary.add(file)
             quality.add(file)
             security.add(file)
             complexity.add(file)
-        return RunResult(summary.result(), quality.result(), security.result(), complexity.result())
+            dependencies.add(file)
+        return RunResult(
+            summary.result(),
+            quality.result(),
+            security.result(),
+            complexity.result(),
+            dependencies,
+        )
+
+
+async def check_dependencies(result: RunResult) -> RunResult:
+    """Look the declared dependencies up (outside any database transaction) and add the
+    vulnerable ones to the security results. Lookup failures are reported in the summary,
+    never raised."""
+    await result.dependencies.check(get_settings().dependency_lookups)
+    security = with_extra_findings(result.security, result.dependencies.security_findings())
+    return replace(result, security=security)
 
 
 # --- API side ---------------------------------------------------------------------------------
@@ -288,6 +308,7 @@ async def _store_run(
         quality=result.quality.summary,
         security=result.security.summary,
         complexity=result.complexity.summary,
+        dependencies=result.dependencies.summary(),
         # The wall-clock time, not the transaction start: history order stays exact
         # even for runs stored within one transaction.
         created_at=func.clock_timestamp(),
@@ -313,6 +334,11 @@ async def _store_run(
         await db.execute(
             insert(ComplexityFunction),
             [{"run_id": run.id, **asdict(function)} for function in result.complexity.functions],
+        )
+    if result.dependencies.records:
+        await db.execute(
+            insert(DependencyRecord),
+            [{"run_id": run.id, **asdict(record)} for record in result.dependencies.records],
         )
     await db.commit()
     return "completed"
@@ -353,6 +379,7 @@ async def run_full_analysis_job(db: AsyncSession, job_id: uuid.UUID) -> str:
         snapshot_rows = [SnapshotRow(r.path, r.language, r.size_bytes, r.sha256) for r in rows]
         root = repository_storage_dir(get_settings(), repository.id)
         result = await run_in_threadpool(analyze_snapshot, root, snapshot_rows)
+        result = await check_dependencies(result)
         return await _store_run(db, job, repository, {r.id for r in rows}, result)
     except Exception:
         await db.rollback()

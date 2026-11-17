@@ -237,3 +237,63 @@ class SecurityAnalyzer:
             ],
         }
         return SecurityResult(findings=stored, summary=summary)
+
+
+def _rank(finding: Finding) -> tuple[int, int, str, int, str]:
+    return (
+        _SEVERITY_RANK[finding.severity],
+        _CONFIDENCE_RANK[finding.confidence],
+        finding.path,
+        finding.line,
+        finding.rule_id,
+    )
+
+
+def with_extra_findings(result: SecurityResult, extra: list[Finding]) -> SecurityResult:
+    """``result`` with findings found after the file pass (vulnerable dependencies) added
+    to the counts, the stored findings and the top files and rules. Top files and rules are
+    merged from the top lists, so a file outside the previous top ten counts only its new
+    findings."""
+    if not extra:
+        return result
+    summary = {**result.summary}
+    summary["findings"] = summary["findings"] + len(extra)
+    for key, attribute in (
+        ("by_severity", "severity"),
+        ("by_confidence", "confidence"),
+        ("by_owasp", "owasp"),
+    ):
+        counts = dict(summary[key])
+        for finding in extra:
+            counts[getattr(finding, attribute)] += 1
+        summary[key] = counts
+    stored = sorted([*result.findings, *extra], key=_rank)[:MAX_STORED_FINDINGS]
+    summary["stored_findings"] = len(stored)
+
+    files = {entry["path"]: dict(entry) for entry in summary["top_files"]}
+    for finding in extra:
+        entry = files.setdefault(
+            finding.path, {"path": finding.path, "findings": 0, **dict.fromkeys(SEVERITIES, 0)}
+        )
+        entry["findings"] += 1
+        entry[finding.severity] += 1
+    summary["top_files"] = sorted(files.values(), key=lambda e: (-e["findings"], e["path"]))[
+        :TOP_FILES
+    ]
+
+    rules = {entry["rule_id"]: dict(entry) for entry in summary["top_rules"]}
+    for finding in extra:
+        entry = rules.setdefault(
+            finding.rule_id,
+            {
+                "rule_id": finding.rule_id,
+                "count": 0,
+                "title": finding.title,
+                "severity": finding.severity,
+            },
+        )
+        entry["count"] += 1
+    summary["top_rules"] = sorted(rules.values(), key=lambda e: (-e["count"], e["rule_id"]))[
+        :TOP_RULES
+    ]
+    return SecurityResult(findings=stored, summary=summary)

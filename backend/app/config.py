@@ -108,6 +108,10 @@ class Settings(BaseSettings):
     register_ip_limit: int = Field(default=5, ge=1, le=10_000)
     login_ip_limit: int = Field(default=10, ge=1, le=10_000)
 
+    # Dependency analysis looks up the latest versions on PyPI and npm and known
+    # vulnerabilities on OSV.dev; this sends declared package names and versions to them.
+    dependency_lookups: bool = True
+
     @property
     def sender_address(self) -> str | None:
         return self.email_from or self.smtp_from

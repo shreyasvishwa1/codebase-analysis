@@ -29,6 +29,7 @@ from app.api.v1.routes import (
     code_unused_imports,
     code_unused_variables,
     dependencies,
+    dependency_analysis,
     file_explanation,
     health,
     ingestion,
@@ -57,6 +58,8 @@ api_router.include_router(security.router)
 api_router.include_router(security.overview_router)
 api_router.include_router(complexity.router)
 api_router.include_router(complexity.overview_router)
+api_router.include_router(dependency_analysis.router)
+api_router.include_router(dependency_analysis.overview_router)
 api_router.include_router(dependencies.router)
 api_router.include_router(file_explanation.router)
 api_router.include_router(secret_scan.router)

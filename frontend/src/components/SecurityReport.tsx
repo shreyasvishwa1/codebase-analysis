@@ -47,6 +47,8 @@ export const OWASP_LABELS: Record<OwaspCategory, string> = {
 }
 const OWASP_KEYS = Object.keys(OWASP_LABELS) as OwaspCategory[]
 const BANDIT_DOCS = 'https://bandit.readthedocs.io/'
+const OSV_PAGES = 'https://osv.dev/vulnerability/'
+const TOOL_NAMES: Record<string, string> = { bandit: 'Bandit', osv: 'OSV.dev' }
 const BANDIT_PROBLEMS: Record<string, string> = {
   timeout: 'the Python security scan took too long and was stopped',
   unavailable: 'the Python security scanner is not available on the server',
@@ -223,8 +225,9 @@ function TopFiles({ summary, onPath }: { summary: SecuritySummary; onPath: (path
 function FindingRow({ finding, explorer }: { finding: SecurityFinding; explorer: string }) {
   const [open, setOpen] = useState(false)
   const lines = finding.end_line > finding.line ? `${finding.line}–${finding.end_line}` : String(finding.line)
-  // Documentation links only for Bandit's own documentation site; CWE links are built here.
+  // Links only to Bandit's documentation and OSV.dev advisories; CWE links are built here.
   const docs = finding.doc_url?.startsWith(BANDIT_DOCS) ? finding.doc_url : null
+  const advisory = finding.doc_url?.startsWith(OSV_PAGES) ? finding.doc_url : null
   return (
     <li className="py-3">
       <button
@@ -283,7 +286,12 @@ function FindingRow({ finding, explorer }: { finding: SecurityFinding; explorer:
                 <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" /> Bandit {finding.rule_id} documentation
               </a>
             )}
-            <span className="text-slate-500">Found by {finding.tool === 'bandit' ? 'Bandit' : 'CodeBase Analysis'}</span>
+            {advisory && (
+              <a href={advisory} target="_blank" rel="noreferrer noopener" className="inline-flex items-center gap-1 text-indigo-300 hover:underline">
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" /> Advisory {finding.rule_id} on OSV.dev
+              </a>
+            )}
+            <span className="text-slate-500">Found by {TOOL_NAMES[finding.tool] ?? 'CodeBase Analysis'}</span>
           </p>
         </div>
       )}

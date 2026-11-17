@@ -70,6 +70,10 @@ class AnalysisRun(UUIDPrimaryKeyMixin, Base):
     complexity: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB(none_as_null=True), nullable=True
     )
+    # Dependency totals (app.analysis.dependencies); NULL for runs stored before migration 0008.
+    dependencies: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(none_as_null=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

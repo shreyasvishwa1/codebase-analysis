@@ -57,6 +57,7 @@ const run = (overrides: Partial<AnalysisRun> = {}): AnalysisRun => ({
   quality: null,
   security: SUMMARY,
   complexity: null,
+  dependencies: null,
   created_at: '2026-11-18T10:00:00Z',
   ...overrides,
 })
@@ -318,6 +319,39 @@ describe('Repository security', () => {
     })
     expect(await screen.findByRole('link', { name: 'Run a new full analysis' })).toBeTruthy()
     expect(requests.some((r) => r.url.endsWith('/security-findings'))).toBe(false)
+  })
+
+  it('links a vulnerable dependency to its OSV.dev advisory', async () => {
+    const vulnerable = finding({
+      id: 'f-osv',
+      path: 'requirements.txt',
+      line: 2,
+      end_line: 2,
+      tool: 'osv',
+      rule_id: 'GHSA-m2qf-hxjv-5gpq',
+      title: 'Vulnerable dependency: flask 2.0.1',
+      owasp: 'A06',
+      cwe: 539,
+      severity: 'high',
+      message: 'CVE-2023-30861 (GHSA-m2qf-hxjv-5gpq): Session cookie disclosure',
+      doc_url: 'https://osv.dev/vulnerability/GHSA-m2qf-hxjv-5gpq',
+    })
+    mountRepositoryPage({
+      [`GET ${RUNS_URL}`]: { status: 200, data: { job: null, runs: [run()] } },
+      [`GET ${RUNS_URL}/run-1/security-findings`]: {
+        status: 200,
+        data: page([vulnerable, finding({ id: 'f-x', title: 'Odd advisory', tool: 'osv', doc_url: 'https://evil.example/osv' })]),
+      },
+    })
+    const findings = within(await screen.findByRole('region', { name: 'Findings' }))
+    fireEvent.click(await findings.findByRole('button', { name: /Vulnerable dependency: flask/ }))
+    const advisory = findings.getByRole('link', { name: 'Advisory GHSA-m2qf-hxjv-5gpq on OSV.dev' })
+    expect(advisory.getAttribute('href')).toBe('https://osv.dev/vulnerability/GHSA-m2qf-hxjv-5gpq')
+    expect(advisory.getAttribute('rel')).toContain('noopener')
+    expect(findings.getByText('Found by OSV.dev')).toBeTruthy()
+    expect(findings.getByText('requirements.txt:2 · GHSA-m2qf-hxjv-5gpq · A06 Vulnerable and Outdated Components')).toBeTruthy()
+    fireEvent.click(findings.getByRole('button', { name: /Odd advisory/ }))
+    expect(findings.getAllByRole('link', { name: /on OSV\.dev/ })).toHaveLength(1) // other hosts: no link
   })
 
   it('reports failed requests', async () => {

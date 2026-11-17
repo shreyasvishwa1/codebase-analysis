@@ -68,6 +68,7 @@ const run = (overrides: Partial<AnalysisRun> = {}): AnalysisRun => ({
   quality: QUALITY,
   security: null,
   complexity: null,
+  dependencies: null,
   created_at: '2026-11-17T10:00:00Z',
   ...overrides,
 })

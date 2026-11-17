@@ -11,6 +11,8 @@ os.environ.setdefault("SECRET_KEY", "test-only-secret-key-not-for-real-use-00000
 os.environ.setdefault("API_PREFIX", "/api")
 # Placeholder URL without credentials; the engine is lazy, so unit tests never connect.
 os.environ.setdefault("DATABASE_URL", "postgresql+asyncpg://localhost/ai_se_unit_tests")
+# No test reaches PyPI, npm or OSV.dev; dependency lookups are tested against mocked hosts.
+os.environ.setdefault("DEPENDENCY_LOOKUPS", "false")
 
 
 @pytest.fixture(autouse=True)

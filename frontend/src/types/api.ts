@@ -939,6 +939,8 @@ export interface AnalysisRun {
   security: SecuritySummary | null
   /** complexity results; null for runs stored before complexity analysis existed */
   complexity: ComplexitySummary | null
+  /** dependency results; null for runs stored before dependency analysis existed */
+  dependencies: DependencyAnalysisSummary | null
   created_at: string
 }
 
@@ -1242,4 +1244,96 @@ export interface RepositoryComplexity {
 
 export interface ComplexityOverview {
   repositories: RepositoryComplexity[]
+}
+
+// --- Dependencies (phase 5) ------------------------------------------------------------------
+
+export type DependencyEcosystem = 'npm' | 'python'
+/** pinned: one exact version; minimum: the lowest version a range allows; none: no version */
+export type VersionSource = 'pinned' | 'minimum' | 'none'
+export type DependencyUpdate = 'up_to_date' | 'patch' | 'minor' | 'major' | 'unknown'
+export type VulnerabilitySeverity = 'critical' | 'high' | 'medium' | 'low' | 'unknown'
+export type DependencyScopeFilter = 'runtime' | 'dev' | 'other'
+export type DependencySort = 'risk' | 'name' | 'update'
+export type LookupStatus = 'completed' | 'partial' | 'failed' | 'disabled' | 'skipped'
+
+export interface DependencyVulnerability {
+  id: string
+  aliases: string[]
+  summary: string
+  severity: VulnerabilitySeverity
+  /** CVSS v3 base score, when published */
+  score: number | null
+  /** the lowest fixed version newer than the checked one */
+  fixed_in: string | null
+  cwe: number | null
+  url: string
+}
+
+export interface DependencyRecord {
+  id: string
+  manifest: string
+  ecosystem: DependencyEcosystem
+  name: string
+  specifier: string
+  scope: string
+  line: number | null
+  version: string | null
+  version_source: VersionSource
+  latest_version: string | null
+  update: DependencyUpdate
+  vulnerability_count: number
+  max_severity: VulnerabilitySeverity | null
+  vulnerabilities: DependencyVulnerability[]
+  conflict: boolean
+}
+
+export interface DependencyRecordList {
+  items: DependencyRecord[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface DependencyAnalysisSummary {
+  manifests: { total: number; parsed: number; invalid: number; unreadable: number }
+  dependencies: number
+  truncated: boolean
+  by_ecosystem: Record<DependencyEcosystem, number>
+  by_scope: Record<DependencyScopeFilter, number>
+  by_version_source: Record<VersionSource, number>
+  updates: Record<DependencyUpdate, number>
+  vulnerable_dependencies: number
+  vulnerabilities: number
+  by_severity: Record<VulnerabilitySeverity, number>
+  conflicts: { ecosystem: DependencyEcosystem; name: string; declarations: { manifest: string; specifier: string }[] }[]
+  /** registry: latest versions (PyPI, npm); osv: vulnerabilities (OSV.dev) */
+  lookups: { registry: LookupStatus; osv: LookupStatus; checked_at: string | null }
+}
+
+export interface DependencyFilters {
+  ecosystem?: DependencyEcosystem
+  scope?: DependencyScopeFilter
+  update?: DependencyUpdate
+  vulnerable?: boolean
+  conflict?: boolean
+  q?: string
+  sort?: DependencySort
+  page?: number
+}
+
+export interface RepositoryDependencies {
+  project_id: string
+  project_name: string
+  repository_id: string
+  repository_name: string
+  run_id: string
+  created_at: string
+  analyzed_file_count: number
+  code_lines: number
+  dependencies: DependencyAnalysisSummary
+}
+
+export interface DependencyOverview {
+  repositories: RepositoryDependencies[]
 }

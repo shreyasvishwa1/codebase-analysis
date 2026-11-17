@@ -4,6 +4,7 @@ import { RequireAuth } from './components/RequireAuth'
 import { AppShell } from './layouts/AppShell'
 import { CodeAnalysisPage } from './pages/CodeAnalysisPage'
 import { ComplexityPage } from './pages/ComplexityPage'
+import { DependenciesPage } from './pages/DependenciesPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -15,6 +16,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { RepositoryAnalysisPage } from './pages/RepositoryAnalysisPage'
 import { RepositoryCodeAnalysisPage } from './pages/RepositoryCodeAnalysisPage'
 import { RepositoryComplexityPage } from './pages/RepositoryComplexityPage'
+import { RepositoryDependenciesPage } from './pages/RepositoryDependenciesPage'
 import { RepositoryPage } from './pages/RepositoryPage'
 import { RepositorySecurityPage } from './pages/RepositorySecurityPage'
 import { SecurityPage } from './pages/SecurityPage'
@@ -35,6 +37,7 @@ export default function App() {
           <Route path="/code-analysis" element={<CodeAnalysisPage />} />
           <Route path="/security" element={<SecurityPage />} />
           <Route path="/complexity" element={<ComplexityPage />} />
+          <Route path="/dependencies" element={<DependenciesPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<ProjectPage />} />
           <Route
@@ -56,6 +59,10 @@ export default function App() {
           <Route
             path="/projects/:projectId/repositories/:repositoryId/complexity"
             element={<RepositoryComplexityPage />}
+          />
+          <Route
+            path="/projects/:projectId/repositories/:repositoryId/dependencies"
+            element={<RepositoryDependenciesPage />}
           />
         </Route>
       </Route>

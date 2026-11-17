@@ -1,6 +1,7 @@
 import type {
   ComplexityFileFilters,
   ComplexityFunctionFilters,
+  DependencyFilters,
   FindingFilters,
   IssueFilters,
 } from '../types/api'
@@ -40,4 +41,7 @@ export const queryKeys = {
   complexityFunctions: (projectId: string, repositoryId: string, runId: string, filters: ComplexityFunctionFilters) =>
     ['projects', projectId, 'repositories', repositoryId, 'analysis-runs', runId, 'complexity-functions', filters] as const,
   complexityOverview: ['complexity'] as const,
+  runDependencies: (projectId: string, repositoryId: string, runId: string, filters: DependencyFilters) =>
+    ['projects', projectId, 'repositories', repositoryId, 'analysis-runs', runId, 'dependencies', filters] as const,
+  dependencyOverview: ['dependency-analysis'] as const,
 }

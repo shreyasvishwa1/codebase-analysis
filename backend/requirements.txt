@@ -19,3 +19,5 @@ bandit==1.9.4
 # Complexity analysis (cyclomatic complexity and maintainability; static, never runs code).
 lizard==1.26.1
 radon==6.0.1
+# Dependency analysis (PEP 440 version comparison).
+packaging==26.3
