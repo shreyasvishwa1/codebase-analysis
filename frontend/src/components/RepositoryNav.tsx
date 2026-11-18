@@ -1,4 +1,4 @@
-import { Activity, FileSearch, FolderTree, Gauge, HeartPulse, MessagesSquare, Network, Package, ShieldCheck } from 'lucide-react'
+import { Activity, FileSearch, FolderTree, Gauge, HeartPulse, History, MessagesSquare, Network, Package, ShieldCheck } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
 /**
@@ -17,6 +17,7 @@ export function RepositoryNav({ projectId, repositoryId }: { projectId: string; 
     { to: `${base}/architecture`, label: 'Architecture', icon: Network, end: false },
     { to: `${base}/health`, label: 'Health score', icon: HeartPulse, end: false },
     { to: `${base}/chat`, label: 'AI chat', icon: MessagesSquare, end: false },
+    { to: `${base}/history`, label: 'History & reports', icon: History, end: false },
   ]
   return (
     <nav aria-label="Repository sections" className="flex flex-wrap gap-2">

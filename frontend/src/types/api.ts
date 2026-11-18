@@ -1582,3 +1582,58 @@ export interface ChatOverview {
   repositories: ChatRepository[]
   conversations: RecentConversation[]
 }
+
+// --- PDF reports and analysis history ---------------------------------------------------------
+
+export interface GeneratedReport {
+  id: string
+  project_id: string
+  project_name: string
+  repository_id: string
+  repository_name: string
+  run_id: string
+  /** the analysis the report describes */
+  run_created_at: string
+  filename: string
+  size_bytes: number
+  sha256: string
+  pages: number
+  created_at: string
+}
+
+export interface ReportList {
+  /** newest first */
+  reports: GeneratedReport[]
+}
+
+export interface HistoryEntry {
+  run_id: string
+  project_id: string
+  project_name: string
+  repository_id: string
+  repository_name: string
+  created_at: string
+  analyzed_file_count: number
+  code_lines: number
+  /** health score with the user's weights; null when the run cannot be scored */
+  overall: number | null
+  grade: string | null
+  /** null: the run predates that analysis */
+  security_findings: number | null
+  critical_findings: number | null
+  high_findings: number | null
+  quality_issues: number | null
+  /** functions with cyclomatic complexity above 20 */
+  complex_functions: number | null
+  vulnerable_dependencies: number | null
+  chat_ready: boolean
+  /** the user's saved reports of this run */
+  reports: number
+}
+
+export interface AnalysisHistory {
+  /** newest first */
+  entries: HistoryEntry[]
+  /** runs matching the filter */
+  total: number
+}

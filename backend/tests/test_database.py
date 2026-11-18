@@ -31,10 +31,11 @@ TABLES = {
     "code_chunks",
     "chat_conversations",
     "chat_messages",
+    "generated_reports",
 }
 
 
-def test_metadata_registers_exactly_the_sixteen_tables() -> None:
+def test_metadata_registers_exactly_the_seventeen_tables() -> None:
     assert set(Base.metadata.tables) == TABLES
 
 
@@ -89,6 +90,10 @@ def test_foreign_keys_cascade_on_delete() -> None:
         ("chat_conversations", "repository_id"): ("repositories", "CASCADE"),
         ("chat_conversations", "run_id"): ("analysis_runs", "CASCADE"),
         ("chat_messages", "conversation_id"): ("chat_conversations", "CASCADE"),
+        ("generated_reports", "user_id"): ("users", "CASCADE"),
+        ("generated_reports", "project_id"): ("projects", "CASCADE"),
+        ("generated_reports", "repository_id"): ("repositories", "CASCADE"),
+        ("generated_reports", "run_id"): ("analysis_runs", "CASCADE"),
     }
 
 
@@ -130,6 +135,8 @@ def test_unique_constraints_and_indexes() -> None:
         ("chat_conversations", ("user_id", "updated_at")),
         ("chat_conversations", ("repository_id",)),
         ("chat_messages", ("conversation_id", "created_at")),
+        ("generated_reports", ("user_id", "created_at")),
+        ("generated_reports", ("run_id",)),
     }
 
 
@@ -201,7 +208,7 @@ def test_libpq_style_options_are_translated_for_asyncpg(
     assert "sslmode" not in kwargs and "channel_binding" not in kwargs
 
 
-def test_alembic_single_head_and_offline_sql_covers_the_sixteen_tables() -> None:
+def test_alembic_single_head_and_offline_sql_covers_the_seventeen_tables() -> None:
     # Offline mode loads alembic/env.py and the app metadata without connecting.
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head", "--sql"],
@@ -221,7 +228,7 @@ def test_alembic_single_head_and_offline_sql_covers_the_sixteen_tables() -> None
         text=True,
         check=True,
     )
-    assert heads.stdout.split() == ["0011", "(head)"]
+    assert heads.stdout.split() == ["0012", "(head)"]
 
 
 @pytest.mark.skipif(
@@ -236,6 +243,6 @@ async def test_migrated_database_connectivity() -> None:
             names = await conn.run_sync(lambda c: set(inspect(c).get_table_names()))
             assert names == TABLES | {"alembic_version"}
             version = (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar()
-            assert version == "0011"
+            assert version == "0012"
     finally:
         await engine.dispose()

@@ -1072,7 +1072,7 @@ async def test_migration_0003_upgrade_downgrade_upgrade() -> None:
 
     _alembic(TEST_MIGRATION_DATABASE_URL, "downgrade", "base")  # disposable database only
     _alembic(TEST_MIGRATION_DATABASE_URL, "upgrade", "head")
-    assert _alembic(TEST_MIGRATION_DATABASE_URL, "current").split() == ["0011", "(head)"]
+    assert _alembic(TEST_MIGRATION_DATABASE_URL, "current").split() == ["0012", "(head)"]
 
     conn = await asyncpg.connect(raw)
     try:
@@ -1155,5 +1155,5 @@ async def test_migration_0003_upgrade_downgrade_upgrade() -> None:
         await conn.close()
 
     _alembic(TEST_MIGRATION_DATABASE_URL, "upgrade", "head")
-    assert _alembic(TEST_MIGRATION_DATABASE_URL, "current").split() == ["0011", "(head)"]
+    assert _alembic(TEST_MIGRATION_DATABASE_URL, "current").split() == ["0012", "(head)"]
     _alembic(TEST_MIGRATION_DATABASE_URL, "check")  # models and migrations agree

@@ -1,0 +1,15 @@
+/** Save a fetched file through the browser's download (a temporary object URL). */
+export function saveFile(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob)
+  try {
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    link.rel = 'noopener'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}

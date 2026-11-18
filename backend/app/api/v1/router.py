@@ -10,10 +10,9 @@ from app.api.v1.routes import (
     analysis_jobs,
     analysis_runs,
     architecture,
-    chat,
     auth,
+    chat,
     code_call_hierarchy,
-    complexity,
     code_definition,
     code_importers,
     code_imports,
@@ -30,6 +29,7 @@ from app.api.v1.routes import (
     code_unreachable_code,
     code_unused_imports,
     code_unused_variables,
+    complexity,
     dependencies,
     dependency_analysis,
     file_explanation,
@@ -37,6 +37,7 @@ from app.api.v1.routes import (
     health_score,
     ingestion,
     projects,
+    reports,
     repositories,
     repository_files,
     secret_scan,
@@ -69,6 +70,8 @@ api_router.include_router(health_score.router)
 api_router.include_router(health_score.overview_router)
 api_router.include_router(chat.router)
 api_router.include_router(chat.overview_router)
+api_router.include_router(reports.run_router)
+api_router.include_router(reports.router)
 api_router.include_router(dependencies.router)
 api_router.include_router(file_explanation.router)
 api_router.include_router(secret_scan.router)

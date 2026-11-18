@@ -23,3 +23,5 @@ radon==6.0.1
 packaging==26.3
 # Architecture analysis (Docker Compose files, read with the safe loader).
 pyyaml==6.0.3
+# PDF reports (layout, tables and vector charts).
+reportlab==5.1.0

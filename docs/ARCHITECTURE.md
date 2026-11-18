@@ -206,7 +206,7 @@ backend/app/
   ai/                 LLM providers (Anthropic, Gemini) and provider selection
     chunks.py         the AI chat's retrieval units (secrets masked)
   chat/               retrieval (PostgreSQL full-text search), analysis context, prompt
-  reports/            PDF report builder   (phase 9)
+  reports/            PDF reports: data gathered from a run, ReportLab builder
   services/           existing services: ingestion, archive, GitHub, code intelligence
   models/ schemas/    SQLAlchemy models, Pydantic schemas
   workers/            arq worker and queue
@@ -230,7 +230,7 @@ it:
 | `users.health_weights` | Health-score weights (migration 0010) | JSONB, one integer 0-100 per dimension; null means the defaults. Scores are not stored: they are computed from the run's summaries when read, so a change of weights or formulas applies to every run at once |
 | `code_chunks` | Retrieval units for the chat (migration 0011) | `run_id` (FK, cascade), `path`, `language`, `start_line`, `end_line`, `symbol`, `content` (secrets masked), `search` (tsvector: path and symbol weight A, body D; GIN index); index (`run_id`, `path`). The run's counts are in `analysis_runs.chat_index` (JSONB) |
 | `chat_conversations` / `chat_messages` | Chat history per user and repository (migration 0011) | conversation: `user_id`, `project_id`, `repository_id`, `run_id` (all FK, cascade), `title`, `created_at`, `updated_at`; message: `conversation_id` (FK, cascade), `role` (user/assistant), `content`, `citations` (JSONB: number, path, lines, symbol), `model`, token counts, `created_at` |
-| `generated_reports` | Report history | `run_id`, `user_id`, `created_at`, `size_bytes`, `sha256` |
+| `generated_reports` | Saved PDF reports (migration 0012) | `user_id`, `project_id`, `repository_id`, `run_id` (all FK, cascade), `filename`, `size_bytes`, `sha256`, `pages`, `content` (the PDF, loaded only for downloads), `created_at`; indexes (`user_id`, `created_at`), (`run_id`) |
 
 Every result table cascades on delete from its run. Runs cascade from their repository, and
 repositories from their project. Ownership is always checked through the project's
@@ -306,7 +306,34 @@ Densities are per 1,000 lines of code (at least 1,000). A density `d` becomes a 
   it started on. A question and its answer are stored together, only once the answer
   exists. Limits: 30 questions per user per hour; questions up to 2,000 characters.
 
-## 8. Security controls
+## 8. PDF reports and analysis history (phase 9)
+
+- **Reports** (`app/reports`): a report is generated on request from one stored run, in the
+  request (ReportLab, no external service), and kept in the database for its user, with its
+  size, SHA-256 and page count; hosted disks are wiped on redeploys, so files are not used.
+  Sections: overview (counts, languages, the health score), the health score with every
+  dimension's calculation and improvements, security (by severity, OWASP categories, the 30
+  most severe findings with their fixes), code quality (by severity and category, the files
+  with the most issues, the 25 most severe issues), complexity and maintainability (the 15
+  most complex functions, files with a poor index), dependencies (vulnerable ones with the
+  fixed version and advisory ids, those a major version behind, conflicts) and architecture
+  (technologies, data stores, cycles, observations, entry points). Each shortened list says
+  how many items exist; sections a run predates say so. The report states that static
+  analysis cannot show a project is free of bugs or vulnerabilities.
+- **Untrusted text:** every value from the repository is escaped before it reaches
+  ReportLab's paragraph markup (which would otherwise interpret tags), and characters outside
+  the built-in fonts' Windows-1252 are replaced with `?`.
+- **Downloads** carry the user's token (fetched by the frontend, then saved through an object
+  URL), with `Content-Disposition: attachment`, an ASCII file name, `Cache-Control: no-store`
+  and `X-Content-Type-Options: nosniff`.
+- **Limits:** 10 reports per user per hour; at most 100 saved reports per user (delete some to
+  create more).
+- **History:** every run of the user's repositories, newest first (optionally one
+  repository), with its health score (and the change from the repository's previous run),
+  security, quality, complexity and dependency counts, whether the chat can use it, and how
+  many reports the user saved of it.
+
+## 9. Security controls
 
 - Argon2 password hashing, JWT bearer tokens and ownership checks on every repository route.
 - Per-user rate limits for analysis runs, the chat and reports. Per-IP limits for sign-up and
@@ -318,7 +345,7 @@ Densities are per 1,000 lines of code (at least 1,000). A density `d` becomes a 
 - Secrets are never shown: findings carry the location and rule, never the matched value.
 - Error messages are fixed text and never echo internal details.
 
-## 9. Development phases
+## 10. Development phases
 
 | Phase | Deliverable |
 | --- | --- |

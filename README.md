@@ -46,6 +46,7 @@ guesses.
 | Full analysis | One background run analyzes a repository snapshot (dependency folders such as `node_modules/` and build output excluded) and stores the results; every run is kept in the repository's history |
 | Overview | Totals across all your repositories from their latest stored runs: projects, repositories, lines of code, analyses, active jobs, language distribution and recent analyses |
 | Architecture | Each full analysis also maps the architecture: components (directories) and the imports between them in an interactive diagram, dependency cycles, technologies and data stores, API routes, entry points, Dockerfiles, Docker Compose services, CI and deployment files, and observations such as a layered structure or circular dependencies. Every item links to the file and line it comes from |
+| History & Reports | Every full analysis of your repositories, newest first, with its health score and the change from the previous analysis, critical and high security findings, quality issues, complex functions and vulnerable packages. Create a PDF report of any analysis (overview, health score with calculations, security findings with fixes, code quality, complexity, dependencies, architecture); reports are kept so you can download them again |
 | AI Chat | Ask questions about a repository in plain language. Answers are built from the passages of code that match the question (PostgreSQL full-text search over Python definitions and line windows) and from the results of its latest full analysis, and they cite the files and lines they rely on as links into the explorer. Conversations are kept per repository. Secrets are masked before anything is stored or sent, and repository content is passed to the model as untrusted data. Needs `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` |
 | Health Score | One score from 0 to 100 (grade A-F) per analysis: a weighted average of security, code quality, complexity, maintainability, dependency health and architecture. Each dimension shows its inputs, the calculation with the actual numbers and what would raise it. The weights are yours to change, and a trend shows the score across runs. Formulas: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#6-code-health-score-phase-7) |
 | Dependencies | Each full analysis also checks dependency health: every package declared in `package.json`, `pyproject.toml` and `requirements*.txt` (runtime and development), the version it allows, the latest release on PyPI or npm (major, minor or patch behind), known vulnerabilities from OSV.dev with CVE ids, CVSS scores and the fixed version, and packages declared with conflicting versions. Vulnerable versions also appear on the Security page (OWASP A06). Package names and versions are sent to PyPI, npm and OSV.dev; `DEPENDENCY_LOOKUPS=false` turns that off |
@@ -103,7 +104,7 @@ FastAPI on uvicorn (http://127.0.0.1:8000)
 
 | Layer | Technologies |
 | --- | --- |
-| Backend | Python 3.12, FastAPI, SQLAlchemy (async, asyncpg), Alembic, PostgreSQL 16, Redis 7, arq, Pydantic, PyJWT, argon2-cffi |
+| Backend | Python 3.12, FastAPI, SQLAlchemy (async, asyncpg), Alembic, PostgreSQL 16, Redis 7, arq, Pydantic, PyJWT, argon2-cffi, ReportLab (PDF reports) |
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS, TanStack Query, React Router, Axios |
 | Analysis | Python standard library: `ast`, `tokenize` (plus `json` and `tomllib` for manifests) |
 | Testing | pytest, ruff, mypy, Vitest, Testing Library |
@@ -248,11 +249,11 @@ Results at the final development commit:
 
 | Check | Result |
 | --- | --- |
-| Frontend tests (Vitest, Testing Library, jsdom) | 1,355 passing in 47 files |
-| Backend tests (pytest) | 3,063 passing in 51 files; 30 skipped on Windows, where creating symlinks needs a privilege |
+| Frontend tests (Vitest, Testing Library, jsdom) | 1,365 passing in 48 files |
+| Backend tests (pytest) | 3,075 passing in 52 files; 30 skipped on Windows, where creating symlinks needs a privilege |
 | TypeScript typecheck and production build | Passing |
 | `ruff check` and mypy | Passing |
-| Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine; 23/23 for security analysis; 21/21 for complexity analysis; 30/30 for dependency analysis; 30/30 for architecture analysis; 43/43 for the health score; 52/52 for the AI chat |
+| Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine; 23/23 for security analysis; 21/21 for complexity analysis; 30/30 for dependency analysis; 30/30 for architecture analysis; 43/43 for the health score; 52/52 for the AI chat; 47/47 for PDF reports and history |
 
 - **Isolation**: frontend tests mock the API at the axios adapter, so no backend is needed.
   Backend database and API tests run against a throwaway, already-migrated PostgreSQL database
@@ -454,6 +455,7 @@ All endpoints are under `/api/v1`. Repository endpoints share the prefix
 | Repository analysis | `GET`/`POST …/analysis/code-metrics`, `GET …/analysis/dependencies`, `GET …/analysis/secrets` |
 | Full analysis | `POST …/analysis-runs` (start), `GET …/analysis-runs` (latest job and history), `GET …/analysis-runs/{run_id}` |
 | Overview | `GET /dashboard` |
+| Reports and history | `POST …/analysis-runs/{run_id}/reports` (create a PDF report), `GET /reports` (the user's reports, optionally `?repository_id=`), `GET /reports/{id}/download`, `DELETE /reports/{id}`, `GET /analysis-history` (runs with headline numbers; `?repository_id=`, `?limit=`) |
 | AI chat | `GET`/`POST …/chat/conversations` (list; start with a first question), `GET`/`DELETE …/chat/conversations/{id}`, `POST …/chat/conversations/{id}/messages` (a follow-up question), `GET /chat` (repositories ready to chat and recent conversations), `GET /chat/status` |
 | Health score | `GET …/analysis-runs/{run_id}/health` (the run's score, dimensions and weights), `GET …/health-history` (scores per run, oldest first), `GET /health-score` (each repository's latest score), `GET`/`PUT`/`DELETE /health-score/weights` (the user's weights; `DELETE` restores the defaults) |
 | Architecture | `GET …/analysis-runs/{run_id}/architecture` (the run's architecture document), `GET /architecture` (each repository's latest summary) |

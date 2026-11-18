@@ -1,4 +1,4 @@
-import { FileSearch, FolderGit2, Gauge, HeartPulse, LayoutDashboard, LogOut, MessagesSquare, Network, Package, ShieldCheck, UploadCloud } from 'lucide-react'
+import { FileSearch, FolderGit2, Gauge, HeartPulse, History, LayoutDashboard, LogOut, MessagesSquare, Network, Package, ShieldCheck, UploadCloud } from 'lucide-react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 
 import { BrandMark } from '../components/AuthLayout'
@@ -41,6 +41,7 @@ const NAVIGATION = [
   { to: '/architecture', label: 'Architecture', icon: Network },
   { to: '/health-score', label: 'Health Score', icon: HeartPulse },
   { to: '/chat', label: 'AI Chat', icon: MessagesSquare },
+  { to: '/history', label: 'History & Reports', icon: History },
 ]
 
 function MainNavigation({ className }: { className: string }) {

@@ -17,6 +17,7 @@ from app.models.enums import (
 )
 from app.models.file import File
 from app.models.file_metric import FileMetric
+from app.models.generated_report import GeneratedReport
 from app.models.project import Project
 from app.models.repository import Repository
 from app.models.security_finding import SecurityFinding
@@ -38,6 +39,7 @@ __all__ = [
     "DependencyRecord",
     "File",
     "FileMetric",
+    "GeneratedReport",
     "Project",
     "Repository",
     "RepositorySourceType",

@@ -56,6 +56,9 @@ export const queryKeys = {
   healthWeights: ['health-score', 'weights'] as const,
   chatStatus: ['chat', 'status'] as const,
   chatOverview: ['chat'] as const,
+  reports: (repositoryId: string | null) => ['reports', repositoryId ?? 'all'] as const,
+  analysisHistory: (repositoryId: string | null, limit: number) =>
+    ['analysis-history', repositoryId ?? 'all', limit] as const,
   conversations: (projectId: string, repositoryId: string) =>
     ['projects', projectId, 'repositories', repositoryId, 'chat', 'conversations'] as const,
   conversation: (projectId: string, repositoryId: string, conversationId: string) =>
