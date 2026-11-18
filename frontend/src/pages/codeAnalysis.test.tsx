@@ -2,7 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { InternalAxiosRequestConfig } from 'axios'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, afterEach, describe, expect, it, vi } from 'vitest'
 
 import App from '../App'
 import { setToken } from '../services/session'
@@ -19,6 +19,7 @@ import type {
 import { CodeAnalysisPage } from './CodeAnalysisPage'
 import { RepositoryCodeAnalysisPage } from './RepositoryCodeAnalysisPage'
 import { RepositoryPage } from './RepositoryPage'
+import { preloadAllPages } from '../routes/pages'
 
 const P = PROJECT.id
 const R = ZIP_REPOSITORY.id
@@ -132,6 +133,11 @@ afterEach(() => {
 })
 
 const last = <T,>(items: T[]): T | undefined => items[items.length - 1]
+
+
+// Signed-in pages load lazily; compile them once up front so navigation tests do not
+// spend their waits on the test environment's on-demand compilation.
+beforeAll(() => preloadAllPages(), 120_000)
 
 describe('Repository code analysis', () => {
   it('shows the summary, breakdowns and the issues of the latest run', async () => {

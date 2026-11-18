@@ -2,36 +2,18 @@ import { Route, Routes } from 'react-router-dom'
 
 import { RequireAuth, RootRoute } from './components/RequireAuth'
 import { AppShell } from './layouts/AppShell'
-import { ArchitecturePage } from './pages/ArchitecturePage'
-import { ChatPage } from './pages/ChatPage'
-import { CodeAnalysisPage } from './pages/CodeAnalysisPage'
-import { ComplexityPage } from './pages/ComplexityPage'
-import { DependenciesPage } from './pages/DependenciesPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
-import { HealthPage } from './pages/HealthPage'
-import { HistoryPage } from './pages/HistoryPage'
 import { IntroPage } from './pages/IntroPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
-import { OverviewPage } from './pages/OverviewPage'
-import { ProjectPage } from './pages/ProjectPage'
-import { ProjectsPage } from './pages/ProjectsPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
-import { RepositoryAnalysisPage } from './pages/RepositoryAnalysisPage'
-import { RepositoryArchitecturePage } from './pages/RepositoryArchitecturePage'
-import { RepositoryChatPage } from './pages/RepositoryChatPage'
-import { RepositoryCodeAnalysisPage } from './pages/RepositoryCodeAnalysisPage'
-import { RepositoryComplexityPage } from './pages/RepositoryComplexityPage'
-import { RepositoryDependenciesPage } from './pages/RepositoryDependenciesPage'
-import { RepositoryHealthPage } from './pages/RepositoryHealthPage'
-import { RepositoryHistoryPage } from './pages/RepositoryHistoryPage'
-import { RepositoryPage } from './pages/RepositoryPage'
-import { RepositorySecurityPage } from './pages/RepositorySecurityPage'
-import { SecurityPage } from './pages/SecurityPage'
-import { SettingsPage } from './pages/SettingsPage'
-import { UploadPage } from './pages/UploadPage'
+import { Pages } from './routes/pages'
 
+const REPOSITORY = '/projects/:projectId/repositories/:repositoryId'
+
+/** The intro and the sign-in pages load with the app; every signed-in page loads on first use
+ * (and in the background once the browser is idle), with a skeleton while it arrives. */
 export default function App() {
   return (
     <Routes>
@@ -43,59 +25,29 @@ export default function App() {
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
-          <Route path="/overview" element={<OverviewPage />} />
-          <Route path="/upload" element={<UploadPage />} />
-          <Route path="/code-analysis" element={<CodeAnalysisPage />} />
-          <Route path="/security" element={<SecurityPage />} />
-          <Route path="/complexity" element={<ComplexityPage />} />
-          <Route path="/dependencies" element={<DependenciesPage />} />
-          <Route path="/architecture" element={<ArchitecturePage />} />
-          <Route path="/health-score" element={<HealthPage />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/history" element={<HistoryPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/projects/:projectId" element={<ProjectPage />} />
-          <Route
-            path="/projects/:projectId/repositories/:repositoryId"
-            element={<RepositoryPage />}
-          />
-          <Route
-            path="/projects/:projectId/repositories/:repositoryId/analysis"
-            element={<RepositoryAnalysisPage />}
-          />
-          <Route
-            path="/projects/:projectId/repositories/:repositoryId/code-analysis"
-            element={<RepositoryCodeAnalysisPage />}
-          />
-          <Route
-            path="/projects/:projectId/repositories/:repositoryId/security"
-            element={<RepositorySecurityPage />}
-          />
-          <Route
-            path="/projects/:projectId/repositories/:repositoryId/complexity"
-            element={<RepositoryComplexityPage />}
-          />
-          <Route
-            path="/projects/:projectId/repositories/:repositoryId/dependencies"
-            element={<RepositoryDependenciesPage />}
-          />
-          <Route
-            path="/projects/:projectId/repositories/:repositoryId/architecture"
-            element={<RepositoryArchitecturePage />}
-          />
-          <Route
-            path="/projects/:projectId/repositories/:repositoryId/health"
-            element={<RepositoryHealthPage />}
-          />
-          <Route
-            path="/projects/:projectId/repositories/:repositoryId/chat"
-            element={<RepositoryChatPage />}
-          />
-          <Route
-            path="/projects/:projectId/repositories/:repositoryId/history"
-            element={<RepositoryHistoryPage />}
-          />
+          <Route path="/overview" element={<Pages.OverviewPage />} />
+          <Route path="/upload" element={<Pages.UploadPage />} />
+          <Route path="/code-analysis" element={<Pages.CodeAnalysisPage />} />
+          <Route path="/security" element={<Pages.SecurityPage />} />
+          <Route path="/complexity" element={<Pages.ComplexityPage />} />
+          <Route path="/dependencies" element={<Pages.DependenciesPage />} />
+          <Route path="/architecture" element={<Pages.ArchitecturePage />} />
+          <Route path="/health-score" element={<Pages.HealthPage />} />
+          <Route path="/chat" element={<Pages.ChatPage />} />
+          <Route path="/history" element={<Pages.HistoryPage />} />
+          <Route path="/settings" element={<Pages.SettingsPage />} />
+          <Route path="/projects" element={<Pages.ProjectsPage />} />
+          <Route path="/projects/:projectId" element={<Pages.ProjectPage />} />
+          <Route path={REPOSITORY} element={<Pages.RepositoryPage />} />
+          <Route path={`${REPOSITORY}/analysis`} element={<Pages.RepositoryAnalysisPage />} />
+          <Route path={`${REPOSITORY}/code-analysis`} element={<Pages.RepositoryCodeAnalysisPage />} />
+          <Route path={`${REPOSITORY}/security`} element={<Pages.RepositorySecurityPage />} />
+          <Route path={`${REPOSITORY}/complexity`} element={<Pages.RepositoryComplexityPage />} />
+          <Route path={`${REPOSITORY}/dependencies`} element={<Pages.RepositoryDependenciesPage />} />
+          <Route path={`${REPOSITORY}/architecture`} element={<Pages.RepositoryArchitecturePage />} />
+          <Route path={`${REPOSITORY}/health`} element={<Pages.RepositoryHealthPage />} />
+          <Route path={`${REPOSITORY}/chat`} element={<Pages.RepositoryChatPage />} />
+          <Route path={`${REPOSITORY}/history`} element={<Pages.RepositoryHistoryPage />} />
         </Route>
       </Route>
       <Route path="*" element={<NotFoundPage />} />

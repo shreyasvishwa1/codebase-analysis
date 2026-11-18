@@ -1,10 +1,11 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
+import { beforeAll, afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest'
 
 import App from '../App'
 import { getToken, setToken } from '../services/session'
 import { mockApi, USER } from '../test/mockApi'
 import { renderWithProviders } from '../test/render'
+import { preloadAllPages } from '../routes/pages'
 
 const TOKEN = 'header.payload.signature-secret'
 const PASSWORD = 'correct-horse-battery'
@@ -36,6 +37,11 @@ afterEach(() => {
     spy.mockRestore()
   }
 })
+
+
+// Signed-in pages load lazily; compile them once up front so navigation tests do not
+// spend their waits on the test environment's on-demand compilation.
+beforeAll(() => preloadAllPages(), 120_000)
 
 describe('sign in', () => {
   it('stores the token in sessionStorage and opens the dashboard', async () => {

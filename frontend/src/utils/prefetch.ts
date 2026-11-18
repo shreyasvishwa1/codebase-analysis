@@ -1,6 +1,5 @@
 import type { QueryClient, QueryKey } from '@tanstack/react-query'
 
-import { HISTORY_PAGE } from '../components/HistoryPanel'
 import { queryKeys } from '../hooks/queryKeys'
 import { getDashboard } from '../services/analysisRuns'
 import { getArchitectureOverview } from '../services/architecture'
@@ -13,6 +12,8 @@ import { getHealthOverview } from '../services/healthScore'
 import { listProjects } from '../services/projects'
 import { getAnalysisHistory } from '../services/reports'
 import { getSecurityOverview } from '../services/security'
+import { PATH_PAGES, preloadPage } from '../routes/pages'
+import { HISTORY_PAGE } from './history'
 
 interface Prefetch {
   queryKey: QueryKey
@@ -44,9 +45,11 @@ export const PAGE_DATA: Record<string, Prefetch[]> = {
  * over the menu does not repeat requests. */
 export const PREFETCH_FRESH_MS = 15_000
 
-/** Start loading a page's data before it opens (on hover or keyboard focus of its link).
- * Failures are ignored here; the page shows its own error when it opens. */
+/** Start loading a page (its file and its data) before it opens, on hover or keyboard focus of
+ * its link. Failures are ignored here; the page shows its own error when it opens. */
 export function prefetchPage(queryClient: QueryClient, path: string): void {
+  const page = PATH_PAGES[path]
+  if (page) void preloadPage(page)
   for (const { queryKey, queryFn } of PAGE_DATA[path] ?? []) {
     void queryClient.prefetchQuery({ queryKey, queryFn, staleTime: PREFETCH_FRESH_MS })
   }

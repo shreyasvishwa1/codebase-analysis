@@ -1,11 +1,12 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 import App from '../App'
 import { mockApi } from '../test/mockApi'
 import { renderWithProviders } from '../test/render'
 import { PasswordField } from './AuthLayout'
+import { preloadAllPages } from '../routes/pages'
 
 function Harness({ onSubmit }: { onSubmit?: () => void }) {
   const [value, setValue] = useState('')
@@ -23,6 +24,11 @@ function Harness({ onSubmit }: { onSubmit?: () => void }) {
 }
 
 const input = () => screen.getByLabelText('Password') as HTMLInputElement
+
+
+// Signed-in pages load lazily; compile them once up front so navigation tests do not
+// spend their waits on the test environment's on-demand compilation.
+beforeAll(() => preloadAllPages(), 120_000)
 
 describe('PasswordField', () => {
   it('starts hidden and shows or hides the typed password with the eye button', () => {

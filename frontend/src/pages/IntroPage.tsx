@@ -17,7 +17,8 @@ import {
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 
-import { BrandMark, CircuitIllustration } from '../components/AuthLayout'
+import { BrandMark } from '../components/AuthLayout'
+import { Board3D } from '../components/Board3D'
 import { useAuth } from '../hooks/useAuth'
 import { useHealth } from '../hooks/useHealth'
 import { useReveal, useScrollProgress, useTilt } from '../hooks/useMotion'
@@ -70,7 +71,7 @@ function ModuleCard({ refDes, title, text, icon: Icon, index }: (typeof MODULES)
   const tilt = useTilt<HTMLDivElement>(6)
   return (
     <div className="reveal" style={{ '--reveal-delay': `${(index % 4) * 70}ms` } as CSSProperties}>
-      <div ref={tilt} className="tilt group pcb-card h-full p-5 hover:border-indigo-500/50">
+      <div ref={tilt} id={`module-${refDes}`} className="tilt group pcb-card h-full scroll-mt-24 p-5 hover:border-indigo-500/50">
         <div className="tilt-layer flex items-center justify-between" style={{ '--z': '28px' } as CSSProperties}>
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-950 text-indigo-400 transition group-hover:border-indigo-500 group-hover:shadow-[0_0_18px_rgb(var(--indigo-500)/0.35)]">
             <Icon className="h-5 w-5" aria-hidden="true" />
@@ -88,13 +89,23 @@ function ModuleCard({ refDes, title, text, icon: Icon, index }: (typeof MODULES)
   )
 }
 
+/** Scroll to a module's card and flash it (from a click on its chip on the 3D board). */
+function showModule(ref: string) {
+  const card = document.getElementById(`module-${ref}`)
+  if (!card) return
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  card.classList.remove('module-flash')
+  void card.offsetWidth // restart the animation if it is already running
+  card.classList.add('module-flash')
+  window.setTimeout(() => card.classList.remove('module-flash'), 1800)
+}
+
 /** The landing page: what the app does, shown as a board that powers on, then the four steps
  * and every module, revealed as the visitor scrolls. */
 export function IntroPage() {
   const { status } = useAuth()
   const { theme, toggle } = useTheme()
   const page = useReveal<HTMLDivElement>()
-  const board = useTilt<HTMLDivElement>(7)
   const [stepsRef, stepsProgress] = useScrollProgress<HTMLOListElement>()
   const signedIn = status === 'authenticated'
   const ThemeIcon = theme === 'dark' ? Sun : Moon
@@ -169,27 +180,11 @@ export function IntroPage() {
             </div>
           </div>
 
-          <div ref={board} className="tilt relative">
+          <div className="relative animate-fade-in [animation-delay:120ms]">
             <div aria-hidden="true" className="absolute -inset-6 rounded-[2rem] bg-indigo-500/10 blur-3xl" />
-            <div className="pcb-card relative bg-slate-900/90 p-6 shadow-2xl [transform-style:preserve-3d]">
-              <div className="tilt-layer" style={{ '--z': '40px' } as CSSProperties}>
-                <CircuitIllustration boot />
-              </div>
+            <div className="pcb-card relative bg-slate-900/90 px-3 pb-3 pt-4 shadow-2xl sm:px-5">
+              <Board3D onSelect={(chip) => showModule(chip.ref)} />
             </div>
-            {[
-              ['OWASP Top 10', 'left-2 -top-4', '70px'],
-              ['OSV.dev advisories', '-right-3 bottom-14', '90px'],
-              ['Cited answers', 'left-10 -bottom-4', '60px'],
-            ].map(([label, place, z], index) => (
-              <span
-                key={label}
-                aria-hidden="true"
-                className={`tilt-layer boot-late absolute ${place} hidden rounded-full border border-slate-700 bg-slate-950/95 px-3 py-1 font-mono text-[11px] text-indigo-300 shadow-lg sm:inline-block`}
-                style={{ '--z': z, animationDelay: `${1500 + index * 150}ms` } as CSSProperties}
-              >
-                {label}
-              </span>
-            ))}
           </div>
         </section>
 

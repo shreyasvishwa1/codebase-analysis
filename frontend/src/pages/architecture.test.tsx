@@ -1,7 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 import App from '../App'
 import { componentOf, layout, shortName } from '../components/ArchitectureDiagram'
@@ -18,6 +18,7 @@ import type {
 } from '../types/api'
 import { ArchitecturePage } from './ArchitecturePage'
 import { RepositoryArchitecturePage } from './RepositoryArchitecturePage'
+import { preloadAllPages } from '../routes/pages'
 
 const P = PROJECT.id
 const R = ZIP_REPOSITORY.id
@@ -134,6 +135,11 @@ const standard = {
   [`GET ${RUNS_URL}`]: { status: 200, data: { job: null, runs: [run()] } },
   [`GET ${ARCH_URL}`]: { status: 200, data: { run_id: 'run-1', created_at: '2026-11-18T10:00:00Z', document: DOCUMENT } },
 }
+
+
+// Signed-in pages load lazily; compile them once up front so navigation tests do not
+// spend their waits on the test environment's on-demand compilation.
+beforeAll(() => preloadAllPages(), 120_000)
 
 describe('Diagram layout', () => {
   it('places components in role columns, wraps tall columns and links data stores', () => {

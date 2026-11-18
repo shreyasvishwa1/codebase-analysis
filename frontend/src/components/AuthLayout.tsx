@@ -1,21 +1,9 @@
 import { Eye, EyeOff } from 'lucide-react'
-import { useId, useState, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
-/** The analysis modules as chips on a board, wired into the health score (an illustration
- * of what a full analysis does, not live data). */
-const INPUTS = [
-  { label: 'QUALITY', ref: 'U1', y: 30, trace: 'M140 47 H194 L200 53 V144 L206 150 H230' },
-  { label: 'SECURITY', ref: 'U2', y: 95, trace: 'M140 112 H179 L185 118 V159 L191 165 H230' },
-  { label: 'COMPLEXITY', ref: 'U3', y: 160, trace: 'M140 177 H230' },
-  { label: 'DEPENDENCIES', ref: 'U4', y: 225, trace: 'M140 242 H179 L185 236 V201 L191 195 H230' },
-  { label: 'ARCHITECTURE', ref: 'U5', y: 290, trace: 'M140 307 H194 L200 301 V216 L206 210 H230' },
-] as const
-const OUTPUTS = [
-  { label: 'PDF REPORT', ref: 'J1', y: 95, trace: 'M340 165 H360 L366 159 V118 L372 112 H400' },
-  { label: 'AI CHAT', ref: 'J2', y: 225, trace: 'M340 195 H360 L366 201 V236 L372 242 H400' },
-] as const
-const VIAS = [[200, 98], [185, 140], [185, 218], [200, 258], [366, 138], [366, 220]] as const
+import { preloadPagesWhenIdle } from '../routes/pages'
+import { INPUTS, OUTPUTS, VIAS } from './circuitLayout'
 
 function Chip({ x, y, width, label, refDes }: { x: number; y: number; width: number; label: string; refDes: string }) {
   return (
@@ -132,6 +120,8 @@ export function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
 
 /** Split-screen frame for the sign-in, registration and password pages. */
 export function AuthLayout({ children }: { children: ReactNode }) {
+  // Someone on a sign-in page is about to use the app: fetch its pages while they type.
+  useEffect(() => preloadPagesWhenIdle(), [])
   return (
     <div className="pcb-surface flex min-h-screen bg-slate-950">
       <aside className="relative hidden flex-1 overflow-hidden border-r border-slate-800 bg-slate-950/40 lg:flex">

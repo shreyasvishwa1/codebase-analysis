@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 import App from '../App'
 import { getToken, setToken } from '../services/session'
@@ -9,6 +9,7 @@ import { mockApi, USER } from '../test/mockApi'
 import { createTestQueryClient, renderWithProviders } from '../test/render'
 import { AuthProvider } from '../hooks/useAuth'
 import { LoginPage } from './LoginPage'
+import { preloadAllPages } from '../routes/pages'
 
 const SUMMARY = { projects: 2, repositories: 3, analyses: 7, reports: 1, conversations: 4, latest_analysis_at: '2026-11-18T10:00:00Z' }
 
@@ -29,6 +30,11 @@ function mountSettings(routes: Routes = {}) {
 
 const body = (requests: ReturnType<typeof mockApi>, method: string, url: string) =>
   JSON.parse(String(requests.find((r) => r.method === method && r.url === url)?.data))
+
+
+// Signed-in pages load lazily; compile them once up front so navigation tests do not
+// spend their waits on the test environment's on-demand compilation.
+beforeAll(() => preloadAllPages(), 120_000)
 
 describe('Settings', () => {
   it('shows the profile and saves a display name shown in the header', async () => {

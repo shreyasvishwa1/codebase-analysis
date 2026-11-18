@@ -1,10 +1,11 @@
 import { StrictMode } from 'react'
 import { fireEvent, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { beforeAll, afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import App from '../App'
 import { mockApi } from '../test/mockApi'
 import { renderWithProviders } from '../test/render'
+import { preloadAllPages } from '../routes/pages'
 
 const SENT = 'If an account exists for that email, a reset link is on its way'
 const DONE = 'Your password has been reset; you can now sign in'
@@ -27,6 +28,11 @@ beforeEach(() => {
 afterEach(() => {
   window.history.replaceState(null, '', '/')
 })
+
+
+// Signed-in pages load lazily; compile them once up front so navigation tests do not
+// spend their waits on the test environment's on-demand compilation.
+beforeAll(() => preloadAllPages(), 120_000)
 
 describe('forgot password', () => {
   it('links to the reset page from sign-in', async () => {

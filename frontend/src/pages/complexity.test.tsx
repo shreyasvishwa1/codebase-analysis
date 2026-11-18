@@ -2,7 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { InternalAxiosRequestConfig } from 'axios'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 import App from '../App'
 import { setToken } from '../services/session'
@@ -21,6 +21,7 @@ import type {
 } from '../types/api'
 import { ComplexityPage } from './ComplexityPage'
 import { RepositoryComplexityPage } from './RepositoryComplexityPage'
+import { preloadAllPages } from '../routes/pages'
 
 const P = PROJECT.id
 const R = ZIP_REPOSITORY.id
@@ -155,6 +156,11 @@ function standardRoutes(fnSeen: Record<string, unknown>[] = [], fileSeen: Record
     ),
   }
 }
+
+
+// Signed-in pages load lazily; compile them once up front so navigation tests do not
+// spend their waits on the test environment's on-demand compilation.
+beforeAll(() => preloadAllPages(), 120_000)
 
 describe('Repository complexity', () => {
   it('shows the summary, distributions, functions and files of the latest run', async () => {

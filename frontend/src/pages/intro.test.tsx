@@ -1,15 +1,15 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
 import App from '../App'
 import { JobProgress } from '../components/JobProgress'
-import { formatBytes } from '../components/ZipSocket'
 import { setToken } from '../services/session'
 import { mockApi, PROJECT, USER, ZIP_REPOSITORY } from '../test/mockApi'
 import { createTestQueryClient, renderWithProviders } from '../test/render'
 import type { AnalysisJob } from '../types/api'
+import { preloadPage } from '../routes/pages'
 import { PAGE_DATA } from '../utils/prefetch'
 import { UNREACHABLE_AFTER } from './IntroPage'
 import { UploadPage } from './UploadPage'
@@ -34,6 +34,10 @@ function mount(ui: JSX.Element, path = '/') {
 }
 
 const zip = (name = 'repo.zip', bytes = 2048) => new File(['P'.repeat(bytes)], name, { type: 'application/zip' })
+
+// Pages load lazily; compile the overview once up front so the first test that opens it
+// does not spend its wait on the test environment's on-demand compilation.
+beforeAll(() => preloadPage('OverviewPage'), 60_000)
 
 describe('Intro page', () => {
   it('greets visitors at the root, wakes the server and offers sign-up and sign-in', async () => {
@@ -237,16 +241,5 @@ describe('Job stages', () => {
     mount(<JobProgress projectId={PROJECT.id} repositoryId={ZIP_REPOSITORY.id} pollIntervalMs={60_000} />)
     await screen.findByTestId('job-progress')
     expect(stageColors()).toEqual(['lit', 'dark', 'dark'])
-  })
-})
-
-describe('formatBytes', () => {
-  it('formats archive sizes', () => {
-    expect(formatBytes(512)).toBe('512 B')
-    expect(formatBytes(2048)).toBe('2.0 KB')
-    expect(formatBytes(15 * 1024)).toBe('15 KB')
-    expect(formatBytes(3.5 * 1024 * 1024)).toBe('3.5 MB')
-    expect(formatBytes(2 * 1024 ** 3)).toBe('2.0 GB')
-    expect(formatBytes(4096 * 1024 ** 3)).toBe('4096 GB')
   })
 })

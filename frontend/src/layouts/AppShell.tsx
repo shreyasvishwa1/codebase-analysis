@@ -19,14 +19,16 @@ import {
   X,
 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useState } from 'react'
+import { Suspense, useCallback, useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { BrandMark } from '../components/AuthLayout'
 import { CommandPalette, type PaletteLink } from '../components/CommandPalette'
+import { PageSkeleton } from '../components/PageSkeleton'
 import { useAuth } from '../hooks/useAuth'
 import { useHealth } from '../hooks/useHealth'
 import { useTheme } from '../hooks/useTheme'
+import { preloadPagesWhenIdle } from '../routes/pages'
 import { prefetchPage } from '../utils/prefetch'
 
 function HealthIndicator() {
@@ -137,6 +139,9 @@ export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const closePalette = useCallback(() => setPaletteOpen(false), [])
 
+  // Every page's file downloads in the background once the browser is idle.
+  useEffect(() => preloadPagesWhenIdle(), [])
+
   // Ctrl+K or Cmd+K anywhere opens (or closes) the command palette.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -234,7 +239,9 @@ export function AppShell() {
         )}
 
         <main key={location.pathname} className="mx-auto w-full max-w-6xl flex-1 animate-fade-in px-4 py-8 md:px-8">
-          <Outlet />
+          <Suspense fallback={<PageSkeleton />}>
+            <Outlet />
+          </Suspense>
         </main>
 
         <footer className="sticky bottom-0 flex h-8 items-center gap-4 border-t border-slate-800 bg-slate-950/90 px-4 font-mono text-[11px] text-slate-500 backdrop-blur md:px-8">

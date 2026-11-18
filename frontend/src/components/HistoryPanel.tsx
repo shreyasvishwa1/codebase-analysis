@@ -6,10 +6,11 @@ import { useAnalysisHistory, useCreateReport, useDeleteReport, useDownloadReport
 import { getErrorMessage } from '../services/client'
 import type { GeneratedReport, HistoryEntry } from '../types/api'
 import { formatBytes, formatDateTime } from '../utils/format'
+import { HISTORY_PAGE } from '../utils/history'
 import { ErrorMessage } from './ErrorMessage'
 import { scoreTone } from './HealthReport'
 
-export const HISTORY_PAGE = 25
+export { HISTORY_PAGE }
 
 const number = (value: number) => value.toLocaleString('en-US')
 

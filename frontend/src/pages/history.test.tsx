@@ -2,7 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { InternalAxiosRequestConfig } from 'axios'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from '../App'
 import { scoreChanges } from '../components/HistoryPanel'
@@ -12,6 +12,7 @@ import { createTestQueryClient, renderWithProviders } from '../test/render'
 import type { GeneratedReport, HistoryEntry, Repository } from '../types/api'
 import { HistoryPage } from './HistoryPage'
 import { RepositoryHistoryPage } from './RepositoryHistoryPage'
+import { preloadAllPages } from '../routes/pages'
 
 const P = PROJECT.id
 const R = ZIP_REPOSITORY.id
@@ -85,6 +86,11 @@ function mount(routes: Routes, element = <HistoryPage />, entryPath = '/history'
 
 const history = (entries: HistoryEntry[] = ENTRIES, total = entries.length): MockResponse => ({ status: 200, data: { entries, total } })
 const params = (config: InternalAxiosRequestConfig) => config.params as Record<string, unknown> | undefined
+
+
+// Signed-in pages load lazily; compile them once up front so navigation tests do not
+// spend their waits on the test environment's on-demand compilation.
+beforeAll(() => preloadAllPages(), 120_000)
 
 describe('Score changes', () => {
   it('compare each run with the same repository’s previous one', () => {

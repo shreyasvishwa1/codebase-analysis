@@ -1,18 +1,7 @@
 import { Cpu, FileArchive, UploadCloud } from 'lucide-react'
 import { useId, useState, type DragEvent } from 'react'
 
-/** "12.4 MB"-style size for the plugged-in archive. */
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  const units = ['KB', 'MB', 'GB']
-  let value = bytes / 1024
-  let unit = 0
-  while (value >= 1024 && unit < units.length - 1) {
-    value /= 1024
-    unit += 1
-  }
-  return `${value.toFixed(value < 10 ? 1 : 0)} ${units[unit]}`
-}
+import { formatBytes } from '../utils/format'
 
 const PINS = [0, 1, 2, 3, 4, 5, 6]
 
