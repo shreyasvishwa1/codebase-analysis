@@ -33,10 +33,7 @@ function HealthIndicator() {
   const label = health.isPending ? 'Checking backend…' : online ? 'Backend online' : 'Backend offline'
   return (
     <span className="inline-flex items-center gap-1.5" role="status">
-      <span className="relative flex h-1.5 w-1.5" aria-hidden="true">
-        {online && <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />}
-        <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${online ? 'bg-emerald-400' : health.isPending ? 'bg-slate-500' : 'bg-red-400'}`} />
-      </span>
+      <span aria-hidden="true" className={`led ${online ? 'text-emerald-400' : health.isPending ? 'text-slate-500' : 'text-red-400'}`} />
       {label}
     </span>
   )
@@ -78,26 +75,33 @@ function MainNavigation({ className, onNavigate }: { className: string; onNaviga
   return (
     <nav aria-label="Main navigation" className={className}>
       {SECTIONS.map((section) => (
-        <div key={section.title} className="space-y-0.5">
+        <div key={section.title}>
           <p className="px-3 pb-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-slate-500">{section.title}</p>
-          {section.links.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              onClick={onNavigate}
-              className={({ isActive }) =>
-                `group relative flex items-center gap-2.5 rounded-md px-3 py-1.5 text-[13px] font-medium transition ${isActive ? 'bg-slate-800/80 text-slate-50' : 'text-slate-400 hover:bg-slate-900 hover:text-slate-100'}`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  {isActive && <span aria-hidden="true" className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-indigo-500" />}
-                  <Icon className={`h-4 w-4 ${isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} aria-hidden="true" />
-                  {label}
-                </>
-              )}
-            </NavLink>
-          ))}
+          {/* A bus trace runs down each section; every page hangs off it on a pad. */}
+          <div className="relative space-y-0.5 before:absolute before:bottom-3 before:left-[19px] before:top-3 before:w-px before:bg-slate-700">
+            {section.links.map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                onClick={onNavigate}
+                className={({ isActive }) =>
+                  `group relative flex items-center gap-2.5 rounded-md py-1.5 pl-9 pr-3 text-[13px] font-medium transition ${isActive ? 'bg-slate-800/70 text-slate-50' : 'text-slate-400 hover:bg-slate-900/80 hover:text-slate-100'}`
+                }
+              >
+                {({ isActive }) => (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className={`absolute left-[16px] top-1/2 h-[7px] w-[7px] -translate-y-1/2 rounded-full border transition ${isActive ? 'border-indigo-300 bg-indigo-400 shadow-[0_0_10px_2px_rgb(var(--indigo-500)/0.55)]' : 'border-slate-600 bg-slate-950 group-hover:border-indigo-500'}`}
+                    />
+                    <span aria-hidden="true" className={`absolute left-[23px] top-1/2 h-px w-2 ${isActive ? 'bg-indigo-400' : 'bg-slate-700'}`} />
+                    <Icon className={`h-4 w-4 ${isActive ? 'text-indigo-400' : 'text-slate-500 group-hover:text-slate-300'}`} aria-hidden="true" />
+                    {label}
+                  </>
+                )}
+              </NavLink>
+            ))}
+          </div>
         </div>
       ))}
     </nav>
@@ -145,8 +149,8 @@ export function AppShell() {
 
   const name = user ? user.display_name ?? user.email : ''
   return (
-    <div className="flex min-h-screen bg-slate-950">
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-slate-800 md:flex">
+    <div className="pcb-surface flex min-h-screen bg-slate-950">
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-slate-800 bg-slate-950/90 md:flex">
         <Link to="/overview" className="flex h-14 items-center gap-2.5 border-b border-slate-800 px-4 text-sm font-semibold tracking-tight text-slate-50">
           <BrandMark />
           CodeBase Analysis

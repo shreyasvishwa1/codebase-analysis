@@ -104,7 +104,7 @@ function DimensionCard({
   const inputs = Object.entries(dimension.inputs)
   const page = DIMENSION_PAGES[dimension.key]
   return (
-    <article aria-label={dimension.name} className="flex min-w-0 flex-col rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+    <article aria-label={dimension.name} className="flex min-w-0 flex-col rounded-2xl border border-slate-800 bg-slate-900 p-5">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="font-semibold text-slate-100">{dimension.name}</h3>
@@ -162,7 +162,7 @@ export function HealthReport({ report, projectId, repositoryId }: { report: Repo
   const share = (d: HealthDimension) => (d.score === null || total === 0 ? null : Math.round((d.weight * 100) / total))
   return (
     <div className="space-y-4">
-      <section aria-label="Overall health" className="flex flex-col gap-5 rounded-2xl border border-slate-800 bg-slate-900/70 p-6 sm:flex-row sm:items-center">
+      <section aria-label="Overall health" className="flex flex-col gap-5 rounded-2xl border border-slate-800 bg-slate-900 p-6 sm:flex-row sm:items-center">
         <ScoreGauge score={report.overall} grade={report.grade} />
         <div className="min-w-0 space-y-2 text-sm text-slate-300">
           <p>

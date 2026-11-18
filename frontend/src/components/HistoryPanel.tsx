@@ -50,7 +50,7 @@ function ReportsTable({ repositoryId, highlight }: { repositoryId: string | null
   const [confirming, setConfirming] = useState<string | null>(null)
   const list = reports.data?.reports ?? []
   return (
-    <section aria-label="Reports" className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+    <section aria-label="Reports" className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-5">
       <div>
         <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-200">PDF reports</h2>
         <p className="mt-1 text-xs text-slate-400">
@@ -151,7 +151,7 @@ export function HistoryPanel({ repository }: { repository: { projectId: string; 
 
   return (
     <div className="space-y-6">
-      <section aria-label="Analysis history" className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+      <section aria-label="Analysis history" className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-5">
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-200">Analysis history</h2>
           <p className="mt-1 text-xs text-slate-400">

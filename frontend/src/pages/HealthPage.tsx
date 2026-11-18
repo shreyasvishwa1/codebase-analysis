@@ -46,7 +46,7 @@ export function HealthPage() {
       {repositories.length > 0 && (
         <ul aria-label="Scored repositories" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {repositories.map((entry) => (
-            <li key={entry.repository_id} className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-glow">
+            <li key={entry.repository_id} className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-glow">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h2 className="truncate font-semibold text-slate-100">{entry.repository_name}</h2>
@@ -81,7 +81,7 @@ export function HealthPage() {
         </ul>
       )}
 
-      <section id="weights" aria-label="Weights" className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
+      <section id="weights" aria-label="Weights" className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-6">
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-200">Weights</h2>
           <p className="mt-1 max-w-3xl text-xs text-slate-400">

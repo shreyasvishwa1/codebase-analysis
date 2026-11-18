@@ -50,7 +50,7 @@ export function SecurityPage() {
           <SecurityDisclaimer findings={totalFindings} />
           <ul aria-label="Scanned repositories" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {repositories.map((entry) => (
-              <li key={entry.repository_id} className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-glow">
+              <li key={entry.repository_id} className="min-w-0 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-glow">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="truncate font-semibold text-slate-100">{entry.repository_name}</h2>

@@ -365,7 +365,7 @@ function Thread({
         <p className="text-xs text-slate-500">About the analysis of {formatDateTime(conversation.data.run_created_at)}</p>
       )}
       {!conversationId && (
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
           <h3 className="font-semibold text-slate-100">Ask about this repository</h3>
           <p className="mt-1 text-sm text-slate-400">
             Answers come from the code and the results of its latest full analysis, with the

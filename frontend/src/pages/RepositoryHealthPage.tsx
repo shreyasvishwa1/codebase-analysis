@@ -19,7 +19,7 @@ function RunHealth({ projectId, repositoryId, runId }: { projectId: string; repo
 function Trend({ projectId, repositoryId }: { projectId: string; repositoryId: string }) {
   const history = useHealthHistory(projectId, repositoryId)
   return (
-    <section aria-label="Health trend" className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+    <section aria-label="Health trend" className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-5">
       <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-200">Trend</h3>
       {history.isPending && <p className="text-sm text-slate-400">Loading the history…</p>}
       {history.isError && <ErrorMessage message={getErrorMessage(history.error, 'Could not load the history')} />}

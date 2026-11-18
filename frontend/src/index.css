@@ -4,11 +4,15 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Instrument: graphite surfaces, hairline borders, one signal-amber accent. Colours come
-   from tokens.css (dark by default, light with data-theme="light" on <html>). */
+/* Circuit board: solder-mask surfaces, copper traces, gold-plated pads for the accent.
+   Colours come from tokens.css (dark by default, light with data-theme="light" on <html>). */
 :root {
   color-scheme: dark;
-  --on-accent: 26 18 2; /* text on the amber accent: dark in both themes */
+  --on-accent: 30 20 4; /* text on the gold accent: dark in both themes */
+  --trace: var(--slate-700);
+  --trace-opacity: 0.42;
+  /* One tile of board traces and vias, used as a mask so it takes the theme's colour. */
+  --trace-tile: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' fill='none' stroke='black' stroke-width='1.25'%3E%3Cpath d='M0 40h70l20 20h60l20-20h70M200 0v100l-20 20v20l20 20v80M0 190h50l20-20h46M120 0v11M120 240v-25l15-15h21M30 100h40l20 20v30'/%3E%3Ccircle cx='120' cy='170' r='4'/%3E%3Ccircle cx='120' cy='15' r='4'/%3E%3Ccircle cx='160' cy='200' r='4'/%3E%3Ccircle cx='26' cy='100' r='4'/%3E%3Ccircle cx='90' cy='154' r='4'/%3E%3C/svg%3E");
 }
 :root[data-theme='light'] {
   color-scheme: light;
@@ -16,7 +20,28 @@
 
 body {
   @apply bg-slate-950 text-slate-100 antialiased;
-  font-feature-settings: 'ss01', 'cv11';
+}
+
+/* The board: a faint layer of traces behind the app, fixed so content scrolls over it. */
+.pcb-surface {
+  position: relative;
+  isolation: isolate;
+}
+.pcb-surface::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-color: rgb(var(--trace));
+  opacity: var(--trace-opacity);
+  -webkit-mask-image: var(--trace-tile);
+  mask-image: var(--trace-tile);
+  -webkit-mask-size: 240px 240px;
+  mask-size: 240px 240px;
+}
+:root[data-theme='light'] {
+  --trace-opacity: 0.7;
 }
 
 /* Theme switches fade instead of flashing. */
@@ -26,12 +51,48 @@ body {
 }
 
 @layer components {
-  /* Page header: an eyebrow, a title and a lede over a hairline, no banner. */
+  /* Page header: a silkscreen label, a title and a lede over a gold trace that is drawn in
+     from the left (ending in a via) each time a page opens. */
   .page-header {
-    @apply relative border-b border-slate-800 pb-6 pt-1;
+    @apply relative pb-6 pt-1;
+  }
+  .page-header::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background: rgb(var(--slate-800));
+  }
+  .page-header::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -3px;
+    width: min(18rem, 60%);
+    height: 7px;
+    background:
+      radial-gradient(circle at calc(100% - 3.5px) 50%, rgb(var(--indigo-400)) 2.5px, transparent 3px),
+      linear-gradient(rgb(var(--indigo-500)), rgb(var(--indigo-500))) left center / calc(100% - 6px) 1px no-repeat;
+    transform-origin: left;
+    animation: trace-draw 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
   .page-eyebrow {
-    @apply font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-indigo-300;
+    @apply inline-flex items-center gap-2 font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-indigo-300;
+  }
+  /* A tiny chip with pins before each label, like a component on the silkscreen. */
+  .page-eyebrow::before {
+    content: '';
+    width: 14px;
+    height: 10px;
+    border: 1px solid currentColor;
+    border-radius: 2px;
+    background:
+      linear-gradient(currentColor, currentColor) 2px -3px / 1px 3px,
+      linear-gradient(currentColor, currentColor) 6px -3px / 1px 3px,
+      linear-gradient(currentColor, currentColor) 10px -3px / 1px 3px;
+    box-shadow: inset 0 0 0 2px rgb(var(--slate-950)), inset 0 0 0 6px rgb(var(--indigo-500) / 0.25);
   }
   .page-title {
     @apply mt-2 text-[28px] font-semibold leading-tight tracking-tight text-slate-50;
@@ -56,10 +117,28 @@ body {
   .glass-card {
     @apply rounded-2xl border border-slate-800 bg-slate-900;
   }
+  /* A board-mounted panel: four mounting holes in the corners. */
+  .pcb-card {
+    @apply relative rounded-2xl border border-slate-800 bg-slate-900;
+    background-image:
+      radial-gradient(circle, rgb(var(--slate-700)) 1.5px, transparent 2px),
+      radial-gradient(circle, rgb(var(--slate-700)) 1.5px, transparent 2px),
+      radial-gradient(circle, rgb(var(--slate-700)) 1.5px, transparent 2px),
+      radial-gradient(circle, rgb(var(--slate-700)) 1.5px, transparent 2px);
+    background-size: 8px 8px;
+    background-position: 6px 6px, calc(100% - 6px) 6px, 6px calc(100% - 6px), calc(100% - 6px) calc(100% - 6px);
+    background-repeat: no-repeat;
+  }
+  /* A status LED: a lit dot with a soft halo. */
+  .led {
+    @apply inline-block h-1.5 w-1.5 rounded-full;
+    background: currentColor;
+    box-shadow: 0 0 0 2px rgb(var(--slate-950)), 0 0 8px 1px currentColor;
+  }
 }
 
 @layer utilities {
-  /* Primary actions: solid amber with dark text (the class names stay the same). */
+  /* Primary actions: gold-plated pads with dark text (the class names stay the same). */
   .bg-indigo-600,
   .bg-indigo-500,
   .hover\:bg-indigo-500:hover {
@@ -74,7 +153,7 @@ body {
   }
 }
 
-/* Inputs: a calm surface with an amber focus ring. */
+/* Inputs: a calm surface with a gold focus ring. */
 input:not([type='checkbox']):not([type='radio']):not([type='file']),
 select,
 textarea {
@@ -137,6 +216,17 @@ input::-ms-clear {
 
 * {
   scrollbar-color: rgb(var(--slate-700)) transparent;
+}
+
+@keyframes trace-draw {
+  from {
+    transform: scaleX(0);
+    opacity: 0.4;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

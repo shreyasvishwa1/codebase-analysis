@@ -44,7 +44,7 @@ const SIZE_BUCKETS: { label: string; max: number }[] = [
   { label: '1,000+ lines', max: Number.POSITIVE_INFINITY },
 ]
 
-const PANEL = 'rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-glow backdrop-blur'
+const PANEL = 'rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-glow backdrop-blur'
 const PANEL_TITLE = 'text-sm font-semibold text-slate-100'
 const PANEL_NOTE = 'mt-1 text-xs text-slate-400'
 
@@ -218,7 +218,7 @@ function KpiTile({
   caption: ReactNode
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-glow">
+    <div className="flex items-start gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-glow">
       <span
         aria-hidden="true"
         className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-800 bg-slate-950 ${accent}`}

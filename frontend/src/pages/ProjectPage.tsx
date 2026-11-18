@@ -53,7 +53,7 @@ export function ProjectPage() {
               <li key={repository.id}>
                 <Link
                   to={`/projects/${projectId}/repositories/${repository.id}`}
-                  className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 transition hover:border-indigo-500/50 hover:shadow-glow"
+                  className="group flex items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4 transition hover:border-indigo-500/50 hover:shadow-glow"
                 >
                   <span className="flex min-w-0 items-center gap-3">
                     <span

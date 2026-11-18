@@ -36,7 +36,7 @@ export function ProjectsPage() {
               <li key={project.id}>
                 <Link
                   to={`/projects/${project.id}`}
-                  className="group flex h-full gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 transition hover:-translate-y-0.5 hover:border-indigo-500/50 hover:shadow-glow"
+                  className="group flex h-full gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-4 transition hover:-translate-y-0.5 hover:border-indigo-500/50 hover:shadow-glow"
                 >
                   <span
                     aria-hidden="true"

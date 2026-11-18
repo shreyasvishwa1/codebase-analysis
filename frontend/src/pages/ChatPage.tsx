@@ -55,7 +55,7 @@ export function ChatPage() {
           <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-200">Repositories</h2>
           <ul className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {repositories.map((entry) => (
-              <li key={entry.repository_id} className="flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-5">
+              <li key={entry.repository_id} className="flex min-w-0 items-start justify-between gap-3 rounded-2xl border border-slate-800 bg-slate-900 p-5">
                 <div className="min-w-0">
                   <h3 className="truncate font-semibold text-slate-100">{entry.repository_name}</h3>
                   <p className="truncate text-xs text-slate-400">
@@ -81,7 +81,7 @@ export function ChatPage() {
       {conversations.length > 0 && (
         <section aria-label="Recent conversations" className="space-y-3">
           <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-200">Recent conversations</h2>
-          <ul className="divide-y divide-slate-800 rounded-2xl border border-slate-800 bg-slate-900/70">
+          <ul className="divide-y divide-slate-800 rounded-2xl border border-slate-800 bg-slate-900">
             {conversations.map((conversation) => (
               <li key={conversation.id}>
                 <Link

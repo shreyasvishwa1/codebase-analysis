@@ -105,7 +105,7 @@ function Summary() {
       ]
     : []
   return (
-    <section aria-label="Your data" className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-6">
+    <section aria-label="Your data" className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900 p-6">
       <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-200">Your data</h2>
       {summary.isPending && <p className="text-sm text-slate-400">Loading…</p>}
       {summary.isError && <ErrorMessage message={getErrorMessage(summary.error, 'Could not load your data')} />}

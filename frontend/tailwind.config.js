@@ -1,6 +1,6 @@
 // Colors come from CSS variables (src/styles/tokens.css), one set per theme, so every
 // existing class (slate-*, indigo-*, emerald-*, ...) follows the light and dark themes.
-// slate is the graphite neutral scale and indigo the signal-amber accent.
+// slate is the solder-mask neutral scale and indigo the gold-plated accent.
 const SHADES = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']
 const PALETTES = [
   'slate', 'indigo', 'emerald', 'amber', 'red', 'rose', 'orange', 'lime', 'sky', 'cyan',
@@ -14,8 +14,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Geist', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['"Geist Mono"', 'ui-monospace', 'SFMono-Regular', 'Consolas', 'monospace'],
+        sans: ['"IBM Plex Sans"', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'Consolas', 'monospace'],
       },
       colors: {
         ...Object.fromEntries(PALETTES.map((name) => [name, themed(name)])),
@@ -34,11 +34,15 @@ export default {
       keyframes: {
         'fade-in': { from: { opacity: '0', transform: 'translateY(4px)' }, to: { opacity: '1', transform: 'none' } },
         'pop-in': { from: { opacity: '0', transform: 'scale(0.98)' }, to: { opacity: '1', transform: 'none' } },
+        'slide-in': { from: { opacity: '0', transform: 'translateX(12px)' }, to: { opacity: '1', transform: 'none' } },
+        current: { to: { strokeDashoffset: '-48' } },
         shimmer: { '100%': { transform: 'translateX(100%)' } },
       },
       animation: {
         'fade-in': 'fade-in 0.18s ease-out both',
         'pop-in': 'pop-in 0.14s ease-out both',
+        'slide-in': 'slide-in 0.2s ease-out both',
+        current: 'current 1.6s linear infinite',
       },
     },
   },

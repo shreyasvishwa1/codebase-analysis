@@ -24,7 +24,7 @@ import {
 import { getErrorMessage } from '../services/client'
 import { formatBytes } from '../utils/format'
 
-const CARD = 'rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-glow backdrop-blur'
+const CARD = 'rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-glow backdrop-blur'
 
 /** A file and line to open on arrival, set by links to reported lines (Code Analysis). */
 function openFileFrom(state: unknown): { path: string; line: number } | null {
