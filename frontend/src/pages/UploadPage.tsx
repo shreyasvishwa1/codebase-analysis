@@ -87,10 +87,10 @@ export function UploadPage() {
   const busy = step !== null
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-800 bg-gradient-to-br from-indigo-600/25 via-violet-600/15 to-cyan-500/10 p-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-indigo-300">Import</p>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight">Upload repository</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-300">
+      <div className="page-header">
+        <p className="page-eyebrow">Import</p>
+        <h1 className="page-title">Upload repository</h1>
+        <p className="page-lede">
           Upload a ZIP archive or import a public GitHub repository. Files are validated and stored
           for analysis; repository code is never executed.
         </p>
@@ -179,7 +179,7 @@ export function UploadPage() {
         <button
           type="submit"
           disabled={busy}
-          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 font-semibold text-slate-50 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <UploadCloud className="h-4 w-4" aria-hidden="true" />
           {busy ? 'Importing…' : 'Import repository'}

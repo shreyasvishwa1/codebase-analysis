@@ -34,8 +34,8 @@ import { largestFiles } from './CodeMetricsPanel'
 import { languageLabel } from './LanguageStats'
 
 /** Categorical order (validated on the dark surface); "Other" is always the neutral last slot. */
-const SERIES = ['#6366f1', '#0891b2', '#ec4899', '#d97706', '#059669']
-const OTHER = '#5c6694'
+const SERIES = ['rgb(var(--indigo-500))', 'rgb(var(--slate-400))', 'rgb(var(--emerald-500))', 'rgb(var(--sky-500))', 'rgb(var(--rose-500))']
+const OTHER = 'rgb(var(--slate-600))'
 const LONG_FILE_LINES = 1000
 const SIZE_BUCKETS: { label: string; max: number }[] = [
   { label: 'Under 100 lines', max: 99 },
@@ -130,7 +130,7 @@ function ScoreRing({ score, color }: { score: number; color: string }) {
   const circumference = 2 * Math.PI * radius
   return (
     <svg viewBox="0 0 100 100" className="h-28 w-28 shrink-0 -rotate-90" aria-hidden="true">
-      <circle cx="50" cy="50" r={radius} fill="none" stroke="#232b4e" strokeWidth="9" />
+      <circle cx="50" cy="50" r={radius} fill="none" stroke="rgb(var(--slate-800))" strokeWidth="9" />
       <circle
         cx="50"
         cy="50"
@@ -170,15 +170,15 @@ function HealthPanel({ checks }: { checks: HealthCheck[] }) {
       </div>
       <div className="mt-4 flex items-center gap-5">
         <div className="relative">
-          <ScoreRing score={score ?? 0} color={tone?.ring ?? '#5c6694'} />
+          <ScoreRing score={score ?? 0} color={tone?.ring ?? 'rgb(var(--slate-600))'} />
           <span className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-extrabold tabular-nums text-white">
+            <span className="text-2xl font-extrabold tabular-nums text-slate-50">
               {score === null ? '—' : `${score}%`}
             </span>
           </span>
         </div>
         <p className="text-sm text-slate-300">
-          <span className="text-lg font-bold text-white">{passed}</span> of {known.length} checks passing
+          <span className="text-lg font-bold text-slate-50">{passed}</span> of {known.length} checks passing
           {known.length < checks.length && (
             <span className="block text-xs text-slate-500">
               {checks.length - known.length} not run yet
@@ -221,13 +221,13 @@ function KpiTile({
     <div className="flex items-start gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-glow">
       <span
         aria-hidden="true"
-        className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${accent}`}
+        className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-800 bg-slate-950 ${accent}`}
       >
-        <Icon className="h-5 w-5 text-white" />
+        <Icon className="h-5 w-5" />
       </span>
       <div className="min-w-0">
         <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{label}</p>
-        <p className="text-2xl font-extrabold tabular-nums text-white">{value}</p>
+        <p className="text-2xl font-extrabold tabular-nums text-slate-50">{value}</p>
         <p className="truncate text-xs text-slate-400">{caption}</p>
       </div>
     </div>
@@ -281,7 +281,7 @@ function DistributionPanel({ languages, totalFiles }: { languages: LanguageStati
                   innerRadius="68%"
                   outerRadius="100%"
                   paddingAngle={1}
-                  stroke="#121935"
+                  stroke="rgb(var(--slate-900))"
                   strokeWidth={2}
                   isAnimationActive={false}
                 >
@@ -291,13 +291,13 @@ function DistributionPanel({ languages, totalFiles }: { languages: LanguageStati
                 </Pie>
                 <Tooltip
                   formatter={(value: number) => `${value.toFixed(1)}%`}
-                  contentStyle={{ background: '#121935', border: '1px solid #343c63', borderRadius: 8 }}
-                  itemStyle={{ color: '#e0e7ff' }}
+                  contentStyle={{ background: 'rgb(var(--slate-900))', border: '1px solid rgb(var(--slate-700))', borderRadius: 8 }}
+                  itemStyle={{ color: 'rgb(var(--slate-100))' }}
                 />
               </PieChart>
             </ResponsiveContainer>
             <span className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-extrabold tabular-nums text-white">{number(totalFiles)}</span>
+              <span className="text-2xl font-extrabold tabular-nums text-slate-50">{number(totalFiles)}</span>
               <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">files total</span>
             </span>
           </div>
@@ -348,7 +348,7 @@ function LargestFilesPanel({
                 </span>
                 <span className="mt-1 block h-2 rounded-full bg-slate-800">
                   <span
-                    className={`block h-2 rounded-full ${long ? 'bg-gradient-to-r from-fuchsia-500 to-rose-400' : 'bg-gradient-to-r from-indigo-500 to-cyan-400'}`}
+                    className={`block h-2 rounded-full ${long ? 'bg-rose-500' : 'bg-gradient-to-r from-indigo-500 to-cyan-400'}`}
                     style={{ width: `${Math.max(3, (lines / max) * 100)}%` }}
                   />
                 </span>
@@ -406,7 +406,7 @@ function SizeDistributionPanel({ files, analyzed }: { files: FileMetric[]; analy
                   className="block h-2 rounded-full"
                   style={{
                     width: `${bucket.count === 0 ? 0 : Math.max(3, (bucket.count / max) * 100)}%`,
-                    background: index === SIZE_BUCKETS.length - 1 ? '#ec4899' : SERIES[0],
+                    background: index === SIZE_BUCKETS.length - 1 ? 'rgb(var(--rose-500))' : SERIES[0],
                     opacity: index === SIZE_BUCKETS.length - 1 ? 1 : 0.55 + index * 0.15,
                   }}
                 />
@@ -511,7 +511,7 @@ function ActivityPanel({ projectId, repositoryId }: { projectId: string; reposit
         {stats.map((stat) => (
           <div key={stat.label} className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
             <dt className="text-xs text-slate-400">{stat.label}</dt>
-            <dd className="text-xl font-bold tabular-nums text-white">{stat.value}</dd>
+            <dd className="text-xl font-bold tabular-nums text-slate-50">{stat.value}</dd>
           </div>
         ))}
       </dl>
@@ -565,14 +565,14 @@ export function RepositoryDashboard({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <KpiTile
           icon={Files}
-          accent="from-indigo-500 to-violet-500"
+          accent="text-slate-300"
           label="Files"
           value={tree ? number(tree.file_count) : '—'}
           caption={tree ? `${formatBytes(tree.total_bytes)} stored` : 'Not ingested yet'}
         />
         <KpiTile
           icon={FileCode2}
-          accent="from-cyan-500 to-sky-500"
+          accent="text-slate-300"
           label="Lines of code"
           value={summary ? number(summary.total_lines - summary.blank_lines) : '—'}
           caption={
@@ -585,7 +585,7 @@ export function RepositoryDashboard({
         />
         <KpiTile
           icon={Languages}
-          accent="from-fuchsia-500 to-pink-500"
+          accent="text-slate-300"
           label="Languages"
           value={languages ? number(namedLanguages.length) : '—'}
           caption={
@@ -596,7 +596,7 @@ export function RepositoryDashboard({
         />
         <KpiTile
           icon={Package}
-          accent="from-amber-500 to-orange-500"
+          accent="text-slate-300"
           label="Dependencies"
           value={inventory.data ? number(inventory.data.summary.dependencies) : '—'}
           caption={
@@ -607,7 +607,7 @@ export function RepositoryDashboard({
         />
         <KpiTile
           icon={findings ? ShieldAlert : ShieldCheck}
-          accent={findings ? 'from-rose-500 to-fuchsia-500' : 'from-emerald-500 to-teal-500'}
+          accent={findings ? 'text-rose-300' : 'text-emerald-300'}
           label="Secret findings"
           value={findings === undefined ? '—' : number(findings)}
           caption={

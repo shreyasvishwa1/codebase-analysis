@@ -14,10 +14,10 @@ export function ChatPage() {
   const conversations = overview.data?.conversations ?? []
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-800 bg-gradient-to-br from-violet-600/20 via-indigo-600/15 to-emerald-500/10 p-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-violet-300">Module 9</p>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight">AI Chat</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-300">
+      <div className="page-header">
+        <p className="page-eyebrow">Module 9</p>
+        <h1 className="page-title">AI Chat</h1>
+        <p className="page-lede">
           Ask questions about a repository in plain language. Answers are built from the
           passages of code that match the question and from the results of its latest full
           analysis, and they cite the files and lines they rely on.
@@ -40,7 +40,7 @@ export function ChatPage() {
             No repository is ready to chat about yet. Upload a repository and run a full analysis.
           </p>
           <div className="mt-4 flex justify-center gap-3">
-            <Link to="/upload" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+            <Link to="/upload" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-slate-50 hover:bg-indigo-500">
               Upload a repository
             </Link>
             <Link to="/projects" className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800">

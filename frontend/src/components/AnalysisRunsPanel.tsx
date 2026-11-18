@@ -34,7 +34,7 @@ function RunSummary({ run }: { run: AnalysisRun }) {
         {stats.map(([label, value]) => (
           <div key={label} className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
             <dt className="text-xs text-slate-400">{label}</dt>
-            <dd className="text-xl font-bold tabular-nums text-white">{value}</dd>
+            <dd className="text-xl font-bold tabular-nums text-slate-50">{value}</dd>
           </div>
         ))}
       </dl>
@@ -50,7 +50,7 @@ function RunSummary({ run }: { run: AnalysisRun }) {
               </span>
               <span className="mt-1 block h-2 rounded-full bg-slate-800">
                 <span
-                  className="block h-2 rounded-full bg-gradient-to-r from-indigo-500 to-cyan-400"
+                  className="block h-2 rounded-full bg-indigo-500"
                   style={{ width: `${Math.max(3, (entry.code_lines / maxLines) * 100)}%` }}
                 />
               </span>
@@ -124,7 +124,7 @@ export function AnalysisRunsPanel({
           type="button"
           onClick={() => void onRun()}
           disabled={!ready || active || start.isPending}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-slate-50 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {active ? (
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

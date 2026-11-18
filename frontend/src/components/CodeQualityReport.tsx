@@ -88,7 +88,7 @@ function Summary({ quality, onSeverity }: { quality: QualitySummary; onSeverity:
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <div className={CARD}>
           <p className="text-xs text-slate-400">Issues found</p>
-          <p className="text-2xl font-extrabold tabular-nums text-white">{number(quality.issues)}</p>
+          <p className="text-2xl font-extrabold tabular-nums text-slate-50">{number(quality.issues)}</p>
           <p className="text-xs text-slate-500">{count(quality.files_analyzed, 'file')} analyzed</p>
         </div>
         {SEVERITIES.map((severity) => (
@@ -100,12 +100,12 @@ function Summary({ quality, onSeverity }: { quality: QualitySummary; onSeverity:
             className={`${CARD} text-left hover:border-slate-600`}
           >
             <SeverityBadge severity={severity} />
-            <p className="mt-1 text-2xl font-extrabold tabular-nums text-white">{number(quality.by_severity[severity])}</p>
+            <p className="mt-1 text-2xl font-extrabold tabular-nums text-slate-50">{number(quality.by_severity[severity])}</p>
           </button>
         ))}
         <div className={CARD}>
           <p className="text-xs text-slate-400">Duplication</p>
-          <p className="text-2xl font-extrabold tabular-nums text-white">{quality.duplication.percent.toFixed(1)}%</p>
+          <p className="text-2xl font-extrabold tabular-nums text-slate-50">{quality.duplication.percent.toFixed(1)}%</p>
           <p className="text-xs text-slate-500">{count(quality.duplication.blocks, 'duplicate block')}</p>
         </div>
       </div>
@@ -135,7 +135,7 @@ function CategoryBreakdown({ quality, onCategory }: { quality: QualitySummary; o
                 </span>
                 <span className="mt-1 block h-2 rounded-full bg-slate-800">
                   <span
-                    className="block h-2 rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-400"
+                    className="block h-2 rounded-full bg-indigo-500"
                     style={{ width: `${Math.max(3, (value / max) * 100)}%` }}
                   />
                 </span>
@@ -314,7 +314,7 @@ function IssueList({
             type="button"
             onClick={() => update({ path: undefined })}
             aria-label="Clear file filter"
-            className="rounded p-0.5 text-slate-400 hover:bg-slate-800 hover:text-white"
+            className="rounded p-0.5 text-slate-400 hover:bg-slate-800 hover:text-slate-50"
           >
             <X className="h-3.5 w-3.5" aria-hidden="true" />
           </button>

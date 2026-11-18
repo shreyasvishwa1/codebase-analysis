@@ -210,7 +210,7 @@ export function ArchitectureReport({ document, projectId, repositoryId }: {
         {stats.map(([label, value]) => (
           <div key={label} className={CARD}>
             <dt className="text-xs text-slate-400">{label}</dt>
-            <dd className="text-2xl font-extrabold tabular-nums text-white">{value}</dd>
+            <dd className="text-2xl font-extrabold tabular-nums text-slate-50">{value}</dd>
           </div>
         ))}
       </dl>

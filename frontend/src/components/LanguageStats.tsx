@@ -22,10 +22,10 @@ export function LanguageStats({ languages }: { languages: LanguageStatistic[] })
       <div className="h-56">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData} layout="vertical" margin={{ left: 24 }}>
-            <XAxis type="number" unit="%" stroke="#94a3b8" />
-            <YAxis type="category" dataKey="language" width={110} stroke="#94a3b8" />
+            <XAxis type="number" unit="%" stroke="rgb(var(--slate-500))" />
+            <YAxis type="category" dataKey="language" width={110} stroke="rgb(var(--slate-500))" />
             <Tooltip />
-            <Bar dataKey="percentage" fill="#6366f1" />
+            <Bar dataKey="percentage" fill="rgb(var(--indigo-500))" />
           </BarChart>
         </ResponsiveContainer>
       </div>

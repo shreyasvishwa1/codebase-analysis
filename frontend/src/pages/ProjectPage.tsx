@@ -23,7 +23,7 @@ export function ProjectPage() {
 
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-violet-600/25 via-indigo-600/15 to-cyan-500/10 p-8 before:pointer-events-none before:absolute before:-right-12 before:-top-12 before:h-48 before:w-48 before:rounded-full before:bg-cyan-400/15 before:blur-3xl before:content-['']">
+      <div className="page-header">
         <Link to="/projects" className="text-sm text-indigo-300 hover:underline">
           ← Projects
         </Link>
@@ -58,9 +58,9 @@ export function ProjectPage() {
                   <span className="flex min-w-0 items-center gap-3">
                     <span
                       aria-hidden="true"
-                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-indigo-500"
+                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-800 bg-slate-950 text-indigo-300"
                     >
-                      <GitBranch className="h-4 w-4 text-white" />
+                      <GitBranch className="h-4 w-4" />
                     </span>
                     <span className="min-w-0">
                       <span className="font-semibold group-hover:text-indigo-200">{repository.name}</span>

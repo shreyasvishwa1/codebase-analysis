@@ -49,7 +49,7 @@ export function ScoreGauge({ score, grade, size = 132 }: { score: number | null;
       viewBox="0 0 120 120"
       className="shrink-0"
     >
-      <circle cx="60" cy="60" r={RADIUS} fill="none" stroke="#1e293b" strokeWidth="10" />
+      <circle cx="60" cy="60" r={RADIUS} fill="none" stroke="rgb(var(--slate-800))" strokeWidth="10" />
       {score !== null && (
         <circle
           cx="60"
@@ -63,7 +63,7 @@ export function ScoreGauge({ score, grade, size = 132 }: { score: number | null;
           transform="rotate(-90 60 60)"
         />
       )}
-      <text x="60" y="58" textAnchor="middle" className="fill-white text-[28px] font-extrabold">
+      <text x="60" y="58" textAnchor="middle" className="fill-slate-50 font-mono text-[28px] font-semibold">
         {score ?? '—'}
       </text>
       <text x="60" y="80" textAnchor="middle" className="fill-slate-400 text-[11px]">
@@ -212,11 +212,11 @@ export function HealthTrend({ points }: { points: HealthPoint[] }) {
       <div className="h-56" aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: -16 }}>
-            <CartesianGrid stroke="#1e293b" vertical={false} />
-            <XAxis dataKey="when" stroke="#94a3b8" fontSize={12} />
-            <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={12} />
-            <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #334155' }} />
-            <Line type="monotone" dataKey="overall" name="Overall" stroke="#818cf8" strokeWidth={2} dot isAnimationActive={false} />
+            <CartesianGrid stroke="rgb(var(--slate-800))" vertical={false} />
+            <XAxis dataKey="when" stroke="rgb(var(--slate-500))" fontSize={12} />
+            <YAxis domain={[0, 100]} stroke="rgb(var(--slate-500))" fontSize={12} />
+            <Tooltip contentStyle={{ background: 'rgb(var(--slate-900))', border: '1px solid rgb(var(--slate-700))' }} />
+            <Line type="monotone" dataKey="overall" name="Overall" stroke="rgb(var(--indigo-500))" strokeWidth={2} dot isAnimationActive={false} />
           </LineChart>
         </ResponsiveContainer>
       </div>

@@ -14,10 +14,10 @@ export function ComplexityPage() {
   const repositories = overview.data?.repositories ?? []
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-800 bg-gradient-to-br from-amber-600/20 via-violet-600/15 to-cyan-500/10 p-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-amber-300">Module 5</p>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight">Complexity</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-300">
+      <div className="page-header">
+        <p className="page-eyebrow">Module 5</p>
+        <h1 className="page-title">Complexity</h1>
+        <p className="page-lede">
           Complexity and maintainability from each repository&apos;s latest full analysis:
           cyclomatic complexity per function, the maintainability index per file, functions,
           classes and lines of code.
@@ -35,7 +35,7 @@ export function ComplexityPage() {
             No complexity results yet. Upload a repository and run a full analysis.
           </p>
           <div className="mt-4 flex justify-center gap-3">
-            <Link to="/upload" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+            <Link to="/upload" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-slate-50 hover:bg-indigo-500">
               Upload a repository
             </Link>
             <Link to="/projects" className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800">
@@ -68,11 +68,11 @@ export function ComplexityPage() {
                 <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
                   <div>
                     <dt className="text-xs text-slate-400">Average complexity</dt>
-                    <dd className="text-xl font-bold tabular-nums text-white">{summary.average_cyclomatic.toFixed(2)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50">{summary.average_cyclomatic.toFixed(2)}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400">Maintainability</dt>
-                    <dd className="text-xl font-bold tabular-nums text-white">
+                    <dd className="text-xl font-bold tabular-nums text-slate-50">
                       {summary.maintainability_index === null ? '—' : summary.maintainability_index.toFixed(1)}
                     </dd>
                     {summary.maintainability && (
@@ -81,7 +81,7 @@ export function ComplexityPage() {
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400">Functions</dt>
-                    <dd className="text-xl font-bold tabular-nums text-white">{number(summary.functions)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(summary.functions)}</dd>
                   </div>
                 </dl>
                 <p className="mt-3 flex flex-wrap gap-2" aria-label="Functions by complexity">

@@ -13,10 +13,10 @@ export function ArchitecturePage() {
   const repositories = overview.data?.repositories ?? []
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-800 bg-gradient-to-br from-sky-600/20 via-violet-600/15 to-cyan-500/10 p-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-sky-300">Module 7</p>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight">Architecture</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-300">
+      <div className="page-header">
+        <p className="page-eyebrow">Module 7</p>
+        <h1 className="page-title">Architecture</h1>
+        <p className="page-lede">
           The structure of each repository from its latest full analysis: components and their
           imports, technologies, data stores, API routes, entry points and infrastructure, all
           backed by evidence in the code.
@@ -34,7 +34,7 @@ export function ArchitecturePage() {
             No architecture results yet. Upload a repository and run a full analysis.
           </p>
           <div className="mt-4 flex justify-center gap-3">
-            <Link to="/upload" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+            <Link to="/upload" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-slate-50 hover:bg-indigo-500">
               Upload a repository
             </Link>
             <Link to="/projects" className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800">
@@ -67,15 +67,15 @@ export function ArchitecturePage() {
                 <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
                   <div>
                     <dt className="text-xs text-slate-400">Components</dt>
-                    <dd className="text-xl font-bold tabular-nums text-white">{number(summary.components)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(summary.components)}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400">API routes</dt>
-                    <dd className="text-xl font-bold tabular-nums text-white">{number(summary.routes)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(summary.routes)}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400">Cycles</dt>
-                    <dd className="text-xl font-bold tabular-nums text-white">{number(summary.cycles)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(summary.cycles)}</dd>
                   </div>
                 </dl>
                 {summary.technologies.length > 0 && (

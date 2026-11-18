@@ -11,8 +11,8 @@ import { getErrorMessage } from '../services/client'
 import type { DashboardSummary, LanguageBreakdown } from '../types/api'
 import { formatDateTime } from '../utils/format'
 
-const SERIES = ['#6366f1', '#0891b2', '#ec4899', '#d97706', '#059669']
-const OTHER = '#5c6694'
+const SERIES = ['rgb(var(--indigo-500))', 'rgb(var(--slate-400))', 'rgb(var(--emerald-500))', 'rgb(var(--sky-500))', 'rgb(var(--rose-500))']
+const OTHER = 'rgb(var(--slate-600))'
 const PANEL = 'min-w-0 rounded-2xl border border-slate-800 bg-slate-900/70 p-5 shadow-glow backdrop-blur'
 const number = (value: number) => value.toLocaleString('en-US')
 
@@ -25,12 +25,12 @@ function Kpi({ icon: Icon, accent, label, value, caption }: {
 }) {
   return (
     <div className="flex items-start gap-3 rounded-2xl border border-slate-800 bg-slate-900/70 p-4 shadow-glow">
-      <span aria-hidden="true" className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${accent}`}>
-        <Icon className="h-5 w-5 text-white" />
+      <span aria-hidden="true" className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-800 bg-slate-950 ${accent}`}>
+        <Icon className="h-5 w-5" />
       </span>
       <div className="min-w-0">
         <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{label}</p>
-        <p className="text-2xl font-extrabold tabular-nums text-white">{value}</p>
+        <p className="text-2xl font-extrabold tabular-nums text-slate-50">{value}</p>
         <p className="truncate text-xs text-slate-400">{caption}</p>
       </div>
     </div>
@@ -62,15 +62,15 @@ function LanguagePanel({ data }: { data: DashboardSummary }) {
           <div className="h-44 w-44 shrink-0">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={parts} dataKey="value" nameKey="name" innerRadius="66%" outerRadius="100%" paddingAngle={1} stroke="#121935" strokeWidth={2} isAnimationActive={false}>
+                <Pie data={parts} dataKey="value" nameKey="name" innerRadius="66%" outerRadius="100%" paddingAngle={1} stroke="rgb(var(--slate-900))" strokeWidth={2} isAnimationActive={false}>
                   {parts.map((part) => (
                     <Cell key={part.name} fill={part.color} />
                   ))}
                 </Pie>
                 <Tooltip
                   formatter={(value: number) => `${number(value)} lines`}
-                  contentStyle={{ background: '#121935', border: '1px solid #343c63', borderRadius: 8 }}
-                  itemStyle={{ color: '#e0e7ff' }}
+                  contentStyle={{ background: 'rgb(var(--slate-900))', border: '1px solid rgb(var(--slate-700))', borderRadius: 8 }}
+                  itemStyle={{ color: 'rgb(var(--slate-100))' }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -123,7 +123,7 @@ function HealthPanel() {
             <li key={entry.repository_id}>
               <Link
                 to={`/projects/${entry.project_id}/repositories/${entry.repository_id}/health`}
-                className="flex items-center justify-between gap-3 py-2 hover:text-white"
+                className="flex items-center justify-between gap-3 py-2 hover:text-slate-50"
               >
                 <span className="min-w-0">
                   <span className="block truncate text-sm text-slate-200">{entry.repository_name}</span>
@@ -185,10 +185,10 @@ export function OverviewPage() {
   const dashboard = useDashboard()
   return (
     <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-indigo-600/25 via-violet-600/15 to-cyan-500/10 p-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-indigo-300">Repository intelligence</p>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight">Overview</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-300">
+      <div className="page-header">
+        <p className="page-eyebrow">Repository intelligence</p>
+        <h1 className="page-title">Overview</h1>
+        <p className="page-lede">
           Totals from your repositories' stored analyses. Upload a repository, run a full analysis,
           and its results appear here.
         </p>
@@ -202,7 +202,7 @@ export function OverviewPage() {
         <div className="rounded-2xl border border-dashed border-slate-700 p-8 text-center">
           <UploadCloud className="mx-auto h-8 w-8 text-indigo-300" aria-hidden="true" />
           <p className="mt-3 text-sm text-slate-300">You haven't added a repository yet.</p>
-          <Link to="/upload" className="mt-4 inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+          <Link to="/upload" className="mt-4 inline-block rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-slate-50 hover:bg-indigo-500">
             Upload a repository
           </Link>
         </div>
@@ -210,12 +210,12 @@ export function OverviewPage() {
       {dashboard.data && dashboard.data.projects > 0 && (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <Kpi icon={FolderGit2} accent="from-indigo-500 to-violet-500" label="Projects" value={number(dashboard.data.projects)} caption="In your workspace" />
-            <Kpi icon={GitBranch} accent="from-cyan-500 to-sky-500" label="Repositories" value={number(dashboard.data.repositories)} caption={`${number(dashboard.data.ready_repositories)} ingested`} />
-            <Kpi icon={ScanSearch} accent="from-fuchsia-500 to-pink-500" label="Analyzed" value={number(dashboard.data.analyzed_repositories)} caption="Repositories with a run" />
-            <Kpi icon={FileCode2} accent="from-amber-500 to-orange-500" label="Lines of code" value={number(dashboard.data.code_lines)} caption={`${number(dashboard.data.analyzed_files)} files analyzed`} />
-            <Kpi icon={Layers} accent="from-emerald-500 to-teal-500" label="Analyses" value={number(dashboard.data.total_runs)} caption="Runs stored in history" />
-            <Kpi icon={Activity} accent="from-rose-500 to-fuchsia-500" label="Active jobs" value={number(dashboard.data.active_jobs)} caption="Ingestions and analyses" />
+            <Kpi icon={FolderGit2} accent="text-slate-300" label="Projects" value={number(dashboard.data.projects)} caption="In your workspace" />
+            <Kpi icon={GitBranch} accent="text-slate-300" label="Repositories" value={number(dashboard.data.repositories)} caption={`${number(dashboard.data.ready_repositories)} ingested`} />
+            <Kpi icon={ScanSearch} accent="text-slate-300" label="Analyzed" value={number(dashboard.data.analyzed_repositories)} caption="Repositories with a run" />
+            <Kpi icon={FileCode2} accent="text-slate-300" label="Lines of code" value={number(dashboard.data.code_lines)} caption={`${number(dashboard.data.analyzed_files)} files analyzed`} />
+            <Kpi icon={Layers} accent="text-slate-300" label="Analyses" value={number(dashboard.data.total_runs)} caption="Runs stored in history" />
+            <Kpi icon={Activity} accent="text-slate-300" label="Active jobs" value={number(dashboard.data.active_jobs)} caption="Ingestions and analyses" />
           </div>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <LanguagePanel data={dashboard.data} />

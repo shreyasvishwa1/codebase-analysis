@@ -28,7 +28,7 @@ export function RepositorySectionShell({
   const repo = repository.data
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-800 bg-gradient-to-br from-indigo-600/25 via-fuchsia-600/10 to-cyan-500/15 p-8">
+      <div className="page-header">
         <Link to={`/projects/${projectId}`} className="text-sm text-indigo-300 hover:underline">
           ← Project
         </Link>

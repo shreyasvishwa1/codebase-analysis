@@ -94,7 +94,7 @@ function ReportsTable({ repositoryId, highlight }: { repositoryId: string | null
                           type="button"
                           onClick={() => remove.mutate(report.id, { onSuccess: () => setConfirming(null) })}
                           disabled={remove.isPending}
-                          className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-500 disabled:opacity-50"
+                          className="rounded bg-red-600 px-2 py-1 font-semibold text-slate-50 hover:bg-red-500 disabled:opacity-50"
                         >
                           Delete
                         </button>

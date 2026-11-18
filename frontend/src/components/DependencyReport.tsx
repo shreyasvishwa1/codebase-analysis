@@ -123,13 +123,13 @@ function Summary({ summary, update }: { summary: DependencyAnalysisSummary; upda
           filter ? (
             <button key={label} type="button" onClick={() => update(filter)} aria-label={`Show ${label.toLowerCase()} dependencies`} className={`${CARD} text-left hover:border-slate-600`}>
               <span className="block text-xs text-slate-400">{label}</span>
-              <span className="block text-2xl font-extrabold tabular-nums text-white">{number(value)}</span>
+              <span className="block text-2xl font-extrabold tabular-nums text-slate-50">{number(value)}</span>
               <span className="block truncate text-xs text-slate-500">{caption}</span>
             </button>
           ) : (
             <div key={label} className={CARD}>
               <p className="text-xs text-slate-400">{label}</p>
-              <p className="text-2xl font-extrabold tabular-nums text-white">{number(value)}</p>
+              <p className="text-2xl font-extrabold tabular-nums text-slate-50">{number(value)}</p>
               <p className="truncate text-xs text-slate-500">{caption}</p>
             </div>
           ),

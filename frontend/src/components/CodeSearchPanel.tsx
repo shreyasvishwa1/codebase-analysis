@@ -63,7 +63,7 @@ export function CodeSearchPanel({
         <button
           type="submit"
           disabled={query === '' || search.isPending}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-slate-50 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {search.isPending ? 'Searching…' : 'Search'}
         </button>

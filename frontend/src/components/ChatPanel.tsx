@@ -135,7 +135,7 @@ function Message({ message, explorer }: { message: ChatTurn; explorer: string })
   if (message.role === 'user') {
     return (
       <li className="flex justify-end gap-2">
-        <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-tr-sm bg-indigo-600/80 px-4 py-2 text-sm text-white">
+        <p className="max-w-[85%] whitespace-pre-wrap break-words rounded-2xl rounded-tr-sm bg-indigo-600/80 px-4 py-2 text-sm text-slate-50">
           {message.content}
         </p>
         <User className="mt-1 h-5 w-5 shrink-0 text-slate-400" aria-hidden="true" />
@@ -219,7 +219,7 @@ function Composer({
           type="submit"
           disabled={!canSend}
           aria-label="Send"
-          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-slate-50 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
         </button>
@@ -275,7 +275,7 @@ function ConversationList({
                     })
                   }
                   disabled={remove.isPending}
-                  className="rounded bg-red-600 px-2 py-1 font-semibold text-white hover:bg-red-500 disabled:opacity-50"
+                  className="rounded bg-red-600 px-2 py-1 font-semibold text-slate-50 hover:bg-red-500 disabled:opacity-50"
                 >
                   Delete
                 </button>

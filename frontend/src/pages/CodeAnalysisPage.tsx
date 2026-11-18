@@ -14,10 +14,10 @@ export function CodeAnalysisPage() {
   const repositories = overview.data?.repositories ?? []
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-800 bg-gradient-to-br from-indigo-600/25 via-violet-600/15 to-cyan-500/10 p-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-indigo-300">Module 3</p>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight">Code Analysis</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-300">
+      <div className="page-header">
+        <p className="page-eyebrow">Module 3</p>
+        <h1 className="page-title">Code Analysis</h1>
+        <p className="page-lede">
           Code-quality results from each repository's latest full analysis: bug risks, unused and
           dead code, duplication, naming, documentation and formatting.
         </p>
@@ -34,7 +34,7 @@ export function CodeAnalysisPage() {
             No code-quality results yet. Upload a repository and run a full analysis.
           </p>
           <div className="mt-4 flex justify-center gap-3">
-            <Link to="/upload" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+            <Link to="/upload" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-slate-50 hover:bg-indigo-500">
               Upload a repository
             </Link>
             <Link to="/projects" className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800">
@@ -65,15 +65,15 @@ export function CodeAnalysisPage() {
               <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
                 <div>
                   <dt className="text-xs text-slate-400">Issues</dt>
-                  <dd className="text-xl font-bold tabular-nums text-white">{number(entry.quality.issues)}</dd>
+                  <dd className="text-xl font-bold tabular-nums text-slate-50">{number(entry.quality.issues)}</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-slate-400">Duplication</dt>
-                  <dd className="text-xl font-bold tabular-nums text-white">{entry.quality.duplication.percent.toFixed(1)}%</dd>
+                  <dd className="text-xl font-bold tabular-nums text-slate-50">{entry.quality.duplication.percent.toFixed(1)}%</dd>
                 </div>
                 <div>
                   <dt className="text-xs text-slate-400">Files analyzed</dt>
-                  <dd className="text-xl font-bold tabular-nums text-white">{number(entry.analyzed_file_count)}</dd>
+                  <dd className="text-xl font-bold tabular-nums text-slate-50">{number(entry.analyzed_file_count)}</dd>
                 </div>
               </dl>
               <p className="mt-3 flex flex-wrap gap-2" aria-label="Issues by severity">

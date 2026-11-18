@@ -14,10 +14,10 @@ export function DependenciesPage() {
   const repositories = overview.data?.repositories ?? []
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-800 bg-gradient-to-br from-emerald-600/20 via-violet-600/15 to-cyan-500/10 p-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-emerald-300">Module 6</p>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight">Dependencies</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-300">
+      <div className="page-header">
+        <p className="page-eyebrow">Module 6</p>
+        <h1 className="page-title">Dependencies</h1>
+        <p className="page-lede">
           Dependency health from each repository&apos;s latest full analysis: declared packages,
           available updates from PyPI and npm, known vulnerabilities from OSV.dev and conflicting
           declarations.
@@ -35,7 +35,7 @@ export function DependenciesPage() {
             No dependency results yet. Upload a repository and run a full analysis.
           </p>
           <div className="mt-4 flex justify-center gap-3">
-            <Link to="/upload" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+            <Link to="/upload" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-slate-50 hover:bg-indigo-500">
               Upload a repository
             </Link>
             <Link to="/projects" className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800">
@@ -68,15 +68,15 @@ export function DependenciesPage() {
                 <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
                   <div>
                     <dt className="text-xs text-slate-400">Dependencies</dt>
-                    <dd className="text-xl font-bold tabular-nums text-white">{number(summary.dependencies)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(summary.dependencies)}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400">Vulnerable</dt>
-                    <dd className="text-xl font-bold tabular-nums text-white">{number(summary.vulnerable_dependencies)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(summary.vulnerable_dependencies)}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400">Outdated</dt>
-                    <dd className="text-xl font-bold tabular-nums text-white">{number(outdatedCount(summary))}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(outdatedCount(summary))}</dd>
                   </div>
                 </dl>
                 <p className="mt-3 flex flex-wrap gap-2" aria-label="Vulnerabilities by severity">

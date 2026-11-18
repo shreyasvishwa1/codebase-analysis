@@ -73,7 +73,7 @@ function WeightsForm({
         <button
           type="submit"
           disabled={!changed || problem !== null || busy}
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-slate-50 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {save.isPending ? 'Saving…' : 'Save weights'}
         </button>

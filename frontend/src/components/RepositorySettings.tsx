@@ -11,9 +11,9 @@ const INPUT = 'mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 
 const BUTTON =
   'rounded-lg border border-slate-700 px-3 py-1.5 text-sm text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50'
 const PRIMARY =
-  'rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50'
+  'rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-slate-50 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50'
 const DANGER =
-  'rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50'
+  'rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-slate-50 hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50'
 
 type Mode = 'idle' | 'edit' | 'delete'
 

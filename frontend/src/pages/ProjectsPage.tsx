@@ -6,23 +6,15 @@ import { ErrorMessage } from '../components/ErrorMessage'
 import { useProjects } from '../hooks/useProjects'
 import { getErrorMessage } from '../services/client'
 
-const ACCENTS = [
-  'from-indigo-500 to-violet-500',
-  'from-fuchsia-500 to-pink-500',
-  'from-cyan-500 to-sky-500',
-  'from-emerald-500 to-teal-500',
-  'from-amber-500 to-orange-500',
-]
-
 export function ProjectsPage() {
   const projects = useProjects()
   return (
     <div className="space-y-8">
-      <div className="relative overflow-hidden rounded-3xl border border-slate-800 bg-gradient-to-br from-indigo-600/25 via-violet-600/15 to-cyan-500/10 p-8">
+      <div className="page-header">
         <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-fuchsia-500/20 blur-3xl" aria-hidden="true" />
-        <p className="text-xs font-semibold uppercase tracking-widest text-indigo-300">Workspace</p>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight">Projects</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-300">
+        <p className="page-eyebrow">Workspace</p>
+        <h1 className="page-title">Projects</h1>
+        <p className="page-lede">
           Group repositories into projects, import code from a ZIP or GitHub, and explore it with
           cross-file navigation, diagnostics and repository insights.
         </p>
@@ -40,7 +32,7 @@ export function ProjectsPage() {
             </div>
           )}
           <ul className="grid gap-3 sm:grid-cols-2">
-            {projects.data?.map((project, index) => (
+            {projects.data?.map((project) => (
               <li key={project.id}>
                 <Link
                   to={`/projects/${project.id}`}
@@ -48,9 +40,9 @@ export function ProjectsPage() {
                 >
                   <span
                     aria-hidden="true"
-                    className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${ACCENTS[index % ACCENTS.length]}`}
+                    className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-800 bg-slate-950 font-mono text-sm font-semibold uppercase text-indigo-300`}
                   >
-                    <FolderGit2 className="h-5 w-5 text-white" />
+                    <FolderGit2 className="h-5 w-5" />
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate font-semibold group-hover:text-indigo-200">{project.name}</span>

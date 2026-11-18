@@ -1,36 +1,44 @@
+// Colors come from CSS variables (src/styles/tokens.css), one set per theme, so every
+// existing class (slate-*, indigo-*, emerald-*, ...) follows the light and dark themes.
+// slate is the graphite neutral scale and indigo the signal-amber accent.
+const SHADES = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950']
+const PALETTES = [
+  'slate', 'indigo', 'emerald', 'amber', 'red', 'rose', 'orange', 'lime', 'sky', 'cyan',
+  'violet', 'fuchsia', 'teal', 'pink', 'yellow', 'green', 'blue',
+]
+const themed = (name) =>
+  Object.fromEntries(SHADES.map((shade) => [shade, `rgb(var(--${name}-${shade}) / <alpha-value>)`]))
+
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Consolas', 'monospace'],
+        sans: ['Geist', 'ui-sans-serif', 'system-ui', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['"Geist Mono"', 'ui-monospace', 'SFMono-Regular', 'Consolas', 'monospace'],
       },
       colors: {
-        // A navy, indigo-tinted grey scale: every existing slate-* class picks it up.
-        slate: {
-          50: '#f6f7fc',
-          100: '#eef0fa',
-          200: '#dde1f2',
-          300: '#c3c9e3',
-          400: '#98a0c3',
-          500: '#6b7397',
-          600: '#4b5378',
-          700: '#343c63',
-          800: '#232b4e',
-          900: '#121935',
-          950: '#080c22',
-        },
-        brand: {
-          50: '#eef2ff',
-          500: '#6366f1',
-          600: '#4f46e5',
-          700: '#4338ca',
-          900: '#312e81',
-        },
+        ...Object.fromEntries(PALETTES.map((name) => [name, themed(name)])),
+        accent: themed('indigo'),
+      },
+      borderRadius: {
+        lg: '0.375rem',
+        xl: '0.5rem',
+        '2xl': '0.625rem',
+        '3xl': '0.75rem',
       },
       boxShadow: {
-        glow: '0 0 0 1px rgba(129, 140, 248, 0.15), 0 10px 40px -12px rgba(99, 102, 241, 0.45)',
+        // A hairline lift instead of a coloured glow.
+        glow: '0 1px 2px 0 rgb(0 0 0 / 0.12)',
+      },
+      keyframes: {
+        'fade-in': { from: { opacity: '0', transform: 'translateY(4px)' }, to: { opacity: '1', transform: 'none' } },
+        'pop-in': { from: { opacity: '0', transform: 'scale(0.98)' }, to: { opacity: '1', transform: 'none' } },
+        shimmer: { '100%': { transform: 'translateX(100%)' } },
+      },
+      animation: {
+        'fade-in': 'fade-in 0.18s ease-out both',
+        'pop-in': 'pop-in 0.14s ease-out both',
       },
     },
   },

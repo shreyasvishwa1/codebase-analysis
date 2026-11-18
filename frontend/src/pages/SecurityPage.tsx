@@ -15,10 +15,10 @@ export function SecurityPage() {
   const totalFindings = repositories.reduce((sum, entry) => sum + entry.security.findings, 0)
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-800 bg-gradient-to-br from-rose-600/20 via-violet-600/15 to-cyan-500/10 p-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-rose-300">Module 4</p>
-        <h1 className="mt-2 text-3xl font-extrabold tracking-tight">Security</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-300">
+      <div className="page-header">
+        <p className="page-eyebrow">Module 4</p>
+        <h1 className="page-title">Security</h1>
+        <p className="page-lede">
           Security findings from each repository&apos;s latest full analysis: committed secrets,
           injection and XSS risks, insecure configuration and containers, mapped to the OWASP
           Top 10.
@@ -36,7 +36,7 @@ export function SecurityPage() {
             No security results yet. Upload a repository and run a full analysis.
           </p>
           <div className="mt-4 flex justify-center gap-3">
-            <Link to="/upload" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500">
+            <Link to="/upload" className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-slate-50 hover:bg-indigo-500">
               Upload a repository
             </Link>
             <Link to="/projects" className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800">
@@ -69,15 +69,15 @@ export function SecurityPage() {
                 <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
                   <div>
                     <dt className="text-xs text-slate-400">Findings</dt>
-                    <dd className="text-xl font-bold tabular-nums text-white">{number(entry.security.findings)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(entry.security.findings)}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400">Confirmed</dt>
-                    <dd className="text-xl font-bold tabular-nums text-white">{number(entry.security.by_confidence.confirmed)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(entry.security.by_confidence.confirmed)}</dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400">Files scanned</dt>
-                    <dd className="text-xl font-bold tabular-nums text-white">{number(entry.security.files_scanned)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(entry.security.files_scanned)}</dd>
                   </div>
                 </dl>
                 <p className="mt-3 flex flex-wrap gap-2" aria-label="Findings by severity">

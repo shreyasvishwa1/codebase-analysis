@@ -24,9 +24,9 @@ const RANK_STYLES: Record<ComplexityRank, string> = {
   high: 'border-rose-500/40 bg-rose-500/15 text-rose-200',
 }
 const RANK_BARS: Record<ComplexityRank, string> = {
-  low: 'from-emerald-500 to-teal-400',
-  medium: 'from-amber-500 to-yellow-400',
-  high: 'from-rose-500 to-fuchsia-400',
+  low: 'bg-emerald-500',
+  medium: 'bg-amber-500',
+  high: 'bg-rose-500',
 }
 const LEVELS: MaintainabilityLevel[] = ['good', 'moderate', 'poor']
 export const LEVEL_LABELS: Record<MaintainabilityLevel, string> = { good: 'Good', moderate: 'Moderate', poor: 'Poor' }
@@ -129,7 +129,7 @@ function Summary({ summary, duplication }: { summary: ComplexitySummary; duplica
         {stats.map(([label, value, caption]) => (
           <div key={label} className={CARD}>
             <dt className="text-xs text-slate-400">{label}</dt>
-            <dd className="text-2xl font-extrabold tabular-nums text-white">{value}</dd>
+            <dd className="text-2xl font-extrabold tabular-nums text-slate-50">{value}</dd>
             <dd className="truncate text-xs text-slate-500">{caption}</dd>
           </div>
         ))}
@@ -167,7 +167,7 @@ function Distribution({ summary, onRank }: { summary: ComplexitySummary; onRank:
                 </span>
                 <span className="mt-1 block h-2 rounded-full bg-slate-800">
                   <span
-                    className={`block h-2 rounded-full bg-gradient-to-r ${RANK_BARS[rank]}`}
+                    className={`block h-2 rounded-full ${RANK_BARS[rank]}`}
                     style={{ width: `${value === 0 ? 0 : Math.max(2, (value / total) * 100)}%` }}
                   />
                 </span>
@@ -195,7 +195,7 @@ function MaintainabilityPanel({ summary, onLevel }: { summary: ComplexitySummary
             className="rounded-lg border border-slate-800 p-3 text-left hover:border-slate-600"
           >
             <span className="block text-xs text-slate-400">{LEVEL_LABELS[level]}</span>
-            <span className="block text-xl font-bold tabular-nums text-white">{number(summary.files_by_maintainability[level])}</span>
+            <span className="block text-xl font-bold tabular-nums text-slate-50">{number(summary.files_by_maintainability[level])}</span>
           </button>
         ))}
       </div>
@@ -237,7 +237,7 @@ function FunctionList({ projectId, repositoryId, runId, filters, setFilters }: {
       {filters.path && (
         <p className="flex items-center gap-2 text-xs text-slate-300">
           File: <span className="truncate font-mono">{filters.path}</span>
-          <button type="button" onClick={() => update({ path: undefined })} aria-label="Clear file filter" className="rounded p-0.5 text-slate-400 hover:bg-slate-800 hover:text-white">
+          <button type="button" onClick={() => update({ path: undefined })} aria-label="Clear file filter" className="rounded p-0.5 text-slate-400 hover:bg-slate-800 hover:text-slate-50">
             <X className="h-3.5 w-3.5" aria-hidden="true" />
           </button>
         </p>
@@ -252,7 +252,7 @@ function FunctionList({ projectId, repositoryId, runId, filters, setFilters }: {
           <ul className="divide-y divide-slate-800">
             {functions.data.items.map((fn) => (
               <li key={fn.id} className="flex items-start gap-3 py-2.5">
-                <span className="w-10 shrink-0 text-right text-lg font-bold tabular-nums text-white" title="Cyclomatic complexity">
+                <span className="w-10 shrink-0 text-right text-lg font-bold tabular-nums text-slate-50" title="Cyclomatic complexity">
                   {fn.cyclomatic}
                 </span>
                 <span className="min-w-0 flex-1">

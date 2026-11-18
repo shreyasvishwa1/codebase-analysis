@@ -59,7 +59,7 @@ export function CodeMetricsPanel({
           type="button"
           disabled={disabled}
           onClick={() => start.mutate()}
-          className="rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-slate-50 hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Analyze code
         </button>

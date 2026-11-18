@@ -28,7 +28,7 @@ export function FileExplanation({ projectId, repositoryId, path }: FileExplanati
           type="button"
           disabled={explain.isPending}
           onClick={() => explain.mutate(path)}
-          className="rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg bg-indigo-500 px-3 py-1.5 text-sm font-medium text-slate-50 hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Explain this file
         </button>

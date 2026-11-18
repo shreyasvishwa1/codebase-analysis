@@ -19,7 +19,7 @@ export const MIN_PASSWORD = 8
 const INPUT =
   'mt-1.5 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none'
 const PRIMARY =
-  'rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50'
+  'rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-slate-50 hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50'
 
 function Card({ title, icon, children, tone = 'default' }: { title: string; icon: ReactNode; children: ReactNode; tone?: 'default' | 'danger' }) {
   return (
@@ -115,7 +115,7 @@ function Summary() {
             {items.map((item) => (
               <Link key={item.label} to={item.to} className="rounded-xl border border-slate-800 p-3 hover:bg-slate-800/50">
                 <dt className="text-xs text-slate-400">{item.label}</dt>
-                <dd className="text-xl font-bold tabular-nums text-white">{item.value.toLocaleString('en-US')}</dd>
+                <dd className="text-xl font-bold tabular-nums text-slate-50">{item.value.toLocaleString('en-US')}</dd>
               </Link>
             ))}
           </dl>
@@ -246,7 +246,7 @@ function DeleteAccount() {
           <button
             type="submit"
             disabled={!password || !understood || remove.isPending}
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-slate-50 hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {remove.isPending ? 'Deleting…' : 'Delete my account'}
           </button>
@@ -260,9 +260,9 @@ export function SettingsPage() {
   const { user } = useAuth()
   return (
     <div className="space-y-6">
-      <div className="rounded-3xl border border-slate-800 bg-gradient-to-br from-slate-600/20 via-indigo-600/15 to-fuchsia-500/10 p-8">
+      <div className="page-header">
         <h1 className="text-3xl font-extrabold tracking-tight">Settings</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-300">Your profile, password, preferences and data.</p>
+        <p className="page-lede">Your profile, password, preferences and data.</p>
       </div>
       {user && <Profile user={user} />}
       <Summary />

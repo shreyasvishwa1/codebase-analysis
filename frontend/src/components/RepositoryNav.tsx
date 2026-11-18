@@ -17,14 +17,14 @@ export function RepositoryNav({ projectId, repositoryId }: { projectId: string; 
     { to: `${base}/history`, label: 'History & reports', icon: History, end: false },
   ]
   return (
-    <nav aria-label="Repository sections" className="flex flex-wrap gap-2">
+    <nav aria-label="Repository sections" className="-mb-px flex gap-1 overflow-x-auto border-b border-slate-800">
       {sections.map(({ to, label, icon: Icon, end }) => (
         <NavLink
           key={to}
           to={to}
           end={end}
           className={({ isActive }) =>
-            `inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm ${isActive ? 'border-indigo-500/60 bg-indigo-500/15 text-indigo-100' : 'border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/60'}`
+            `inline-flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-[13px] font-medium transition ${isActive ? 'border-indigo-500 text-slate-50' : 'border-transparent text-slate-400 hover:border-slate-700 hover:text-slate-200'}`
           }
         >
           <Icon className="h-4 w-4" aria-hidden="true" />
