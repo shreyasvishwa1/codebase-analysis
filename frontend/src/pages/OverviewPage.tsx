@@ -3,8 +3,10 @@ import { Link } from 'react-router-dom'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 
 import { ErrorMessage } from '../components/ErrorMessage'
+import { scoreTone } from '../components/HealthReport'
 import { languageLabel } from '../components/LanguageStats'
 import { useDashboard } from '../hooks/useAnalysisRuns'
+import { useHealthOverview } from '../hooks/useHealthScore'
 import { getErrorMessage } from '../services/client'
 import type { DashboardSummary, LanguageBreakdown } from '../types/api'
 import { formatDateTime } from '../utils/format'
@@ -88,6 +90,63 @@ function LanguagePanel({ data }: { data: DashboardSummary }) {
   )
 }
 
+const HEALTH_SHOWN = 6
+
+/** Each repository's latest health score, lowest first: the ones that need attention. */
+function HealthPanel() {
+  const overview = useHealthOverview()
+  const scored = (overview.data?.repositories ?? [])
+    .filter((entry) => entry.overall !== null)
+    .sort((a, b) => (a.overall ?? 0) - (b.overall ?? 0))
+  const average = scored.length ? Math.round(scored.reduce((sum, entry) => sum + (entry.overall ?? 0), 0) / scored.length) : null
+  return (
+    <section className={PANEL} aria-label="Code health">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-100">Code health</h2>
+          <p className="mt-1 text-xs text-slate-400">Latest score of each repository, lowest first.</p>
+        </div>
+        {average !== null && (
+          <p className="text-right text-xs text-slate-400">
+            Average <span className={`block text-2xl font-bold tabular-nums ${scoreTone(average).text}`}>{average}</span>
+          </p>
+        )}
+      </div>
+      {overview.isPending && <p className="mt-4 text-sm text-slate-400">Loading scores…</p>}
+      {overview.isError && <ErrorMessage message={getErrorMessage(overview.error, 'Could not load the scores')} />}
+      {overview.data && scored.length === 0 && (
+        <p className="mt-4 text-sm text-slate-400">No scores yet: run a full analysis of a repository.</p>
+      )}
+      {scored.length > 0 && (
+        <ul className="mt-3 divide-y divide-slate-800">
+          {scored.slice(0, HEALTH_SHOWN).map((entry) => (
+            <li key={entry.repository_id}>
+              <Link
+                to={`/projects/${entry.project_id}/repositories/${entry.repository_id}/health`}
+                className="flex items-center justify-between gap-3 py-2 hover:text-white"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm text-slate-200">{entry.repository_name}</span>
+                  <span className="block truncate text-xs text-slate-500">{entry.project_name}</span>
+                </span>
+                <span className="shrink-0 text-right">
+                  <span className={`text-lg font-bold tabular-nums ${scoreTone(entry.overall).text}`}>{entry.overall}</span>
+                  <span className="ml-1 text-xs text-slate-400">{entry.grade}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {scored.length > HEALTH_SHOWN && (
+        <Link to="/health-score" className="mt-2 inline-block text-xs text-indigo-300 hover:underline">
+          All {scored.length} scores
+        </Link>
+      )}
+    </section>
+  )
+}
+
 function RecentPanel({ data }: { data: DashboardSummary }) {
   return (
     <section className={PANEL} aria-label="Recent analyses">
@@ -162,6 +221,7 @@ export function OverviewPage() {
             <LanguagePanel data={dashboard.data} />
             <RecentPanel data={dashboard.data} />
           </div>
+          <HealthPanel />
         </>
       )}
     </div>

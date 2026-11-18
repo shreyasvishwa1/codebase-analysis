@@ -1,4 +1,4 @@
-import { FileSearch, FolderGit2, Gauge, HeartPulse, History, LayoutDashboard, LogOut, MessagesSquare, Network, Package, ShieldCheck, UploadCloud } from 'lucide-react'
+import { FileSearch, FolderGit2, Gauge, HeartPulse, History, LayoutDashboard, LogOut, MessagesSquare, Network, Package, Settings, ShieldCheck, UploadCloud } from 'lucide-react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 
 import { BrandMark } from '../components/AuthLayout'
@@ -26,9 +26,7 @@ function HealthIndicator() {
 }
 
 /**
- * Main navigation. A section is listed only once its module works; later phases add Code
- * Analysis, Security, Complexity, Dependencies, Architecture, Health Score, AI chat, Reports
- * and Settings.
+ * Main navigation: the workspace, then one entry per analysis module, then the account.
  */
 const NAVIGATION = [
   { to: '/overview', label: 'Overview', icon: LayoutDashboard },
@@ -42,6 +40,7 @@ const NAVIGATION = [
   { to: '/health-score', label: 'Health Score', icon: HeartPulse },
   { to: '/chat', label: 'AI Chat', icon: MessagesSquare },
   { to: '/history', label: 'History & Reports', icon: History },
+  { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
 function MainNavigation({ className }: { className: string }) {
@@ -82,15 +81,20 @@ export function AppShell() {
           <div className="flex items-center gap-3">
             <HealthIndicator />
             {user && (
-              <span className="hidden items-center gap-2 text-sm text-slate-300 md:flex">
+              <Link
+                to="/settings"
+                title={user.email}
+                aria-label={`Account settings for ${user.display_name ?? user.email}`}
+                className="hidden items-center gap-2 rounded-lg px-1.5 py-1 text-sm text-slate-300 hover:bg-slate-800/60 md:flex"
+              >
                 <span
                   aria-hidden="true"
                   className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-fuchsia-500 to-indigo-500 text-xs font-bold uppercase text-white"
                 >
-                  {user.email.charAt(0)}
+                  {(user.display_name ?? user.email).charAt(0)}
                 </span>
-                <span>{user.email}</span>
-              </span>
+                <span className="max-w-[16rem] truncate">{user.display_name ?? user.email}</span>
+              </Link>
             )}
             <button
               type="button"

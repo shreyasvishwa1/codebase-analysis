@@ -3,6 +3,7 @@
 Nothing in this module logs or returns passwords, hashes' inputs, or tokens.
 """
 
+import hashlib
 import uuid
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
@@ -39,19 +40,29 @@ def dummy_password_hash() -> str:
     return _password_hasher.hash(uuid.uuid4().hex)
 
 
-def create_access_token(user_id: uuid.UUID) -> str:
+def password_fingerprint(password_hash: str) -> str:
+    """A short digest of the stored password hash: it changes whenever the password does."""
+    return hashlib.sha256(password_hash.encode()).hexdigest()[:32]
+
+
+def create_access_token(user_id: uuid.UUID, password_hash: str | None = None) -> str:
+    """A signed token for ``user_id``. With ``password_hash``, the token carries its
+    fingerprint (``pwd``), so changing the password ends every session started before."""
     settings = get_settings()
     expires_at = datetime.now(timezone.utc) + timedelta(
         minutes=settings.jwt_access_token_expire_minutes
     )
-    payload = {"sub": str(user_id), "exp": expires_at}
+    payload: dict[str, object] = {"sub": str(user_id), "exp": expires_at}
+    if password_hash is not None:
+        payload["pwd"] = password_fingerprint(password_hash)
     return jwt.encode(
         payload, settings.secret_key.get_secret_value(), algorithm=settings.jwt_algorithm
     )
 
 
-def decode_access_token(token: str) -> uuid.UUID:
-    """Validate the token and return the user id from its ``sub`` claim."""
+def decode_access_claims(token: str) -> tuple[uuid.UUID, str | None]:
+    """Validate the token and return the user id (``sub``) and the password fingerprint
+    (``pwd``; None in tokens issued without one)."""
     settings = get_settings()
     try:
         payload = jwt.decode(
@@ -60,6 +71,14 @@ def decode_access_token(token: str) -> uuid.UUID:
             algorithms=[settings.jwt_algorithm],
             options={"require": ["exp", "sub"]},
         )
-        return uuid.UUID(payload["sub"])
+        fingerprint = payload.get("pwd")
+        if fingerprint is not None and not isinstance(fingerprint, str):
+            raise InvalidTokenError
+        return uuid.UUID(payload["sub"]), fingerprint
     except (jwt.PyJWTError, ValueError, TypeError, AttributeError):
         raise InvalidTokenError from None
+
+
+def decode_access_token(token: str) -> uuid.UUID:
+    """Validate the token and return the user id from its ``sub`` claim."""
+    return decode_access_claims(token)[0]

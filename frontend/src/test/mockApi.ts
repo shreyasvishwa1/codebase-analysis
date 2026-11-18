@@ -77,6 +77,7 @@ export function resetApiMock(): void {
 export const USER = {
   id: '11111111-1111-1111-1111-111111111111',
   email: 'alice@example.com',
+  display_name: null as string | null,
   created_at: '2026-10-01T00:00:00Z',
   updated_at: '2026-10-01T00:00:00Z',
 }

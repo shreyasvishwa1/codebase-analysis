@@ -23,7 +23,7 @@ class AnalysisRun(UUIDPrimaryKeyMixin, Base):
     """One completed full analysis of a repository snapshot.
 
     Created in the same transaction that completes its ``full_analysis`` job, so a run
-    always has complete results. Results of later phases reference the run and identify
+    always has complete results. Every analysis's results reference the run and identify
     files by path (not by files row), so re-ingesting the repository never changes or
     removes the history of earlier runs.
     """

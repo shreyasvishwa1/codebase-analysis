@@ -14,6 +14,8 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "users"
 
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
+    # An optional name shown instead of the email (migration 0013).
+    display_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
     # Storage only; hashing is implemented with authentication in a later step.
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     # The user's Code Health Score weights (dimension -> weight); NULL means the defaults.

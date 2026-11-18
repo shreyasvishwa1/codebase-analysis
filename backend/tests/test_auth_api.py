@@ -31,7 +31,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 PASSWORD = "test-only-Passw0rd!"
-USER_FIELDS = {"id", "email", "created_at", "updated_at"}
+USER_FIELDS = {"id", "email", "display_name", "created_at", "updated_at"}
 
 
 @pytest.fixture

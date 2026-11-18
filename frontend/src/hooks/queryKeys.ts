@@ -55,6 +55,7 @@ export const queryKeys = {
   healthOverview: ['health-score'] as const,
   healthWeights: ['health-score', 'weights'] as const,
   chatStatus: ['chat', 'status'] as const,
+  accountSummary: ['account', 'summary'] as const,
   chatOverview: ['chat'] as const,
   reports: (repositoryId: string | null) => ['reports', repositoryId ?? 'all'] as const,
   analysisHistory: (repositoryId: string | null, limit: number) =>

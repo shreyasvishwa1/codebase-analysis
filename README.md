@@ -44,8 +44,9 @@ guesses.
 | --- | --- |
 | Ingestion | ZIP upload or public GitHub archive, from one Upload Repository page; background jobs with status; pending jobs can be cancelled |
 | Full analysis | One background run analyzes a repository snapshot (dependency folders such as `node_modules/` and build output excluded) and stores the results; every run is kept in the repository's history |
-| Overview | Totals across all your repositories from their latest stored runs: projects, repositories, lines of code, analyses, active jobs, language distribution and recent analyses |
+| Overview | Totals across all your repositories from their latest stored runs: projects, repositories, lines of code, analyses, active jobs, language distribution, recent analyses and each repository's latest health score (lowest first) |
 | Architecture | Each full analysis also maps the architecture: components (directories) and the imports between them in an interactive diagram, dependency cycles, technologies and data stores, API routes, entry points, Dockerfiles, Docker Compose services, CI and deployment files, and observations such as a layered structure or circular dependencies. Every item links to the file and line it comes from |
+| Settings | Profile (display name), what the account holds, password change (other sessions are signed out), the health-score weights, whether the AI features are configured, and account deletion after the password and a confirmation |
 | History & Reports | Every full analysis of your repositories, newest first, with its health score and the change from the previous analysis, critical and high security findings, quality issues, complex functions and vulnerable packages. Create a PDF report of any analysis (overview, health score with calculations, security findings with fixes, code quality, complexity, dependencies, architecture); reports are kept so you can download them again |
 | AI Chat | Ask questions about a repository in plain language. Answers are built from the passages of code that match the question (PostgreSQL full-text search over Python definitions and line windows) and from the results of its latest full analysis, and they cite the files and lines they rely on as links into the explorer. Conversations are kept per repository. Secrets are masked before anything is stored or sent, and repository content is passed to the model as untrusted data. Needs `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` |
 | Health Score | One score from 0 to 100 (grade A-F) per analysis: a weighted average of security, code quality, complexity, maintainability, dependency health and architecture. Each dimension shows its inputs, the calculation with the actual numbers and what would raise it. The weights are yours to change, and a trend shows the score across runs. Formulas: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#6-code-health-score-phase-7) |
@@ -164,7 +165,7 @@ FastAPI on uvicorn (http://127.0.0.1:8000)
   - CORS accepts exact origins only.
   - `SECRET_KEY` must be at least 32 characters, and the placeholder value is rejected in
     production.
-- **AI boundary**: explanations are off unless `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` is set.
+- **AI boundary**: explanations and the chat are off unless `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` is set.
   - Only the requested, verified file (at most 64 KiB) is sent, always to
     `https://api.anthropic.com` or `https://generativelanguage.googleapis.com`.
   - The Gemini key travels only in a request header, never in the URL, and redirects are
@@ -249,11 +250,11 @@ Results at the final development commit:
 
 | Check | Result |
 | --- | --- |
-| Frontend tests (Vitest, Testing Library, jsdom) | 1,365 passing in 48 files |
-| Backend tests (pytest) | 3,075 passing in 52 files; 30 skipped on Windows, where creating symlinks needs a privilege |
+| Frontend tests (Vitest, Testing Library, jsdom) | 1,379 passing in 49 files |
+| Backend tests (pytest) | 3,082 passing in 53 files; 30 skipped on Windows, where creating symlinks needs a privilege |
 | TypeScript typecheck and production build | Passing |
 | `ruff check` and mypy | Passing |
-| Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine; 23/23 for security analysis; 21/21 for complexity analysis; 30/30 for dependency analysis; 30/30 for architecture analysis; 43/43 for the health score; 52/52 for the AI chat; 47/47 for PDF reports and history |
+| Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine; 23/23 for security analysis; 21/21 for complexity analysis; 30/30 for dependency analysis; 30/30 for architecture analysis; 43/43 for the health score; 52/52 for the AI chat; 47/47 for PDF reports and history; 28/28 for settings and the account |
 
 - **Isolation**: frontend tests mock the API at the axios adapter, so no backend is needed.
   Backend database and API tests run against a throwaway, already-migrated PostgreSQL database
@@ -357,9 +358,9 @@ below exists in the code.
 | `MAX_EXTRACTED_FILE_SIZE_MB` | Optional | `25` | Per-file extracted size (at most `MAX_EXTRACTED_SIZE_MB`) |
 | `MAX_COMPRESSION_RATIO` | Optional | `100` | Per-entry compression ratio (zip-bomb guard) |
 | `LLM_PROVIDER` | Optional | empty | `anthropic` or `gemini`; empty chooses by which key is set (Anthropic first) |
-| `ANTHROPIC_API_KEY` | Optional | empty | Enables AI explanations with Anthropic; empty keeps them disabled |
+| `ANTHROPIC_API_KEY` | Optional | empty | Enables AI file explanations and the AI chat with Anthropic; empty keeps them disabled |
 | `LLM_MODEL` | Optional | `claude-opus-5-5` | Claude model for explanations |
-| `GEMINI_API_KEY` | Optional | empty | Enables AI explanations with Google Gemini (free tier available) |
+| `GEMINI_API_KEY` | Optional | empty | Enables AI file explanations and the AI chat with Google Gemini (free tier available) |
 | `GEMINI_MODEL` | Optional | `gemini-3.8-flash` | Gemini model for explanations |
 | `SMTP_HOST` | Optional | empty | Mail server for password-reset emails, such as `smtp.gmail.com`; password reset stays off until `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` and `APP_BASE_URL` are all set |
 | `SMTP_PORT` | Optional | `587` | Mail server port; the connection is upgraded with STARTTLS |
@@ -445,6 +446,7 @@ All endpoints are under `/api/v1`. Repository endpoints share the prefix
 | --- | --- |
 | Health | `GET /health`, `GET /api/health`, `GET /api/v1/health` |
 | Auth | `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `POST /auth/password-reset/request`, `POST /auth/password-reset/confirm` |
+| Account | `PATCH /auth/me` (display name), `POST /auth/change-password` (ends other sessions; returns a new token), `DELETE /auth/me` (deletes the account and its data; needs the password), `GET /auth/me/summary` |
 | Projects | `GET /projects`, `POST /projects`, `GET`/`PATCH`/`DELETE /projects/{project_id}` |
 | Repositories | `GET`/`POST /projects/{project_id}/repositories`, `GET`/`PATCH`/`DELETE …` |
 | Ingestion and jobs | `POST …/ingest`, `GET …/jobs`, `GET …/jobs/{job_id}`, `POST …/jobs/{job_id}/cancel` |

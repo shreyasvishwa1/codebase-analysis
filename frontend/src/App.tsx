@@ -28,6 +28,7 @@ import { RepositoryHistoryPage } from './pages/RepositoryHistoryPage'
 import { RepositoryPage } from './pages/RepositoryPage'
 import { RepositorySecurityPage } from './pages/RepositorySecurityPage'
 import { SecurityPage } from './pages/SecurityPage'
+import { SettingsPage } from './pages/SettingsPage'
 import { UploadPage } from './pages/UploadPage'
 
 export default function App() {
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/health-score" element={<HealthPage />} />
           <Route path="/chat" element={<ChatPage />} />
           <Route path="/history" element={<HistoryPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<ProjectPage />} />
           <Route

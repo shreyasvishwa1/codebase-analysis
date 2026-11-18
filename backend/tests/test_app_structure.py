@@ -54,6 +54,8 @@ def test_openapi_generation(client: TestClient) -> None:
         "/api/v1/auth/me",
         "/api/v1/auth/password-reset/request",
         "/api/v1/auth/password-reset/confirm",
+        "/api/v1/auth/change-password",
+        "/api/v1/auth/me/summary",
         "/api/v1/dashboard",
         "/api/v1/projects/{project_id}/repositories/{repository_id}/analysis-runs",
         "/api/v1/projects/{project_id}/repositories/{repository_id}/analysis-runs/{run_id}",

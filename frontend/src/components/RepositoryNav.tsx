@@ -1,10 +1,7 @@
 import { Activity, FileSearch, FolderTree, Gauge, HeartPulse, History, MessagesSquare, Network, Package, ShieldCheck } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 
-/**
- * Sections of one repository's workspace. A section is listed only once its module works;
- * later phases add Code Analysis, Security, Complexity and the others here.
- */
+/** Sections of one repository's workspace: the explorer, then one per analysis module. */
 export function RepositoryNav({ projectId, repositoryId }: { projectId: string; repositoryId: string }) {
   const base = `/projects/${projectId}/repositories/${repositoryId}`
   const sections = [

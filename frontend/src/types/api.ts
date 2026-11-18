@@ -8,6 +8,8 @@ export type AnalysisJobType = 'ingestion' | 'code_metrics' | 'full_analysis'
 export interface User {
   id: string
   email: string
+  /** shown instead of the email when set */
+  display_name: string | null
   created_at: string
   updated_at: string
 }
@@ -1636,4 +1638,15 @@ export interface AnalysisHistory {
   entries: HistoryEntry[]
   /** runs matching the filter */
   total: number
+}
+
+// --- Account ------------------------------------------------------------------------------------
+
+export interface AccountSummary {
+  projects: number
+  repositories: number
+  analyses: number
+  reports: number
+  conversations: number
+  latest_analysis_at: string | null
 }

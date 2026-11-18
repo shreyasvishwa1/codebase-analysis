@@ -3,7 +3,8 @@
 CodeBase Analysis analyzes software repositories (a ZIP upload or a public GitHub archive):
 - code quality, security, complexity, dependencies and architecture;
 - an overall Code Health Score;
-- answers to questions about the code through an AI chat grounded in the repository.
+- answers to questions about the code through an AI chat grounded in the repository;
+- PDF reports and the history of every analysis.
 
 This document is the design reference for the system and its development phases.
 
@@ -336,6 +337,13 @@ Densities are per 1,000 lines of code (at least 1,000). A density `d` becomes a 
 ## 9. Security controls
 
 - Argon2 password hashing, JWT bearer tokens and ownership checks on every repository route.
+- Sessions are bound to the password: tokens carry a fingerprint of the stored password hash,
+  so changing or resetting the password ends every earlier session (the change returns a new
+  token for the current one). Changing the password and deleting the account require the
+  current password, limited to 5 checks per user per 15 minutes.
+- Deleting an account removes everything it owns through `ON DELETE CASCADE` (projects,
+  repositories, analyses, reports, conversations); stored repository files are removed by
+  the maintenance sweep.
 - Per-user rate limits for analysis runs, the chat and reports. Per-IP limits for sign-up and
   login use the visitor's real address behind proxies (`CLIENT_IP_HEADER`).
 - Archive validation (path traversal, links, sizes, compression ratio). The GitHub host and

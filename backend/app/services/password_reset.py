@@ -22,6 +22,9 @@ import jwt
 
 from app.config import Settings
 
+# Shared with access tokens: one fingerprint scheme for every password-bound token.
+from app.core.security import password_fingerprint
+
 logger = logging.getLogger(__name__)
 
 PURPOSE = "password-reset"
@@ -41,10 +44,6 @@ def _signing_key(settings: Settings) -> bytes:
     return hmac.new(
         settings.secret_key.get_secret_value().encode(), PURPOSE.encode(), hashlib.sha256
     ).digest()
-
-
-def password_fingerprint(password_hash: str) -> str:
-    return hashlib.sha256(password_hash.encode()).hexdigest()[:32]
 
 
 def create_reset_token(settings: Settings, user_id: uuid.UUID, password_hash: str) -> str:

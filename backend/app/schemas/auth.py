@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, SecretStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 MIN_PASSWORD_LENGTH = 8
 MAX_EMAIL_LENGTH = 320
@@ -70,10 +70,51 @@ class TokenResponse(BaseModel):
     token_type: Literal["bearer"] = "bearer"
 
 
+MAX_DISPLAY_NAME_LENGTH = 80
+
+
+class ProfileUpdate(BaseModel):
+    """The display name; empty or blank removes it."""
+
+    display_name: str | None = Field(default=None, max_length=200)
+
+    @field_validator("display_name")
+    @classmethod
+    def _clean(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        name = " ".join(value.split())
+        if len(name) > MAX_DISPLAY_NAME_LENGTH:
+            raise ValueError(f"must be at most {MAX_DISPLAY_NAME_LENGTH} characters")
+        return name or None
+
+
+class PasswordChange(BaseModel):
+    # Lengths are checked in the route, so validation errors never echo a password back.
+    current_password: SecretStr
+    new_password: SecretStr
+
+
+class AccountDeletion(BaseModel):
+    password: SecretStr
+
+
+class AccountSummary(BaseModel):
+    """What the account holds."""
+
+    projects: int
+    repositories: int
+    analyses: int
+    reports: int
+    conversations: int
+    latest_analysis_at: datetime | None
+
+
 class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     email: str
+    display_name: str | None
     created_at: datetime
     updated_at: datetime

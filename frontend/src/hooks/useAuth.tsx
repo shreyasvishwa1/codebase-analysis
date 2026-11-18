@@ -21,6 +21,10 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, password: string) => Promise<void>
   logout: () => void
+  /** Replace the signed-in user (after a profile change). */
+  updateUser: (user: User) => void
+  /** Keep the session with a new token (after a password change). */
+  replaceToken: (token: string) => void
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -83,9 +87,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [login],
   )
 
+  const replaceToken = useCallback((token: string) => setToken(token), [])
   const value = useMemo(
-    () => ({ status, user, login, register, logout: signOut }),
-    [status, user, login, register, signOut],
+    () => ({ status, user, login, register, logout: signOut, updateUser: setUser, replaceToken }),
+    [status, user, login, register, signOut, replaceToken],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

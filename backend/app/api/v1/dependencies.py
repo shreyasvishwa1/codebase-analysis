@@ -1,10 +1,11 @@
+import hmac
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import InvalidTokenError, decode_access_token
+from app.core.security import InvalidTokenError, decode_access_claims, password_fingerprint
 from app.database import get_db
 from app.models import User
 
@@ -28,10 +29,15 @@ async def get_current_user(
     if credentials is None:
         raise _unauthorized()
     try:
-        user_id = decode_access_token(credentials.credentials)
+        user_id, fingerprint = decode_access_claims(credentials.credentials)
     except InvalidTokenError:
         raise _unauthorized() from None
     user = await db.get(User, user_id)
     if user is None:
+        raise _unauthorized()
+    # A token bound to an earlier password (changed or reset since) has ended.
+    if fingerprint is not None and not hmac.compare_digest(
+        fingerprint, password_fingerprint(user.password_hash)
+    ):
         raise _unauthorized()
     return user

@@ -107,9 +107,67 @@ const SUMMARY: DashboardSummary = {
 
 // --- Overview --------------------------------------------------------------------------------
 
+const healthEntry = (name: string, overall: number | null, grade: string | null) => ({
+  project_id: P,
+  project_name: 'Demo project',
+  repository_id: `repo-${name}`,
+  repository_name: name,
+  run_id: `run-${name}`,
+  created_at: '2026-11-18T10:00:00Z',
+  overall,
+  grade,
+  scores: {},
+})
+
 describe('Overview', () => {
+  it('lists each repository’s health score, lowest first', async () => {
+    const scores = [
+      healthEntry('alpha', 90, 'A'), healthEntry('beta', 42, 'D'), healthEntry('gamma', 71, 'B'),
+      healthEntry('delta', 60, 'C'), healthEntry('epsilon', 85, 'A'), healthEntry('zeta', 30, 'F'),
+      healthEntry('eta', 55, 'C'), healthEntry('old', null, null),
+    ]  // prettier-ignore
+    mockApi({
+      'GET /dashboard': { status: 200, data: SUMMARY },
+      'GET /health-score': { status: 200, data: { weights: {}, repositories: scores } },
+    })
+    mount(<OverviewPage />)
+    const panel = within(await screen.findByRole('region', { name: 'Code health' }))
+    await panel.findByText('zeta')
+    const links = panel.getAllByRole('link')
+    expect(links.slice(0, 6).map((link) => link.textContent)).toEqual([
+      'zetaDemo project30F', 'betaDemo project42D', 'etaDemo project55C',
+      'deltaDemo project60C', 'gammaDemo project71B', 'epsilonDemo project85A',
+    ])  // prettier-ignore
+    expect(links[0].getAttribute('href')).toBe(`/projects/${P}/repositories/repo-zeta/health`)
+    expect(panel.getByText('62').className).toContain('text-amber-300') // (90+42+71+60+85+30+55) / 7
+    expect(links[6].textContent).toBe('All 7 scores')
+    expect(links[6].getAttribute('href')).toBe('/health-score')
+  })
+
+  it('says when there are no scores, and reports a failed request', async () => {
+    mockApi({
+      'GET /dashboard': { status: 200, data: SUMMARY },
+      'GET /health-score': { status: 200, data: { weights: {}, repositories: [healthEntry('old', null, null)] } },
+    })
+    mount(<OverviewPage />)
+    expect(await screen.findByText('No scores yet: run a full analysis of a repository.')).toBeTruthy()
+  })
+
+  it('reports scores that cannot be loaded', async () => {
+    mockApi({
+      'GET /dashboard': { status: 200, data: SUMMARY },
+      'GET /health-score': { status: 500, data: { detail: 'Scores failed' } },
+    })
+    mount(<OverviewPage />)
+    const panel = within(await screen.findByRole('region', { name: 'Code health' }))
+    expect((await panel.findByRole('alert')).textContent).toBe('Scores failed')
+  })
+
   it('shows totals, languages and recent analyses from the dashboard API', async () => {
-    mockApi({ 'GET /dashboard': { status: 200, data: SUMMARY } })
+    mockApi({
+      'GET /dashboard': { status: 200, data: SUMMARY },
+      'GET /health-score': { status: 200, data: { weights: {}, repositories: [] } },
+    })
     mount(<OverviewPage />)
     expect(await screen.findByText('12,345')).toBeTruthy()
     const value = (label: string) => screen.getByText(label, { selector: 'p' }).nextElementSibling?.textContent

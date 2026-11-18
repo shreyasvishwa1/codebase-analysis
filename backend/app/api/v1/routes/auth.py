@@ -1,8 +1,8 @@
 import hmac
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
-from sqlalchemy import select
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,13 +15,17 @@ from app.core.security import (
 )
 from app.config import get_settings
 from app.database import get_db
-from app.models import User
+from app.models import AnalysisRun, ChatConversation, GeneratedReport, Project, Repository, User
 from app.schemas.auth import (
     MIN_PASSWORD_LENGTH,
+    AccountDeletion,
+    AccountSummary,
     LoginRequest,
     MessageResponse,
+    PasswordChange,
     PasswordResetConfirm,
     PasswordResetRequest,
+    ProfileUpdate,
     RegisterRequest,
     TokenResponse,
     UserResponse,
@@ -35,6 +39,7 @@ from app.services.password_reset import (
     send_reset_email,
 )
 from app.services.rate_limit import (
+    Limit,
     RESET_CONFIRM_IP,
     RESET_REQUEST_EMAIL,
     RESET_REQUEST_IP,
@@ -52,6 +57,12 @@ RESET_DISABLED = "Password reset by email is not available"
 RESET_REQUESTED = "If an account exists for that email, a reset link is on its way"
 INVALID_RESET_LINK = "This reset link is invalid or has expired; request a new one"
 RESET_DONE = "Your password has been reset; you can now sign in"
+WRONG_PASSWORD = "The current password is incorrect"
+SAME_PASSWORD = "Choose a password different from the current one"
+# Password checks of a signed-in user (change password, delete account), per user.
+PASSWORD_CHECK_USER = Limit("password-check-user", 5, 15 * 60)
+
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 def _invalid_credentials() -> HTTPException:
@@ -107,7 +118,7 @@ async def login(
         if not verify_password(password, user.password_hash):
             attempt.failed()
             raise _invalid_credentials()
-        return TokenResponse(access_token=create_access_token(user.id))
+        return TokenResponse(access_token=create_access_token(user.id, user.password_hash))
 
 
 @router.post(
@@ -164,3 +175,94 @@ async def confirm_password_reset(
 @router.get("/me", response_model=UserResponse)
 async def me(current_user: Annotated[User, Depends(get_current_user)]) -> User:
     return current_user
+
+
+@router.patch("/me", response_model=UserResponse)
+async def update_profile(body: ProfileUpdate, db: DbSession, user: CurrentUser) -> User:
+    user.display_name = body.display_name
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+def _new_password(password: str) -> str:
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Password must be at least {MIN_PASSWORD_LENGTH} characters long",
+        )
+    return password
+
+
+async def _check_password(limiter: RateLimit, user: User, password: str) -> None:
+    """The signed-in user's password, rate limited per user (5 checks per 15 minutes)."""
+    await limiter.hit(PASSWORD_CHECK_USER, str(user.id))
+    if not verify_password(password, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=WRONG_PASSWORD)
+
+
+@router.post("/change-password", response_model=TokenResponse)
+async def change_password(
+    body: PasswordChange, db: DbSession, user: CurrentUser, limiter: RateLimit
+) -> TokenResponse:
+    """Change the password. Every session started before ends (their tokens carry the old
+    password's fingerprint); the response holds a new token for this one."""
+    new = _new_password(body.new_password.get_secret_value())
+    await _check_password(limiter, user, body.current_password.get_secret_value())
+    if verify_password(new, user.password_hash):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=SAME_PASSWORD)
+    user.password_hash = hash_password(new)
+    await db.commit()
+    return TokenResponse(access_token=create_access_token(user.id, user.password_hash))
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account(
+    body: AccountDeletion, db: DbSession, user: CurrentUser, limiter: RateLimit
+) -> Response:
+    """Delete the account and everything in it: projects, repositories, analyses, reports
+    and conversations go with it (ON DELETE CASCADE); stored repository files are removed by
+    the maintenance sweep, as when a repository is deleted."""
+    await _check_password(limiter, user, body.password.get_secret_value())
+    await db.execute(delete(User).where(User.id == user.id))
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/me/summary", response_model=AccountSummary)
+async def account_summary(db: DbSession, user: CurrentUser) -> AccountSummary:
+    owned = Project.user_id == user.id
+
+    async def count(statement: object) -> int:
+        return int(await db.scalar(statement) or 0)  # type: ignore[call-overload]
+
+    return AccountSummary(
+        projects=await count(select(func.count()).select_from(Project).where(owned)),
+        repositories=await count(
+            select(func.count())
+            .select_from(Repository)
+            .join(Project, Project.id == Repository.project_id)
+            .where(owned)
+        ),
+        analyses=await count(
+            select(func.count())
+            .select_from(AnalysisRun)
+            .join(Project, Project.id == AnalysisRun.project_id)
+            .where(owned)
+        ),
+        reports=await count(
+            select(func.count())
+            .select_from(GeneratedReport)
+            .where(GeneratedReport.user_id == user.id)
+        ),
+        conversations=await count(
+            select(func.count())
+            .select_from(ChatConversation)
+            .where(ChatConversation.user_id == user.id)
+        ),
+        latest_analysis_at=await db.scalar(
+            select(func.max(AnalysisRun.created_at))
+            .join(Project, Project.id == AnalysisRun.project_id)
+            .where(owned)
+        ),
+    )
