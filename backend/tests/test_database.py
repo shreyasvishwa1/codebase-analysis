@@ -28,10 +28,13 @@ TABLES = {
     "complexity_functions",
     "dependency_records",
     "architecture_reports",
+    "code_chunks",
+    "chat_conversations",
+    "chat_messages",
 }
 
 
-def test_metadata_registers_exactly_the_thirteen_tables() -> None:
+def test_metadata_registers_exactly_the_sixteen_tables() -> None:
     assert set(Base.metadata.tables) == TABLES
 
 
@@ -80,6 +83,12 @@ def test_foreign_keys_cascade_on_delete() -> None:
         ("complexity_functions", "run_id"): ("analysis_runs", "CASCADE"),
         ("dependency_records", "run_id"): ("analysis_runs", "CASCADE"),
         ("architecture_reports", "run_id"): ("analysis_runs", "CASCADE"),
+        ("code_chunks", "run_id"): ("analysis_runs", "CASCADE"),
+        ("chat_conversations", "user_id"): ("users", "CASCADE"),
+        ("chat_conversations", "project_id"): ("projects", "CASCADE"),
+        ("chat_conversations", "repository_id"): ("repositories", "CASCADE"),
+        ("chat_conversations", "run_id"): ("analysis_runs", "CASCADE"),
+        ("chat_messages", "conversation_id"): ("chat_conversations", "CASCADE"),
     }
 
 
@@ -116,6 +125,11 @@ def test_unique_constraints_and_indexes() -> None:
         ("complexity_functions", ("run_id", "path")),
         ("dependency_records", ("run_id", "name")),
         ("dependency_records", ("run_id", "vulnerability_count")),
+        ("code_chunks", ("run_id", "path")),
+        ("code_chunks", ("search",)),  # GIN full-text index
+        ("chat_conversations", ("user_id", "updated_at")),
+        ("chat_conversations", ("repository_id",)),
+        ("chat_messages", ("conversation_id", "created_at")),
     }
 
 
@@ -187,7 +201,7 @@ def test_libpq_style_options_are_translated_for_asyncpg(
     assert "sslmode" not in kwargs and "channel_binding" not in kwargs
 
 
-def test_alembic_single_head_and_offline_sql_covers_the_thirteen_tables() -> None:
+def test_alembic_single_head_and_offline_sql_covers_the_sixteen_tables() -> None:
     # Offline mode loads alembic/env.py and the app metadata without connecting.
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head", "--sql"],
@@ -207,7 +221,7 @@ def test_alembic_single_head_and_offline_sql_covers_the_thirteen_tables() -> Non
         text=True,
         check=True,
     )
-    assert heads.stdout.split() == ["0010", "(head)"]
+    assert heads.stdout.split() == ["0011", "(head)"]
 
 
 @pytest.mark.skipif(
@@ -222,6 +236,6 @@ async def test_migrated_database_connectivity() -> None:
             names = await conn.run_sync(lambda c: set(inspect(c).get_table_names()))
             assert names == TABLES | {"alembic_version"}
             version = (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar()
-            assert version == "0010"
+            assert version == "0011"
     finally:
         await engine.dispose()

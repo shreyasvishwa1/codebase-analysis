@@ -10,6 +10,7 @@ from app.api.v1.routes import (
     analysis_jobs,
     analysis_runs,
     architecture,
+    chat,
     auth,
     code_call_hierarchy,
     complexity,
@@ -66,6 +67,8 @@ api_router.include_router(architecture.router)
 api_router.include_router(architecture.overview_router)
 api_router.include_router(health_score.router)
 api_router.include_router(health_score.overview_router)
+api_router.include_router(chat.router)
+api_router.include_router(chat.overview_router)
 api_router.include_router(dependencies.router)
 api_router.include_router(file_explanation.router)
 api_router.include_router(secret_scan.router)

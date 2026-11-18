@@ -78,6 +78,11 @@ class AnalysisRun(UUIDPrimaryKeyMixin, Base):
     architecture: Mapped[dict[str, Any] | None] = mapped_column(
         JSONB(none_as_null=True), nullable=True
     )
+    # The AI chat's index (app.analysis.chunks): chunks, files, masked secrets, truncated.
+    # NULL for runs stored before migration 0011, which cannot be chatted about.
+    chat_index: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(none_as_null=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

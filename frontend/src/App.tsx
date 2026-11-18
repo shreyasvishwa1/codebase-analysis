@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { RequireAuth } from './components/RequireAuth'
 import { AppShell } from './layouts/AppShell'
 import { ArchitecturePage } from './pages/ArchitecturePage'
+import { ChatPage } from './pages/ChatPage'
 import { CodeAnalysisPage } from './pages/CodeAnalysisPage'
 import { ComplexityPage } from './pages/ComplexityPage'
 import { DependenciesPage } from './pages/DependenciesPage'
@@ -17,6 +18,7 @@ import { RegisterPage } from './pages/RegisterPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { RepositoryAnalysisPage } from './pages/RepositoryAnalysisPage'
 import { RepositoryArchitecturePage } from './pages/RepositoryArchitecturePage'
+import { RepositoryChatPage } from './pages/RepositoryChatPage'
 import { RepositoryCodeAnalysisPage } from './pages/RepositoryCodeAnalysisPage'
 import { RepositoryComplexityPage } from './pages/RepositoryComplexityPage'
 import { RepositoryDependenciesPage } from './pages/RepositoryDependenciesPage'
@@ -44,6 +46,7 @@ export default function App() {
           <Route path="/dependencies" element={<DependenciesPage />} />
           <Route path="/architecture" element={<ArchitecturePage />} />
           <Route path="/health-score" element={<HealthPage />} />
+          <Route path="/chat" element={<ChatPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:projectId" element={<ProjectPage />} />
           <Route
@@ -77,6 +80,10 @@ export default function App() {
           <Route
             path="/projects/:projectId/repositories/:repositoryId/health"
             element={<RepositoryHealthPage />}
+          />
+          <Route
+            path="/projects/:projectId/repositories/:repositoryId/chat"
+            element={<RepositoryChatPage />}
           />
         </Route>
       </Route>

@@ -69,6 +69,7 @@ const run = (overrides: Partial<AnalysisRun> = {}): AnalysisRun => ({
   complexity: SUMMARY,
   dependencies: null,
   architecture: null,
+  chat_index: null,
   created_at: '2026-11-18T10:00:00Z',
   ...overrides,
 })

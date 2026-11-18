@@ -18,12 +18,13 @@ from dataclasses import asdict, dataclass, replace
 from datetime import timedelta
 from pathlib import Path
 
-from sqlalchemy import and_, func, insert, or_, select, update
+from sqlalchemy import and_, bindparam, func, insert, literal_column, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
 from app.analysis.architecture.analyzer import ArchitectureAnalyzer, ArchitectureResult
+from app.analysis.chunks import ChunkBuilder
 from app.analysis.complexity.analyzer import ComplexityAnalyzer, ComplexityResult
 from app.analysis.dependencies.analyzer import DependencyAnalyzer
 from app.analysis.quality.analyzer import QualityAnalyzer, QualityResult
@@ -38,6 +39,7 @@ from app.models import (
     AnalysisJobType,
     AnalysisRun,
     ArchitectureReport,
+    CodeChunk,
     CodeIssue,
     ComplexityFile,
     ComplexityFunction,
@@ -92,6 +94,7 @@ class RunResult:
     complexity: ComplexityResult
     dependencies: DependencyAnalyzer  # declarations; looked up after the pass
     architecture: ArchitectureResult
+    chunks: ChunkBuilder  # the AI chat's retrieval units
 
 
 def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> RunResult:
@@ -108,6 +111,7 @@ def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> RunResult:
         complexity = ComplexityAnalyzer()
         dependencies = DependencyAnalyzer()
         architecture = ArchitectureAnalyzer()
+        chunks = ChunkBuilder()
         for file in iter_snapshot(root, rows):
             summary.add(file)
             quality.add(file)
@@ -115,6 +119,7 @@ def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> RunResult:
             complexity.add(file)
             dependencies.add(file)
             architecture.add(file)
+            chunks.add(file)
         return RunResult(
             summary.result(),
             quality.result(),
@@ -122,6 +127,7 @@ def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> RunResult:
             complexity.result(),
             dependencies,
             architecture.result(dependencies.records),
+            chunks,
         )
 
 
@@ -316,6 +322,7 @@ async def _store_run(
         complexity=result.complexity.summary,
         dependencies=result.dependencies.summary(),
         architecture=result.architecture.summary,
+        chat_index=result.chunks.summary(),
         # The wall-clock time, not the transaction start: history order stays exact
         # even for runs stored within one transaction.
         created_at=func.clock_timestamp(),
@@ -348,8 +355,34 @@ async def _store_run(
             [{"run_id": run.id, **asdict(record)} for record in result.dependencies.records],
         )
     db.add(ArchitectureReport(run_id=run.id, document=result.architecture.document))
+    await _store_chunks(db, run.id, result.chunks)
     await db.commit()
     return "completed"
+
+
+CHUNK_BATCH = 1000
+
+
+async def _store_chunks(db: AsyncSession, run_id: uuid.UUID, chunks: ChunkBuilder) -> None:
+    """The chat's chunks, with their full-text vectors computed by PostgreSQL: path and
+    symbol terms weighted A, body terms D."""
+    search = func.setweight(
+        func.to_tsvector(literal_column("'simple'::regconfig"), bindparam("head_terms")),
+        literal_column("'A'"),
+    ).op("||")(func.to_tsvector(literal_column("'simple'::regconfig"), bindparam("body_terms")))
+    statement = insert(CodeChunk).values(
+        run_id=bindparam("run_id"),
+        path=bindparam("path"),
+        language=bindparam("language"),
+        start_line=bindparam("start_line"),
+        end_line=bindparam("end_line"),
+        symbol=bindparam("symbol"),
+        content=bindparam("content"),
+        search=search,
+    )
+    rows = [{"run_id": run_id, **asdict(chunk)} for chunk in chunks.chunks]
+    for start in range(0, len(rows), CHUNK_BATCH):
+        await db.execute(statement, rows[start : start + CHUNK_BATCH])
 
 
 async def run_full_analysis_job(db: AsyncSession, job_id: uuid.UUID) -> str:

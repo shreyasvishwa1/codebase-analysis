@@ -27,6 +27,15 @@ class SkippedFiles(BaseModel):
     generated: int
 
 
+class ChatIndex(BaseModel):
+    """The AI chat's index of a run (app.analysis.chunks)."""
+
+    chunks: int
+    files: int
+    masked_secrets: int  # secrets masked before anything was stored or sent to the AI provider
+    truncated: bool  # the chunk limit was reached; later files are not searched
+
+
 class AnalysisRunResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -52,6 +61,8 @@ class AnalysisRunResponse(BaseModel):
     dependencies: DependencySummary | None
     # None for runs stored before architecture analysis existed.
     architecture: ArchitectureSummary | None
+    # None for runs stored before the AI chat existed.
+    chat_index: ChatIndex | None
     created_at: datetime
 
 

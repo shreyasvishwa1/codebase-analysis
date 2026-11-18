@@ -29,14 +29,14 @@ Browser (React + TypeScript + Tailwind + Recharts)
    │  /api/v1 (JSON, bearer token)
    ▼
 FastAPI (uvicorn)  ── auth, ownership, rate limits, validation
-   ├──► PostgreSQL 16 (+ pgvector): users, projects, repositories, files, jobs,
+   ├──► PostgreSQL 16: users, projects, repositories, files, jobs,
    │       analysis runs and results, code chunks, chat, reports
    ├──► Redis 7: arq job queue, rate-limit counters
    │       └──► arq worker: ingestion, full analysis (all analyzers), maintenance
    ├──► Repository storage (DATA_DIR): verified, read-only copies of ingested files
    └──► External services (optional, all server-side):
             OSV.dev (vulnerabilities), PyPI / npm registries (latest versions),
-            Gemini or Anthropic (chat, explanations, embeddings), Brevo or SMTP (email)
+            Gemini or Anthropic (chat, explanations), Brevo or SMTP (email)
 ```
 
 ## 3. Analysis pipeline
@@ -204,7 +204,8 @@ backend/app/
     quality/ security/ complexity/ dependencies/ architecture/   one package per analysis
     health.py         the Code Health Score (formulas over the stored summaries)
   ai/                 LLM providers (Anthropic, Gemini) and provider selection
-  chat/               retrieval (full text + vectors) and conversation service   (phase 8)
+    chunks.py         the AI chat's retrieval units (secrets masked)
+  chat/               retrieval (PostgreSQL full-text search), analysis context, prompt
   reports/            PDF report builder   (phase 9)
   services/           existing services: ingestion, archive, GitHub, code intelligence
   models/ schemas/    SQLAlchemy models, Pydantic schemas
@@ -227,8 +228,8 @@ it:
 | `dependency_records` | Dependency health (migration 0008) | `run_id` (FK, cascade), `manifest`, `ecosystem`, `name`, `specifier`, `scope`, `line`, `version`, `version_source` (pinned/minimum/none), `latest_version`, `update`, `vulnerability_count`, `max_severity`, `vulnerabilities` (JSONB: id, aliases, summary, severity, score, fixed_in, cwe, url), `conflict`; indexes (`run_id`, `name`), (`run_id`, `vulnerability_count`). The run's totals are in `analysis_runs.dependencies` (JSONB) |
 | `architecture_reports` | Architecture model (migration 0009) | `run_id` (FK, cascade, unique), `document` (JSONB: depth, components with roles and evidence, edges with example imports, cycles, technologies, data stores, routes, entry points, infrastructure, Compose services, observations, truncation flags). The run's counts are in `analysis_runs.architecture` (JSONB) |
 | `users.health_weights` | Health-score weights (migration 0010) | JSONB, one integer 0-100 per dimension; null means the defaults. Scores are not stored: they are computed from the run's summaries when read, so a change of weights or formulas applies to every run at once |
-| `code_chunks` | Retrieval units for the chat | `run_id`, `path`, `start_line`, `end_line`, `symbol`, `content`, `search` (tsvector, GIN index), `embedding` (vector, nullable) |
-| `chat_conversations` / `chat_messages` | Chat history per user and repository | conversation: `user_id`, `repository_id`, `run_id`, `title`; message: `role`, `content`, `citations` (JSONB) |
+| `code_chunks` | Retrieval units for the chat (migration 0011) | `run_id` (FK, cascade), `path`, `language`, `start_line`, `end_line`, `symbol`, `content` (secrets masked), `search` (tsvector: path and symbol weight A, body D; GIN index); index (`run_id`, `path`). The run's counts are in `analysis_runs.chat_index` (JSONB) |
+| `chat_conversations` / `chat_messages` | Chat history per user and repository (migration 0011) | conversation: `user_id`, `project_id`, `repository_id`, `run_id` (all FK, cascade), `title`, `created_at`, `updated_at`; message: `conversation_id` (FK, cascade), `role` (user/assistant), `content`, `citations` (JSONB: number, path, lines, symbol), `model`, token counts, `created_at` |
 | `generated_reports` | Report history | `run_id`, `user_id`, `created_at`, `size_bytes`, `sha256` |
 
 Every result table cascades on delete from its run. Runs cascade from their repository, and
@@ -269,15 +270,41 @@ Densities are per 1,000 lines of code (at least 1,000). A density `d` becomes a 
 
 ## 7. AI codebase chat (phase 8)
 
-- **Indexing:** during a run, source files are split into chunks: Python by function and
-  class (using `ast`), other files by line windows. Chunks are indexed with PostgreSQL full
-  text search and, when an embedding key is configured, with pgvector embeddings.
-- **Retrieval:** each question retrieves the top chunks (hybrid of full-text and vector
-  ranking) plus the relevant analysis results (findings, metrics, architecture) for the run.
-- **Generation:** the provider gets a fixed system prompt, the retrieved passages marked as
-  untrusted data, and the conversation so far. Answers cite `path:line` for every claim.
-  When retrieval finds nothing relevant, the answer says so instead of guessing.
-- **History:** conversations and messages are stored per user and repository.
+- **Indexing** (`app/analysis/chunks.py`, part of every full analysis): text files are split
+  into chunks: Python files by top-level function and class (`ast`, decorators included; the
+  code between definitions becomes windows), other files by windows of 60 lines, blank
+  windows skipped. Definitions over 120 lines are split into windows, chunks are cut at
+  6,000 characters and a run indexes at most 20,000 chunks (files over 256 KiB are skipped).
+  Committed secrets (the secret scan's rules, credential assignments and private-key blocks)
+  are masked before anything is stored, and `.env` files are left out, so secrets never reach
+  the AI provider.
+- **Search terms:** identifiers are split into words in Python (`getUserName`,
+  `get_user_name` -> `get`, `user`, `name`, plus the whole identifier), which PostgreSQL's
+  parser does not do. The full-text vector weighs a chunk's path and symbol (A) above its
+  body (D). No vector embeddings are used: retrieval is PostgreSQL full-text search only.
+- **Retrieval** (`app/chat/retrieval.py`): the question becomes an OR query of its terms
+  (common English words dropped, prefix matching from four characters with simple plural and
+  -ed/-ing stems; terms contain only letters and digits, so no query syntax can be
+  injected). Chunks are ranked with `ts_rank_cd`; test files count 0.4 unless the question is
+  about tests. Files the question names come first, and named files that are not in the
+  analysis are reported to the model. At most 8 passages, 3 per file and 36,000 characters.
+  A follow-up question also searches with the previous question.
+- **Analysis context** (`app/chat/context.py`): every question also gets a summary of the run
+  from its stored results: languages, the health score, the most severe security findings,
+  code quality, the most complex functions, vulnerable dependencies and the architecture,
+  each with its file and line.
+- **Generation** (`app/chat/service.py`): a fixed system prompt; the user message holds the
+  analysis in `<analysis>`, the passages in numbered `<source>` tags and the question in
+  `<question>`, all marked as untrusted data (closing tags inside repository text are
+  neutralized). The model must cite passages as `[n]`, say when the sources do not contain
+  the answer, and never claim the project is secure. It gets no tools, and the answer is
+  shown as text, never as HTML. The last six messages of the conversation are sent as
+  plain questions and answers.
+- **Citations:** the passages whose numbers appear in the answer are stored with it and
+  shown as links that open the file at that line in the explorer.
+- **History:** a conversation belongs to one user and repository and stays bound to the run
+  it started on. A question and its answer are stored together, only once the answer
+  exists. Limits: 30 questions per user per hour; questions up to 2,000 characters.
 
 ## 8. Security controls
 

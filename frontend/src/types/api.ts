@@ -943,6 +943,8 @@ export interface AnalysisRun {
   dependencies: DependencyAnalysisSummary | null
   /** architecture summary; null for runs stored before architecture analysis existed */
   architecture: ArchitectureSummary | null
+  /** the AI chat's index; null for runs stored before the chat existed */
+  chat_index: ChatIndex | null
   created_at: string
 }
 
@@ -1496,4 +1498,87 @@ export interface RepositoryHealth extends HealthPoint {
 export interface HealthOverview {
   weights: HealthWeights
   repositories: RepositoryHealth[]
+}
+
+// --- AI codebase chat --------------------------------------------------------------------------
+
+export interface ChatIndex {
+  chunks: number
+  files: number
+  /** secrets masked before anything was stored or sent to the AI provider */
+  masked_secrets: number
+  /** the chunk limit was reached; later files are not searched */
+  truncated: boolean
+}
+
+export interface ChatStatus {
+  /** an AI provider key is set on the server */
+  configured: boolean
+}
+
+export interface ChatCitation {
+  /** the number used in the answer, as [n] */
+  n: number
+  path: string
+  start_line: number
+  end_line: number
+  symbol: string | null
+}
+
+export interface ChatTurn {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  citations: ChatCitation[]
+  created_at: string
+}
+
+export interface ChatConversationSummary {
+  id: string
+  project_id: string
+  repository_id: string
+  run_id: string
+  /** the analysis the conversation is about */
+  run_created_at: string
+  title: string
+  created_at: string
+  updated_at: string
+  message_count: number
+}
+
+export interface ChatConversationList {
+  /** most recently updated first */
+  conversations: ChatConversationSummary[]
+}
+
+export interface ChatConversation extends ChatConversationSummary {
+  /** oldest first */
+  messages: ChatTurn[]
+}
+
+export interface ChatExchange {
+  conversation: ChatConversationSummary
+  /** the question and its answer */
+  messages: ChatTurn[]
+}
+
+export interface ChatRepository {
+  project_id: string
+  project_name: string
+  repository_id: string
+  repository_name: string
+  run_id: string
+  created_at: string
+  chunks: number
+  files: number
+}
+
+export interface RecentConversation extends ChatConversationSummary {
+  repository_name: string
+}
+
+export interface ChatOverview {
+  configured: boolean
+  repositories: ChatRepository[]
+  conversations: RecentConversation[]
 }

@@ -4,6 +4,8 @@ from app.models.analysis_job import AnalysisJob
 from app.models.analysis_run import AnalysisRun
 from app.models.architecture_report import ArchitectureReport
 from app.models.base import Base
+from app.models.chat import ChatConversation, ChatMessage
+from app.models.code_chunk import CodeChunk
 from app.models.code_issue import CodeIssue
 from app.models.complexity import ComplexityFile, ComplexityFunction
 from app.models.dependency_record import DependencyRecord
@@ -27,6 +29,9 @@ __all__ = [
     "AnalysisJobStatus",
     "AnalysisJobType",
     "Base",
+    "ChatConversation",
+    "ChatMessage",
+    "CodeChunk",
     "CodeIssue",
     "ComplexityFile",
     "ComplexityFunction",

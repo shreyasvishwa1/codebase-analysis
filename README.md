@@ -46,6 +46,7 @@ guesses.
 | Full analysis | One background run analyzes a repository snapshot (dependency folders such as `node_modules/` and build output excluded) and stores the results; every run is kept in the repository's history |
 | Overview | Totals across all your repositories from their latest stored runs: projects, repositories, lines of code, analyses, active jobs, language distribution and recent analyses |
 | Architecture | Each full analysis also maps the architecture: components (directories) and the imports between them in an interactive diagram, dependency cycles, technologies and data stores, API routes, entry points, Dockerfiles, Docker Compose services, CI and deployment files, and observations such as a layered structure or circular dependencies. Every item links to the file and line it comes from |
+| AI Chat | Ask questions about a repository in plain language. Answers are built from the passages of code that match the question (PostgreSQL full-text search over Python definitions and line windows) and from the results of its latest full analysis, and they cite the files and lines they rely on as links into the explorer. Conversations are kept per repository. Secrets are masked before anything is stored or sent, and repository content is passed to the model as untrusted data. Needs `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` |
 | Health Score | One score from 0 to 100 (grade A-F) per analysis: a weighted average of security, code quality, complexity, maintainability, dependency health and architecture. Each dimension shows its inputs, the calculation with the actual numbers and what would raise it. The weights are yours to change, and a trend shows the score across runs. Formulas: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#6-code-health-score-phase-7) |
 | Dependencies | Each full analysis also checks dependency health: every package declared in `package.json`, `pyproject.toml` and `requirements*.txt` (runtime and development), the version it allows, the latest release on PyPI or npm (major, minor or patch behind), known vulnerabilities from OSV.dev with CVE ids, CVSS scores and the fixed version, and packages declared with conflicting versions. Vulnerable versions also appear on the Security page (OWASP A06). Package names and versions are sent to PyPI, npm and OSV.dev; `DEPENDENCY_LOOKUPS=false` turns that off |
 | Complexity | Each full analysis also measures complexity: the cyclomatic complexity of every function (Lizard, about twenty languages) rated Low, Medium or High, the maintainability index of every file (Radon for Python; the same formula estimated for other languages), functions, classes, lines of code and duplication. The most complex functions open in the explorer at their line; files can be sorted by complexity, maintainability or size |
@@ -247,11 +248,11 @@ Results at the final development commit:
 
 | Check | Result |
 | --- | --- |
-| Frontend tests (Vitest, Testing Library, jsdom) | 1,339 passing in 46 files |
-| Backend tests (pytest) | 3,037 passing in 50 files; 30 skipped on Windows, where creating symlinks needs a privilege |
+| Frontend tests (Vitest, Testing Library, jsdom) | 1,355 passing in 47 files |
+| Backend tests (pytest) | 3,063 passing in 51 files; 30 skipped on Windows, where creating symlinks needs a privilege |
 | TypeScript typecheck and production build | Passing |
 | `ruff check` and mypy | Passing |
-| Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine; 23/23 for security analysis; 21/21 for complexity analysis; 30/30 for dependency analysis; 30/30 for architecture analysis; 43/43 for the health score |
+| Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine; 23/23 for security analysis; 21/21 for complexity analysis; 30/30 for dependency analysis; 30/30 for architecture analysis; 43/43 for the health score; 52/52 for the AI chat |
 
 - **Isolation**: frontend tests mock the API at the axios adapter, so no backend is needed.
   Backend database and API tests run against a throwaway, already-migrated PostgreSQL database
@@ -453,6 +454,7 @@ All endpoints are under `/api/v1`. Repository endpoints share the prefix
 | Repository analysis | `GET`/`POST …/analysis/code-metrics`, `GET …/analysis/dependencies`, `GET …/analysis/secrets` |
 | Full analysis | `POST …/analysis-runs` (start), `GET …/analysis-runs` (latest job and history), `GET …/analysis-runs/{run_id}` |
 | Overview | `GET /dashboard` |
+| AI chat | `GET`/`POST …/chat/conversations` (list; start with a first question), `GET`/`DELETE …/chat/conversations/{id}`, `POST …/chat/conversations/{id}/messages` (a follow-up question), `GET /chat` (repositories ready to chat and recent conversations), `GET /chat/status` |
 | Health score | `GET …/analysis-runs/{run_id}/health` (the run's score, dimensions and weights), `GET …/health-history` (scores per run, oldest first), `GET /health-score` (each repository's latest score), `GET`/`PUT`/`DELETE /health-score/weights` (the user's weights; `DELETE` restores the defaults) |
 | Architecture | `GET …/analysis-runs/{run_id}/architecture` (the run's architecture document), `GET /architecture` (each repository's latest summary) |
 | Dependencies | `GET …/analysis-runs/{run_id}/dependencies` (filters: `ecosystem`, `scope`, `update`, `vulnerable`, `conflict`, `q`; `sort`; paged), `GET /dependency-analysis` (each repository's latest results) |
