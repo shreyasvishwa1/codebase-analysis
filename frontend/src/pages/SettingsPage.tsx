@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom'
 
 import { PasswordField } from '../components/AuthLayout'
 import { ErrorMessage } from '../components/ErrorMessage'
+import { useToast } from '../components/Toaster'
 import { useAuth } from '../hooks/useAuth'
 import { useChatStatus } from '../hooks/useChat'
 import { queryKeys } from '../hooks/queryKeys'
@@ -38,12 +39,14 @@ function Card({ title, icon, children, tone = 'default' }: { title: string; icon
 
 function Profile({ user }: { user: User }) {
   const { updateUser } = useAuth()
+  const toast = useToast()
   const [name, setName] = useState(user.display_name ?? '')
   const save = useMutation({
     mutationFn: updateProfile,
     onSuccess: (saved) => {
       updateUser(saved)
       setName(saved.display_name ?? '')
+      toast({ title: 'Profile saved' })
     },
   })
   const cleaned = name.trim().replace(/\s+/g, ' ')
@@ -132,6 +135,7 @@ function Summary() {
 
 function Password() {
   const { replaceToken } = useAuth()
+  const toast = useToast()
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -139,6 +143,7 @@ function Password() {
     mutationFn: () => changePassword(current, next),
     onSuccess: ({ access_token }) => {
       replaceToken(access_token)
+      toast({ title: 'Password changed', description: 'Other sessions were signed out.' })
       setCurrent('')
       setNext('')
       setConfirm('')

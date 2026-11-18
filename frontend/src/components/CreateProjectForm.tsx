@@ -3,11 +3,13 @@ import { useState, type FormEvent } from 'react'
 import { useCreateProject } from '../hooks/useProjects'
 import { getErrorMessage } from '../services/client'
 import { ErrorMessage } from './ErrorMessage'
+import { useToast } from './Toaster'
 
 const MAX_NAME_LENGTH = 100
 
 export function CreateProjectForm() {
   const createProject = useCreateProject()
+  const toast = useToast()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -25,7 +27,8 @@ export function CreateProjectForm() {
     }
     setError(null)
     try {
-      await createProject.mutateAsync({ name: trimmed, description: description.trim() || null })
+      const project = await createProject.mutateAsync({ name: trimmed, description: description.trim() || null })
+      toast({ title: 'Project created', description: project.name, action: { label: 'Open it', to: `/projects/${project.id}` } })
       setName('')
       setDescription('')
     } catch (err) {

@@ -22,7 +22,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.analysis import runner, snapshot
+from app.analysis import progress, runner, snapshot
 from app.analysis.exclusions import excluded_directory, is_generated
 from app.analysis.runner import (
     ALREADY_RUNNING,
@@ -482,7 +482,7 @@ async def test_analyzer_errors_fail_with_a_fixed_message(
     monkeypatch: pytest.MonkeyPatch,
     db_session: AsyncSession,
 ) -> None:
-    def explode(root: Path, rows: list[SnapshotRow]) -> None:
+    def explode(root: Path, rows: list[SnapshotRow], *args: Any) -> None:
         raise RuntimeError("secret internal detail")
 
     monkeypatch.setattr(runner, "analyze_snapshot", explode)
@@ -622,3 +622,209 @@ async def test_dashboard_for_a_new_user_is_empty(client: httpx.AsyncClient) -> N
         "languages": [],
         "recent_runs": [],
     }
+
+
+# --- Progress ------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("done", "total", "expected"),
+    [
+        (0, 10, progress.READING_START),
+        (5, 10, 32),
+        (10, 10, progress.READING_END),
+        (12, 10, progress.READING_END),
+        (0, 0, progress.READING_END),
+        (1, 3, 23),
+    ],
+)
+def test_reading_progress_spans_its_range(done: int, total: int, expected: int) -> None:
+    assert progress.reading_progress(done, total) == expected
+
+
+def test_stages_own_increasing_ranges() -> None:
+    order = [
+        progress.STARTED,
+        progress.READING_START,
+        progress.READING_END,
+        progress.TOOLS,
+        progress.DEPENDENCIES,
+        progress.SAVING,
+    ]
+    assert order == sorted(set(order))
+    assert 0 < order[0] and order[-1] < 100
+
+
+def test_tracker_only_grows_and_stays_below_completion() -> None:
+    tracker = progress.ProgressTracker()
+    assert tracker.value == progress.STARTED
+    tracker.set(40)
+    tracker.set(20)
+    assert tracker.value == 40
+    tracker.set(100)
+    assert tracker.value == 99
+
+
+@requires_db
+async def test_analysis_reports_each_stage_in_order(
+    client: httpx.AsyncClient,
+    alice: Owner,
+    monkeypatch: pytest.MonkeyPatch,
+    db_session: AsyncSession,
+) -> None:
+    written: list[int] = []
+    reported: list[int] = []
+    real_set = progress.set_job_progress
+    real_analyze = runner.analyze_snapshot
+
+    async def record_set(db: AsyncSession, job_id: uuid.UUID, value: int) -> None:
+        job = await db.get(AnalysisJob, job_id)
+        assert job is not None and job.status == AnalysisJobStatus.PROCESSING
+        written.append(value)
+        await real_set(db, job_id, value)
+
+    def record_analyze(root: Path, rows: list[SnapshotRow], on_progress: Any = None) -> Any:
+        def both(value: int) -> None:
+            reported.append(value)
+            on_progress(value)
+
+        return real_analyze(root, rows, both)
+
+    monkeypatch.setattr(progress, "set_job_progress", record_set)
+    monkeypatch.setattr(runner, "analyze_snapshot", record_analyze)
+    outcomes = inline_analysis(monkeypatch, db_session)
+    started = await client.post(_runs_url(alice), headers=alice.headers)
+    assert outcomes == ["completed"]
+    # The worker's own stage marks (the reporter may add reading values in between).
+    marks = [v for v in written if v in (progress.STARTED, progress.DEPENDENCIES, progress.SAVING)]
+    assert marks == [progress.STARTED, progress.DEPENDENCIES, progress.SAVING]
+    assert written == sorted(written)
+    # Every file read moves the reading range forward, ending at its top, then the tools.
+    assert reported == sorted(reported)
+    assert reported[-1] == progress.TOOLS
+    assert reported[-2] == progress.READING_END
+    assert len(reported) == len(FILES) + 1
+    assert (await _job(db_session, started.json()["job_id"])).progress == 100
+
+
+@requires_db
+async def test_reporter_writes_growing_progress_until_stopped(
+    client: httpx.AsyncClient,
+    alice: Owner,
+    monkeypatch: pytest.MonkeyPatch,
+    db_session: AsyncSession,
+) -> None:
+    import asyncio
+
+    queued = record_analysis(monkeypatch)
+    await client.post(_runs_url(alice), headers=alice.headers)
+    job_id = uuid.UUID(queued[0])
+    await db_session.execute(
+        update(AnalysisJob)
+        .where(AnalysisJob.id == job_id)
+        .values(status=AnalysisJobStatus.PROCESSING, progress=10)
+    )
+    await db_session.commit()
+
+    # The reporter and the test share one session, so the job is read only after the
+    # reporter has stopped.
+    async def run_reporter(tracker: progress.ProgressTracker, later: int | None = None) -> None:
+        stop = asyncio.Event()
+        task = asyncio.create_task(
+            progress.report_progress(db_session, job_id, tracker, stop, interval=0.01)
+        )
+        await asyncio.sleep(0.06)
+        if later is not None:
+            tracker.set(later)
+            await asyncio.sleep(0.06)
+        stop.set()
+        await asyncio.wait_for(task, timeout=2)
+        assert task.exception() is None
+
+    await run_reporter(progress.ProgressTracker(start=5))  # below the stored 10
+    assert (await _job(db_session, job_id)).progress == 10
+    await run_reporter(progress.ProgressTracker(start=5), later=37)
+    assert (await _job(db_session, job_id)).progress == 37
+
+    # A finished job is never touched.
+    await db_session.execute(
+        update(AnalysisJob)
+        .where(AnalysisJob.id == job_id)
+        .values(status=AnalysisJobStatus.COMPLETED)
+    )
+    await db_session.commit()
+    await progress.set_job_progress(db_session, job_id, 80)
+    assert (await _job(db_session, job_id)).progress == 37
+
+
+@requires_db
+async def test_reporter_failure_ends_reporting_without_raising(
+    monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession
+) -> None:
+    import asyncio
+
+    calls: list[int] = []
+
+    async def broken(db: AsyncSession, job_id: uuid.UUID, value: int) -> None:
+        calls.append(value)
+        raise RuntimeError("database went away")
+
+    monkeypatch.setattr(progress, "set_job_progress", broken)
+    tracker = progress.ProgressTracker(start=20)
+    stop = asyncio.Event()
+    await asyncio.wait_for(
+        progress.report_progress(db_session, uuid.uuid4(), tracker, stop, interval=0.01), timeout=2
+    )
+    assert calls == [20]  # one failed write, then it stopped on its own
+
+
+@requires_db
+async def test_reporter_skips_unchanged_values(
+    monkeypatch: pytest.MonkeyPatch, db_session: AsyncSession
+) -> None:
+    import asyncio
+
+    calls: list[int] = []
+
+    async def record(db: AsyncSession, job_id: uuid.UUID, value: int) -> None:
+        calls.append(value)
+
+    monkeypatch.setattr(progress, "set_job_progress", record)
+    tracker = progress.ProgressTracker(start=20)
+    stop = asyncio.Event()
+    task = asyncio.create_task(
+        progress.report_progress(db_session, uuid.uuid4(), tracker, stop, interval=0.01)
+    )
+    await asyncio.sleep(0.08)
+    tracker.set(30)
+    await asyncio.sleep(0.08)
+    stop.set()
+    await asyncio.wait_for(task, timeout=2)
+    assert calls == [20, 30]
+
+
+@requires_db
+async def test_reporter_is_stopped_even_when_the_analysis_fails(
+    client: httpx.AsyncClient,
+    alice: Owner,
+    monkeypatch: pytest.MonkeyPatch,
+    db_session: AsyncSession,
+) -> None:
+    import asyncio
+
+    stops: list[asyncio.Event] = []
+    real_report = progress.report_progress
+
+    async def watch(*args: Any, **kwargs: Any) -> None:
+        stops.append(args[3])
+        await real_report(*args, **kwargs)
+
+    def explode(root: Path, rows: list[SnapshotRow], *args: Any) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(progress, "report_progress", watch)
+    monkeypatch.setattr(runner, "analyze_snapshot", explode)
+    outcomes = inline_analysis(monkeypatch, db_session)
+    await client.post(_runs_url(alice), headers=alice.headers)
+    assert outcomes == ["failed"]
+    assert len(stops) == 1 and stops[0].is_set()

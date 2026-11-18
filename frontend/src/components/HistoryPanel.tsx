@@ -9,6 +9,7 @@ import { formatBytes, formatDateTime } from '../utils/format'
 import { HISTORY_PAGE } from '../utils/history'
 import { ErrorMessage } from './ErrorMessage'
 import { scoreTone } from './HealthReport'
+import { useToast } from './Toaster'
 
 export { HISTORY_PAGE }
 
@@ -48,6 +49,7 @@ function ReportsTable({ repositoryId, highlight }: { repositoryId: string | null
   const reports = useReports(repositoryId)
   const download = useDownloadReport()
   const remove = useDeleteReport()
+  const toast = useToast()
   const [confirming, setConfirming] = useState<string | null>(null)
   const list = reports.data?.reports ?? []
   return (
@@ -93,7 +95,14 @@ function ReportsTable({ repositoryId, highlight }: { repositoryId: string | null
                         <span className="text-slate-300">Delete?</span>
                         <button
                           type="button"
-                          onClick={() => remove.mutate(report.id, { onSuccess: () => setConfirming(null) })}
+                          onClick={() =>
+                            remove.mutate(report.id, {
+                              onSuccess: () => {
+                                setConfirming(null)
+                                toast({ title: 'Report deleted', description: report.filename })
+                              },
+                            })
+                          }
                           disabled={remove.isPending}
                           className="rounded bg-red-600 px-2 py-1 font-semibold text-slate-50 hover:bg-red-500 disabled:opacity-50"
                         >
@@ -107,7 +116,7 @@ function ReportsTable({ repositoryId, highlight }: { repositoryId: string | null
                       <span className="flex items-center justify-end gap-1">
                         <button
                           type="button"
-                          onClick={() => download.mutate(report)}
+                          onClick={() => download.mutate(report, { onSuccess: () => toast({ title: 'Report downloaded', description: report.filename }) })}
                           disabled={download.isPending && download.variables?.id === report.id}
                           aria-label={`Download ${report.filename}`}
                           className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:opacity-50"
@@ -145,6 +154,7 @@ export function HistoryPanel({ repository }: { repository: { projectId: string; 
   const history = useAnalysisHistory(repositoryId, limit)
   const create = useCreateReport()
   const download = useDownloadReport()
+  const toast = useToast()
   const entries = history.data?.entries ?? []
   const changes = scoreChanges(entries)
   const created = create.data ?? null
@@ -234,7 +244,15 @@ export function HistoryPanel({ repository }: { repository: { projectId: string; 
                       <td className="py-2">
                         <button
                           type="button"
-                          onClick={() => create.mutate({ projectId: entry.project_id, repositoryId: entry.repository_id, runId: entry.run_id })}
+                          onClick={() =>
+                            create.mutate(
+                              { projectId: entry.project_id, repositoryId: entry.repository_id, runId: entry.run_id },
+                              {
+                                onSuccess: (report) =>
+                                  toast({ title: 'Report ready', description: `${report.filename} · ${report.pages} pages` }),
+                              },
+                            )
+                          }
                           disabled={create.isPending}
                           aria-label={`Create a PDF report of the analysis of ${formatDateTime(entry.created_at)}${everyRepository ? ` (${entry.repository_name})` : ''}`}
                           className="inline-flex items-center gap-1 rounded-lg border border-slate-700 px-2.5 py-1 text-xs text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
@@ -268,7 +286,7 @@ export function HistoryPanel({ repository }: { repository: { projectId: string; 
             Report created: <span className="font-mono text-xs">{created.filename}</span> ({created.pages} pages, {formatBytes(created.size_bytes)})
             <button
               type="button"
-              onClick={() => download.mutate(created)}
+              onClick={() => download.mutate(created, { onSuccess: () => toast({ title: 'Report downloaded', description: created.filename }) })}
               className="inline-flex items-center gap-1 rounded border border-emerald-400/40 px-2 py-0.5 text-xs hover:bg-emerald-500/20"
             >
               <Download className="h-3.5 w-3.5" aria-hidden="true" /> Download now

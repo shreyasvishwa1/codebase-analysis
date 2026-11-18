@@ -12,8 +12,10 @@ for the snapshot it analyzed. A run row is written in the same transaction that 
 its job, so every run has complete results.
 """
 
+import asyncio
 import tempfile
 import uuid
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
 from datetime import timedelta
 from pathlib import Path
@@ -25,6 +27,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.analysis.architecture.analyzer import ArchitectureAnalyzer, ArchitectureResult
 from app.analysis.chunks import ChunkBuilder
+from app.analysis import progress
 from app.analysis.complexity.analyzer import ComplexityAnalyzer, ComplexityResult
 from app.analysis.dependencies.analyzer import DependencyAnalyzer
 from app.analysis.quality.analyzer import QualityAnalyzer, QualityResult
@@ -97,11 +100,18 @@ class RunResult:
     chunks: ChunkBuilder  # the AI chat's retrieval units
 
 
-def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> RunResult:
+def analyze_snapshot(
+    root: Path,
+    rows: list[SnapshotRow],
+    on_progress: Callable[[int], None] | None = None,
+) -> RunResult:
     """Run every analyzer over the snapshot in one pass, reading one file at a time.
 
     The private working copy of the verified Python files, shared by Ruff and Bandit, lives
-    in a temporary directory that is removed when the analysis ends, whatever the outcome."""
+    in a temporary directory that is removed when the analysis ends, whatever the outcome.
+    on_progress, if given, receives the job percentage as files are read and when the
+    tools start (see app.analysis.progress)."""
+    report = on_progress or (lambda value: None)
     summary = SummaryBuilder()
     with tempfile.TemporaryDirectory(prefix="cba-analysis-") as directory:
         workdir = Path(directory)
@@ -112,7 +122,7 @@ def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> RunResult:
         dependencies = DependencyAnalyzer()
         architecture = ArchitectureAnalyzer()
         chunks = ChunkBuilder()
-        for file in iter_snapshot(root, rows):
+        for done, file in enumerate(iter_snapshot(root, rows), start=1):
             summary.add(file)
             quality.add(file)
             security.add(file)
@@ -120,6 +130,8 @@ def analyze_snapshot(root: Path, rows: list[SnapshotRow]) -> RunResult:
             dependencies.add(file)
             architecture.add(file)
             chunks.add(file)
+            report(progress.reading_progress(done, len(rows)))
+        report(progress.TOOLS)
         return RunResult(
             summary.result(),
             quality.result(),
@@ -385,6 +397,22 @@ async def _store_chunks(db: AsyncSession, run_id: uuid.UUID, chunks: ChunkBuilde
         await db.execute(statement, rows[start : start + CHUNK_BATCH])
 
 
+async def _analyze_with_progress(
+    db: AsyncSession, job_id: uuid.UUID, root: Path, rows: list[SnapshotRow]
+) -> RunResult:
+    """Analyze in a worker thread while a reporter writes the progress to the job. The
+    reporter is stopped and awaited before this returns (or raises), so the session is
+    free again for the caller."""
+    tracker = progress.ProgressTracker()
+    stop = asyncio.Event()
+    reporter = asyncio.create_task(progress.report_progress(db, job_id, tracker, stop))
+    try:
+        return await run_in_threadpool(analyze_snapshot, root, rows, tracker.set)
+    finally:
+        stop.set()
+        await reporter
+
+
 async def run_full_analysis_job(db: AsyncSession, job_id: uuid.UUID) -> str:
     """Execute one queued full-analysis job and return its outcome. Failures are recorded
     on the job and never raised. Jobs of other types are never touched."""
@@ -409,6 +437,7 @@ async def run_full_analysis_job(db: AsyncSession, job_id: uuid.UUID) -> str:
     await db.commit()
 
     try:
+        await progress.set_job_progress(db, job_id, progress.STARTED)
         rows = (
             await db.execute(
                 select(File.id, File.path, File.language, File.size_bytes, File.sha256).where(
@@ -419,8 +448,10 @@ async def run_full_analysis_job(db: AsyncSession, job_id: uuid.UUID) -> str:
         await db.commit()  # no transaction is held while files are read
         snapshot_rows = [SnapshotRow(r.path, r.language, r.size_bytes, r.sha256) for r in rows]
         root = repository_storage_dir(get_settings(), repository.id)
-        result = await run_in_threadpool(analyze_snapshot, root, snapshot_rows)
+        result = await _analyze_with_progress(db, job_id, root, snapshot_rows)
+        await progress.set_job_progress(db, job_id, progress.DEPENDENCIES)
         result = await check_dependencies(result)
+        await progress.set_job_progress(db, job_id, progress.SAVING)
         return await _store_run(db, job, repository, {r.id for r in rows}, result)
     except Exception:
         await db.rollback()

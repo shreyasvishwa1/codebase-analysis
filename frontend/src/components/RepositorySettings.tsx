@@ -5,6 +5,7 @@ import { useDeleteRepository, useUpdateRepository } from '../hooks/useRepository
 import { getErrorMessage } from '../services/client'
 import type { Repository } from '../types/api'
 import { ErrorMessage } from './ErrorMessage'
+import { useToast } from './Toaster'
 
 const MAX_NAME_LENGTH = 255
 const INPUT = 'mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2'
@@ -31,6 +32,7 @@ interface FormProps extends RepositorySettingsProps {
 
 function EditRepository({ projectId, repositoryId, repository, onClose }: FormProps) {
   const update = useUpdateRepository(projectId, repositoryId)
+  const toast = useToast()
   // The server name the form opened with; only a different name is sent.
   const [original] = useState(repository.name)
   const [name, setName] = useState(repository.name)
@@ -61,7 +63,10 @@ function EditRepository({ projectId, repositoryId, repository, onClose }: FormPr
     update.mutate(
       { name: trimmed },
       {
-        onSuccess: onClose,
+        onSuccess: () => {
+          toast({ title: 'Repository renamed', description: trimmed })
+          onClose()
+        },
         onSettled: () => {
           saving.current = false
         },
@@ -95,6 +100,7 @@ function EditRepository({ projectId, repositoryId, repository, onClose }: FormPr
 
 function DeleteRepository({ projectId, repositoryId, repository, onClose }: FormProps) {
   const remove = useDeleteRepository(projectId, repositoryId)
+  const toast = useToast()
   const navigate = useNavigate()
   const [confirmation, setConfirmation] = useState('')
   const deleting = useRef(false)
@@ -109,7 +115,10 @@ function DeleteRepository({ projectId, repositoryId, repository, onClose }: Form
     deleting.current = true
     remove.mutate(repository.id, {
       // The hook has already removed the repository's cached data, so nothing refetches it.
-      onSuccess: () => navigate(`/projects/${projectId}`, { replace: true }),
+      onSuccess: () => {
+        toast({ title: 'Repository deleted', description: repository.name })
+        navigate(`/projects/${projectId}`, { replace: true })
+      },
       onSettled: () => {
         deleting.current = false
       },

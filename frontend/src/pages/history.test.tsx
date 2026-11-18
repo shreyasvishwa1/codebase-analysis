@@ -6,6 +6,7 @@ import { beforeAll, afterEach, beforeEach, describe, expect, it, vi } from 'vite
 
 import App from '../App'
 import { scoreChanges } from '../components/HistoryPanel'
+import { ToastProvider } from '../components/Toaster'
 import { setToken } from '../services/session'
 import { mockApi, PROJECT, USER, ZIP_REPOSITORY, type MockResponse } from '../test/mockApi'
 import { createTestQueryClient, renderWithProviders } from '../test/render'
@@ -74,10 +75,12 @@ function mount(routes: Routes, element = <HistoryPage />, entryPath = '/history'
   render(
     <QueryClientProvider client={createTestQueryClient()}>
       <MemoryRouter initialEntries={[entryPath]}>
-        <Routes>
-          <Route path={path} element={element} />
-          <Route path="*" element={<Location />} />
-        </Routes>
+        <ToastProvider>
+          <Routes>
+            <Route path={path} element={element} />
+            <Route path="*" element={<Location />} />
+          </Routes>
+        </ToastProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   )
@@ -85,6 +88,11 @@ function mount(routes: Routes, element = <HistoryPage />, entryPath = '/history'
 }
 
 const history = (entries: HistoryEntry[] = ENTRIES, total = entries.length): MockResponse => ({ status: 200, data: { entries, total } })
+/** The titles of the toasts on screen. */
+const toastTitles = () =>
+  within(screen.getByRole('region', { name: 'Notifications' }))
+    .queryAllByRole('listitem')
+    .map((item) => item.querySelector('p')?.textContent)
 const params = (config: InternalAxiosRequestConfig) => config.params as Record<string, unknown> | undefined
 
 
@@ -160,17 +168,20 @@ describe('History & Reports', () => {
     fireEvent.click(button)
     const status = await screen.findByRole('status')
     expect(status.textContent).toContain('Report created: shop-report-20261118-1000.pdf (8 pages, 24.0 KB)')
+    expect(toastTitles()).toEqual(['Report ready'])
     const reports = within(screen.getByRole('region', { name: 'Reports' }))
     expect(await reports.findByText('shop-report-20261118-1000.pdf')).toBeTruthy()
     expect(reports.getByText('shop-report-20261118-1000.pdf').closest('tr')?.className).toContain('bg-indigo-500/10')
     expect(await screen.findByText('1 saved')).toBeTruthy()
     fireEvent.click(within(status).getByRole('button', { name: 'Download now' }))
     await waitFor(() => expect(clicked).toEqual([{ download: 'shop-report-20261118-1000.pdf', href: 'blob:report' }]))
+    await waitFor(() => expect(toastTitles()).toEqual(['Report ready', 'Report downloaded']))
     const get = requests.find((r) => r.url === '/reports/rep-1/download')
     expect(get?.method).toBe('GET')
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:report')
     fireEvent.click(reports.getByRole('button', { name: 'Download shop-report-20261118-1000.pdf' }))
     await waitFor(() => expect(clicked).toHaveLength(2))
+    await waitFor(() => expect(toastTitles()).toEqual(['Report ready', 'Report downloaded', 'Report downloaded']))
   })
 
   it('reports a report that could not be created or downloaded', async () => {
@@ -203,6 +214,7 @@ describe('History & Reports', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Delete shop-report-20261118-1000.pdf' }))
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     expect(await screen.findByText(/No reports yet/)).toBeTruthy()
+    expect(toastTitles()).toEqual(['Report deleted'])
     expect(requests.filter((r) => r.method === 'DELETE').map((r) => r.url)).toEqual(['/reports/rep-1'])
     await waitFor(() => expect(requests.filter((r) => r.url === '/analysis-history').length).toBeGreaterThan(1))
   })

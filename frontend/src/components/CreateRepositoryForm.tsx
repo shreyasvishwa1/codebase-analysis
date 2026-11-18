@@ -4,9 +4,11 @@ import { useCreateRepository } from '../hooks/useRepository'
 import { getErrorMessage } from '../services/client'
 import type { RepositoryCreate, RepositorySourceType } from '../types/api'
 import { ErrorMessage } from './ErrorMessage'
+import { useToast } from './Toaster'
 
 export function CreateRepositoryForm({ projectId }: { projectId: string }) {
   const createRepository = useCreateRepository(projectId)
+  const toast = useToast()
   const [name, setName] = useState('')
   const [sourceType, setSourceType] = useState<RepositorySourceType>('zip')
   const [sourceUrl, setSourceUrl] = useState('')
@@ -32,7 +34,12 @@ export function CreateRepositoryForm({ projectId }: { projectId: string }) {
     }
     setError(null)
     try {
-      await createRepository.mutateAsync(body)
+      const repository = await createRepository.mutateAsync(body)
+      toast({
+        title: 'Repository created',
+        description: repository.name,
+        action: { label: 'Open it', to: `/projects/${projectId}/repositories/${repository.id}` },
+      })
       setName('')
       setSourceUrl('')
       setDefaultBranch('')

@@ -5,6 +5,7 @@ import { useDeleteProject, useUpdateProject } from '../hooks/useProjects'
 import { getErrorMessage } from '../services/client'
 import type { Project, ProjectUpdate } from '../types/api'
 import { ErrorMessage } from './ErrorMessage'
+import { useToast } from './Toaster'
 
 const MAX_NAME_LENGTH = 100
 const INPUT = 'mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2'
@@ -31,6 +32,7 @@ function changedFields(original: Project, name: string, description: string | nu
 
 function EditProject({ project, onClose }: { project: Project; onClose: () => void }) {
   const update = useUpdateProject(project.id)
+  const toast = useToast()
   // The server values the form opened with; the PATCH carries only what differs from them.
   const [original] = useState(project)
   const [name, setName] = useState(project.name)
@@ -61,7 +63,10 @@ function EditProject({ project, onClose }: { project: Project; onClose: () => vo
     }
     saving.current = true
     update.mutate(changes, {
-      onSuccess: onClose,
+      onSuccess: () => {
+        toast({ title: 'Project saved' })
+        onClose()
+      },
       onSettled: () => {
         saving.current = false
       },
@@ -101,6 +106,7 @@ function EditProject({ project, onClose }: { project: Project; onClose: () => vo
 
 function DeleteProject({ project, onClose }: { project: Project; onClose: () => void }) {
   const remove = useDeleteProject(project.id)
+  const toast = useToast()
   const navigate = useNavigate()
   const [confirmation, setConfirmation] = useState('')
   const deleting = useRef(false)
@@ -115,7 +121,10 @@ function DeleteProject({ project, onClose }: { project: Project; onClose: () => 
     deleting.current = true
     remove.mutate(undefined, {
       // The hook has already removed the project's cached data, so nothing refetches it.
-      onSuccess: () => navigate('/projects', { replace: true }),
+      onSuccess: () => {
+        toast({ title: 'Project deleted', description: project.name })
+        navigate('/projects', { replace: true })
+      },
       onSettled: () => {
         deleting.current = false
       },

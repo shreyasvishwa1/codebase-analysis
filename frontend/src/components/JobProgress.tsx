@@ -8,6 +8,7 @@ import { formatDateTime } from '../utils/format'
 import { JOB_POLL_INTERVAL_MS } from '../utils/jobs'
 import { ErrorMessage } from './ErrorMessage'
 import { StatusBadge } from './StatusBadge'
+import { useToast } from './Toaster'
 
 const JOB_TYPE_LABELS: Record<AnalysisJobType, string> = {
   ingestion: 'Ingestion',
@@ -25,6 +26,7 @@ interface CancelButtonProps {
 /** Cancel one pending job; only this row's button is disabled while its request runs. */
 function CancelButton({ projectId, repositoryId, job, onError }: CancelButtonProps) {
   const cancel = useCancelJob(projectId, repositoryId)
+  const toast = useToast()
   const label = (JOB_TYPE_LABELS[job.job_type] ?? job.job_type).toLowerCase()
   return (
     <button
@@ -34,6 +36,7 @@ function CancelButton({ projectId, repositoryId, job, onError }: CancelButtonPro
       onClick={() => {
         onError(null)
         cancel.mutate(job.id, {
+          onSuccess: () => toast({ title: 'Job cancelled', tone: 'info' }),
           onError: (error) => onError(getErrorMessage(error, 'Could not cancel the job')),
         })
       }}

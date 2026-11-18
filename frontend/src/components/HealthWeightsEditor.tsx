@@ -4,6 +4,7 @@ import { useHealthWeights, useResetHealthWeights, useSaveHealthWeights } from '.
 import { getErrorMessage } from '../services/client'
 import type { HealthWeights, HealthWeightsResponse } from '../types/api'
 import { ErrorMessage } from './ErrorMessage'
+import { useToast } from './Toaster'
 import { DIMENSION_KEYS, DIMENSION_NAMES } from './HealthReport'
 
 type Draft = Record<keyof HealthWeights, string>
@@ -35,11 +36,13 @@ function WeightsForm({
   const changed = DIMENSION_KEYS.some((key) => draft[key].trim() !== String(saved.weights[key]))
   const busy = save.isPending || reset.isPending
 
+  const toast = useToast()
+
   function submit(event: FormEvent) {
     event.preventDefault()
     if (problem || !changed || busy) return
     reset.reset()
-    save.mutate(parsed)
+    save.mutate(parsed, { onSuccess: () => toast({ title: 'Weights saved', description: 'Every health score now uses them.' }) })
   }
 
   return (
@@ -91,7 +94,7 @@ function WeightsForm({
           type="button"
           onClick={() => {
             save.reset()
-            reset.mutate()
+            reset.mutate(undefined, { onSuccess: () => toast({ title: 'Weights reset to the defaults' }) })
           }}
           disabled={saved.defaults || busy}
           className="rounded-lg border border-slate-700 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"

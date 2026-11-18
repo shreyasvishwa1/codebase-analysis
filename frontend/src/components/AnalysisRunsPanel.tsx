@@ -10,6 +10,8 @@ import { formatBytes, formatDateTime } from '../utils/format'
 import { isJobActive } from '../utils/jobs'
 import { ErrorMessage } from './ErrorMessage'
 import { languageLabel } from './LanguageStats'
+import { LiveAnalysisBoard } from './LiveAnalysisBoard'
+import { useToast } from './Toaster'
 
 const number = (value: number) => value.toLocaleString('en-US')
 const count = (value: number, noun: string) => `${number(value)} ${noun}${value === 1 ? '' : 's'}`
@@ -85,21 +87,34 @@ export function AnalysisRunsPanel({
   const start = useStartAnalysisRun(projectId, repositoryId)
   const [error, setError] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  // The live board stays after a run this page watched has finished, until it is hidden.
+  const [watching, setWatching] = useState(false)
+  const toast = useToast()
 
   const job = runs.data?.job ?? null
   const active = isJobActive(job ?? undefined)
   const history = runs.data?.runs ?? []
   const selected = history.find((run) => run.id === selectedId) ?? history[0]
 
-  // When a run finishes, the dashboard totals change too.
+  // When a run finishes, the dashboard totals change too, and a toast says how it ended.
   const wasActive = useRef(false)
   useEffect(() => {
+    if (active) setWatching(true)
     if (wasActive.current && !active) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard, exact: true })
       setSelectedId(null) // show the new latest run
+      if (job?.status === 'completed') {
+        toast({
+          title: 'Analysis complete',
+          description: `${repository.name} was analyzed. Its health score and findings are ready.`,
+          action: { label: 'See the health score', to: `/projects/${projectId}/repositories/${repositoryId}/health` },
+        })
+      } else if (job?.status === 'failed') {
+        toast({ title: 'Analysis failed', description: job.error_message ?? undefined, tone: 'error' })
+      }
     }
     wasActive.current = active
-  }, [active, queryClient])
+  }, [active, job?.status, job?.error_message, queryClient, toast, repository.name, projectId, repositoryId])
 
   async function onRun() {
     setError(null)
@@ -147,6 +162,7 @@ export function AnalysisRunsPanel({
           Analysis {job?.status === 'pending' ? 'queued' : 'in progress'}…
         </p>
       )}
+      {job && (active || watching) && <LiveAnalysisBoard job={job} onHide={() => setWatching(false)} />}
       {job?.status === 'failed' && job.error_message && (
         <ErrorMessage message={`The last analysis failed: ${job.error_message}`} />
       )}

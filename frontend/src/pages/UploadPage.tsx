@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { ErrorMessage } from '../components/ErrorMessage'
+import { useToast } from '../components/Toaster'
 import { ZipSocket } from '../components/ZipSocket'
 import { queryKeys } from '../hooks/queryKeys'
 import { useProjects } from '../hooks/useProjects'
@@ -87,6 +88,7 @@ export function UploadPage() {
   const projects = useProjects()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const toast = useToast()
   const [projectChoice, setProjectChoice] = useState('')
   const [projectName, setProjectName] = useState('')
   const [name, setName] = useState('')
@@ -150,6 +152,10 @@ export function UploadPage() {
         await ingestGithub(projectId, repository.id)
       }
       setPhase('open')
+      toast({
+        title: 'Import started',
+        description: `${repository.name}: files are being checked and stored. Run a full analysis once it is ready.`,
+      })
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard, exact: true })
       navigate(`/projects/${projectId}/repositories/${repository.id}`)
     } catch (err) {

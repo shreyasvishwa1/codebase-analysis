@@ -24,7 +24,9 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 
 import { BrandMark } from '../components/AuthLayout'
 import { CommandPalette, type PaletteLink } from '../components/CommandPalette'
+import { ShortcutsDialog, useGlobalShortcuts } from '../components/KeyboardShortcuts'
 import { PageSkeleton } from '../components/PageSkeleton'
+import { useToast } from '../components/Toaster'
 import { useAuth } from '../hooks/useAuth'
 import { useHealth } from '../hooks/useHealth'
 import { useTheme } from '../hooks/useTheme'
@@ -137,7 +139,22 @@ export function AppShell() {
   const location = useLocation()
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const closePalette = useCallback(() => setPaletteOpen(false), [])
+  const closeHelp = useCallback(() => setHelpOpen(false), [])
+  const { theme, toggle } = useTheme()
+  const toast = useToast()
+
+  // Single-key shortcuts: ? for the list, G then a letter to jump, T for the theme, / to search.
+  useGlobalShortcuts({
+    onSearch: useCallback(() => setPaletteOpen(true), []),
+    onToggleTheme: useCallback(() => {
+      toggle()
+      toast({ title: theme === 'dark' ? 'Light theme' : 'Dark theme', tone: 'info' })
+    }, [toggle, toast, theme]),
+    onToggleHelp: useCallback(() => setHelpOpen((open) => !open), []),
+    disabled: paletteOpen || helpOpen,
+  })
 
   // Every page's file downloads in the background once the browser is idle.
   useEffect(() => preloadPagesWhenIdle(), [])
@@ -247,13 +264,17 @@ export function AppShell() {
         <footer className="sticky bottom-0 flex h-8 items-center gap-4 border-t border-slate-800 bg-slate-950/90 px-4 font-mono text-[11px] text-slate-500 backdrop-blur md:px-8">
           <HealthIndicator />
           <span className="hidden sm:inline">Static analysis: repository code is never run</span>
-          <button type="button" onClick={() => setPaletteOpen(true)} className="ml-auto hover:text-slate-300">
+          <button type="button" onClick={() => setHelpOpen(true)} className="ml-auto hidden hover:text-slate-300 sm:inline">
+            <span className="kbd">?</span> shortcuts
+          </button>
+          <button type="button" onClick={() => setPaletteOpen(true)} className="ml-auto hover:text-slate-300 sm:ml-0">
             <span className="kbd">Ctrl K</span> commands
           </button>
         </footer>
       </div>
 
       <CommandPalette open={paletteOpen} onClose={closePalette} pages={PAGES} onSignOut={logout} />
+      <ShortcutsDialog open={helpOpen} onClose={closeHelp} />
     </div>
   )
 }

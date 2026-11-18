@@ -267,6 +267,27 @@ html {
   transform: translateZ(var(--z, 0px));
 }
 
+/* A chip on the live analysis board while its analyzer works. */
+.live-chip {
+  animation: chip-glow 1.4s ease-in-out infinite;
+}
+@keyframes chip-glow {
+  50% {
+    stroke-width: 2.5;
+    filter: drop-shadow(0 0 5px rgb(var(--indigo-400) / 0.8));
+  }
+}
+
+/* A toast's timer: a gold trace that drains from full width. */
+@keyframes toast-drain {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
+
 /* A module card picked from the 3D board: a gold ring that pulses twice. */
 .module-flash {
   animation: module-flash 0.8s ease-out 2;
