@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import type { AnalysisJob } from '../types/api'
 import { analysisStage, STAGE_STEPS, stepIndex, type AnalysisStage, type StageKey } from '../utils/analysisStages'
 import { HEALTH, INPUTS, OUTPUTS, VIAS, type ChipSpec } from './circuitLayout'
+import { BoardCurrent, motionAllowed } from './LiveTraces'
 
 export type ChipState = 'idle' | 'active' | 'waiting' | 'done' | 'failed'
 
@@ -83,13 +84,14 @@ function Chip({ chip, state }: { chip: ChipSpec; state: ChipState }) {
   )
 }
 
-function Trace({ d, state }: { d: string; state: ChipState }) {
+function Trace({ d, state, moving }: { d: string; state: ChipState; moving: boolean }) {
   const base = state === 'done' ? 'stroke-indigo-500' : state === 'failed' ? 'stroke-red-400/70' : 'stroke-slate-700'
   return (
     <g>
       <path d={d} fill="none" className={`${base} transition-colors duration-500`} strokeWidth="2.5" strokeLinejoin="round" />
-      {state === 'active' && (
-        <path d={d} fill="none" className="animate-current stroke-indigo-300" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="6 42" />
+      {/* Moving current is drawn by BoardCurrent; without motion, still marks show it. */}
+      {state === 'active' && !moving && (
+        <path d={d} fill="none" className="stroke-indigo-300" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="6 42" />
       )}
     </g>
   )
@@ -124,6 +126,8 @@ export function LiveAnalysisBoard({ job, onHide }: { job: AnalysisJob; onHide?: 
   const elapsed = useElapsed(job.started_at, running)
   const current = stepIndex(stage.key === 'failed' ? stage.failedAt ?? 'queued' : stage.key)
   const healthState = states[HEALTH.ref]
+  const [moving] = useState(motionAllowed)
+  const flowing = [...INPUTS, ...OUTPUTS].filter((chip) => states[chip.ref] === 'active').map((chip) => chip.trace!)
 
   return (
     <section aria-label="Live analysis" className="pcb-card animate-pop-in space-y-4 p-4 sm:p-5">
@@ -144,12 +148,13 @@ export function LiveAnalysisBoard({ job, onHide }: { job: AnalysisJob; onHide?: 
         )}
       </div>
 
-      <svg viewBox="0 0 520 345" className="mx-auto h-auto w-full max-w-xl" aria-hidden="true">
+      <div className="relative mx-auto w-full max-w-xl">
+      <svg viewBox="0 0 520 345" className="h-auto w-full" aria-hidden="true">
         {INPUTS.map((chip) => (
-          <Trace key={`t-${chip.ref}`} d={chip.trace!} state={states[chip.ref]} />
+          <Trace key={`t-${chip.ref}`} d={chip.trace!} state={states[chip.ref]} moving={moving} />
         ))}
         {OUTPUTS.map((chip) => (
-          <Trace key={`t-${chip.ref}`} d={chip.trace!} state={states[chip.ref]} />
+          <Trace key={`t-${chip.ref}`} d={chip.trace!} state={states[chip.ref]} moving={moving} />
         ))}
         {VIAS.map(([cx, cy]) => (
           <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3.5" className="fill-slate-900 stroke-slate-600" strokeWidth="1.5" />
@@ -181,6 +186,8 @@ export function LiveAnalysisBoard({ job, onHide }: { job: AnalysisJob; onHide?: 
           </text>
         </g>
       </svg>
+      {moving && <BoardCurrent traces={flowing} />}
+      </div>
 
       <ol aria-label="Analysis stages" className="grid gap-2 sm:grid-cols-3">
         {STAGE_STEPS.map((step, index) => {

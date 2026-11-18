@@ -144,7 +144,7 @@ export function CommandPalette({
 
   let lastGroup = ''
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/70 px-4 pt-[12vh] backdrop-blur-sm" onMouseDown={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-950/80 px-4 pt-[12vh]" onMouseDown={onClose}>
       <div
         role="dialog"
         aria-modal="true"

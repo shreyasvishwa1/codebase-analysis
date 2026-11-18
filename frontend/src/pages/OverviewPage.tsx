@@ -13,7 +13,7 @@ import { formatDateTime } from '../utils/format'
 
 const SERIES = ['rgb(var(--indigo-500))', 'rgb(var(--slate-400))', 'rgb(var(--emerald-500))', 'rgb(var(--sky-500))', 'rgb(var(--rose-500))']
 const OTHER = 'rgb(var(--slate-600))'
-const PANEL = 'min-w-0 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-glow backdrop-blur'
+const PANEL = 'min-w-0 rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-glow'
 const number = (value: number) => value.toLocaleString('en-US')
 
 function Kpi({ icon: Icon, accent, label, value, caption }: {

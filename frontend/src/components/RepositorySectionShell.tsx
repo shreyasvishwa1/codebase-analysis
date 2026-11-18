@@ -38,7 +38,7 @@ export function RepositorySectionShell({
         </div>
       </div>
       <RepositoryNav projectId={projectId} repositoryId={repositoryId} />
-      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-glow backdrop-blur">
+      <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-glow">
         {children({ projectId, repositoryId, repository: repo })}
       </div>
     </div>

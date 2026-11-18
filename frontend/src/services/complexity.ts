@@ -36,30 +36,6 @@ export async function listComplexityFiles(
   return data
 }
 
-/** The code city's buildings: at most this many files, the largest first. */
-export const CITY_FILE_LIMIT = 400
-const CITY_PAGE_SIZE = 200 // the server's largest page
-
-/** A run's largest files (up to `limit`) and how many it has in all. */
-export async function listLargestFiles(
-  projectId: string,
-  repositoryId: string,
-  runId: string,
-  limit: number = CITY_FILE_LIMIT,
-): Promise<ComplexityFileList> {
-  const items: ComplexityFileList['items'] = []
-  let total = 0
-  for (let page = 1; items.length < limit; page += 1) {
-    const { data } = await apiClient.get<ComplexityFileList>(`${complexityPath(projectId, repositoryId, runId)}/files`, {
-      params: { page, page_size: CITY_PAGE_SIZE, sort: 'size' },
-    })
-    items.push(...data.items)
-    total = data.total
-    if (data.items.length < CITY_PAGE_SIZE || items.length >= total) break
-  }
-  return { items: items.slice(0, limit), total, page: 1, page_size: limit }
-}
-
 /** One page of a run's most complex functions. */
 export async function listComplexityFunctions(
   projectId: string,

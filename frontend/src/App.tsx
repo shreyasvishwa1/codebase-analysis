@@ -1,6 +1,6 @@
 import { Route, Routes } from 'react-router-dom'
 
-import { RequireAuth, RootRoute } from './components/RequireAuth'
+import { RequireAuth } from './components/RequireAuth'
 import { AppShell } from './layouts/AppShell'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { IntroPage } from './pages/IntroPage'
@@ -12,12 +12,13 @@ import { Pages } from './routes/pages'
 
 const REPOSITORY = '/projects/:projectId/repositories/:repositoryId'
 
-/** The intro and the sign-in pages load with the app; every signed-in page loads on first use
+/** The intro (at / and /welcome) and the sign-in pages load with the app; every signed-in page loads on first use
  * (and in the background once the browser is idle), with a skeleton while it arrives. */
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<RootRoute />} />
+      {/* The intro is the front door for everyone; signed-in users get "Open the app". */}
+      <Route path="/" element={<IntroPage />} />
       <Route path="/welcome" element={<IntroPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />

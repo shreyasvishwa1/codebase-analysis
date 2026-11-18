@@ -1,7 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
 
 import { useAuth } from '../hooks/useAuth'
-import { IntroPage } from '../pages/IntroPage'
 import { BrandMark } from './AuthLayout'
 
 /** Shown for the moment a saved session is being checked: the logo, powering on. */
@@ -29,12 +28,4 @@ export function RequireAuth() {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />
   }
   return <Outlet />
-}
-
-/** The site root: the intro for visitors, the overview for signed-in users. */
-export function RootRoute() {
-  const { status } = useAuth()
-  if (status === 'loading') return <BootSplash />
-  if (status === 'authenticated') return <Navigate to="/overview" replace />
-  return <IntroPage />
 }

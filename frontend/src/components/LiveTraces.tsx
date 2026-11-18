@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 
-import { pointAlong, polylineLength, TRACE_TILE, TRACE_TILE_SIZE, tracePaths } from './circuitLayout'
+import { BOARD_WIDTH, pointAlong, polylineLength, TRACE_TILE, TRACE_TILE_SIZE, tracePaths, tracePoints } from './circuitLayout'
 
 /** The tile's traces, measured once. */
 const TILE_PATHS = tracePaths(TRACE_TILE).map((points) => ({ points, length: polylineLength(points) }))
@@ -10,8 +10,8 @@ export type Density = 'high' | 'low'
 /** How busy the background is: the intro and sign-in pages show more current than the app,
  * where it must not distract from the work. */
 export const DENSITY: Record<Density, { max: number; everyMs: number }> = {
-  high: { max: 16, everyMs: 220 },
-  low: { max: 5, everyMs: 900 },
+  high: { max: 8, everyMs: 380 },
+  low: { max: 3, everyMs: 1400 },
 }
 
 export interface Pulse {
@@ -70,7 +70,27 @@ function accent(): string {
   return channels || '226,183,85'
 }
 
-function motionAllowed(): boolean {
+/** A soft glow, drawn once and stamped at each pulse's head (much cheaper than canvas
+ * shadows, which are recomputed for every stroke). */
+function glowSprite(color: string): HTMLCanvasElement {
+  const sprite = document.createElement('canvas')
+  sprite.width = sprite.height = 24
+  const context = sprite.getContext('2d')
+  if (context) {
+    const glow = context.createRadialGradient(12, 12, 0, 12, 12, 12)
+    glow.addColorStop(0, 'rgba(255,244,214,1)')
+    glow.addColorStop(0.3, `rgba(${color},0.8)`)
+    glow.addColorStop(1, `rgba(${color},0)`)
+    context.fillStyle = glow
+    context.fillRect(0, 0, 24, 24)
+  }
+  return sprite
+}
+
+/** At most this many frames a second: smooth for slow-moving light, half the work of 60. */
+export const FRAME_MS = 1000 / 30
+
+export function motionAllowed(): boolean {
   return typeof window.matchMedia === 'function' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
@@ -90,7 +110,7 @@ export function LiveTraces({ density = 'low' }: { density?: Density }) {
     const context = canvas?.getContext('2d')
     if (!canvas || !context) return
     const { max, everyMs } = DENSITY[density]
-    const ratio = Math.min(window.devicePixelRatio || 1, 1.5)
+    const ratio = 1 // a soft glow needs no high-density pixels
     let width = 0
     let height = 0
     const resize = () => {
@@ -104,8 +124,10 @@ export function LiveTraces({ density = 'low' }: { density?: Density }) {
     window.addEventListener('resize', resize)
 
     let color = accent()
+    let glow = glowSprite(color)
     const onTheme = () => {
       color = accent()
+      glow = glowSprite(color)
     }
     window.addEventListener('cba-theme-change', onTheme)
 
@@ -116,7 +138,11 @@ export function LiveTraces({ density = 'low' }: { density?: Density }) {
     let frame = 0
 
     const draw = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000)
+      if (now - last < FRAME_MS - 1) {
+        frame = requestAnimationFrame(draw)
+        return
+      }
+      const dt = Math.min(0.08, (now - last) / 1000)
       last = now
       since += dt * 1000
       if (since >= everyMs && pulses.length < max) {
@@ -130,17 +156,15 @@ export function LiveTraces({ density = 'low' }: { density?: Density }) {
         const pulse = pulses[i]
         const alive = stepPulse(pulse, dt)
         // The tail: a few segments that fade toward the back.
-        const steps = 8
-        context.shadowColor = `rgba(${color},0.9)`
-        context.shadowBlur = 8
+        const steps = 4
         for (let s = 0; s < steps; s += 1) {
           const a = pulse.at - (pulse.trail * s) / steps
           const b = pulse.at - (pulse.trail * (s + 1)) / steps
           if (a < 0) break
           const [ax, ay] = pointAlong(pulse.points, Math.min(a, pulse.length))
           const [bx, by] = pointAlong(pulse.points, Math.max(0, Math.min(b, pulse.length)))
-          context.strokeStyle = `rgba(${color},${0.85 * (1 - s / steps)})`
-          context.lineWidth = 2.5
+          context.strokeStyle = `rgba(${color},${0.8 * (1 - s / steps)})`
+          context.lineWidth = 2
           context.beginPath()
           context.moveTo(pulse.x + ax, pulse.y + ay)
           context.lineTo(pulse.x + bx, pulse.y + by)
@@ -148,21 +172,13 @@ export function LiveTraces({ density = 'low' }: { density?: Density }) {
         }
         if (pulse.at <= pulse.length) {
           const [hx, hy] = pulseHead(pulse)
-          const glow = context.createRadialGradient(hx, hy, 0, hx, hy, 10)
-          glow.addColorStop(0, 'rgba(255,244,214,1)')
-          glow.addColorStop(0.35, `rgba(${color},0.8)`)
-          glow.addColorStop(1, `rgba(${color},0)`)
-          context.fillStyle = glow
-          context.beginPath()
-          context.arc(hx, hy, 10, 0, Math.PI * 2)
-          context.fill()
+          context.drawImage(glow, hx - 12, hy - 12)
         } else if (pulse.at - pulse.speed * dt <= pulse.length) {
           const [ex, ey] = pulse.points[pulse.points.length - 1]
           sparks.push({ x: pulse.x + ex, y: pulse.y + ey, age: 0 })
         }
         if (!alive) pulses.splice(i, 1)
       }
-      context.shadowBlur = 0
       for (let i = sparks.length - 1; i >= 0; i -= 1) {
         const spark = sparks[i]
         spark.age += dt
@@ -197,5 +213,126 @@ export function LiveTraces({ density = 'low' }: { density?: Density }) {
     }
   }, [density])
 
-  return <canvas ref={ref} aria-hidden="true" data-testid="live-traces" className="pointer-events-none fixed inset-0 -z-[1] h-full w-full" />
+  return <canvas ref={ref} aria-hidden="true" data-testid="live-traces" className="pointer-events-none fixed inset-0 -z-[1] h-full w-full [will-change:transform]" />
+}
+
+/** Pulses per trace on a board, spread evenly along it. */
+export const BOARD_PULSES = 2
+/** Board current speed, in layout units per second. */
+export const BOARD_SPEED = 55
+
+/** Where a board pulse is: `t` seconds in, the `k`th of BOARD_PULSES on a trace. */
+export function boardPulseAt(length: number, t: number, k: number): number {
+  const cycle = length + 40 // a short gap before each pulse comes round again
+  return (t * BOARD_SPEED + (k * cycle) / BOARD_PULSES) % cycle
+}
+
+/**
+ * Current flowing along a circuit board's traces, drawn on a canvas laid over the board's
+ * SVG (in the board's 520-wide layout units). Much cheaper than animating dashed SVG
+ * strokes, which repaint every trace on every frame. 30 frames a second, paused when off
+ * screen or hidden, and not drawn at all under reduced motion.
+ */
+export function BoardCurrent({ traces, delayMs = 0 }: { traces: string[]; delayMs?: number }) {
+  const ref = useRef<HTMLCanvasElement>(null)
+  const key = traces.join('|')
+
+  useEffect(() => {
+    if (!motionAllowed() || traces.length === 0) return
+    const canvas = ref.current
+    const context = canvas?.getContext('2d')
+    if (!canvas || !context) return
+    const paths = traces.map((trace) => {
+      const points = tracePoints(trace)
+      return { points, length: polylineLength(points) }
+    })
+    const ratio = Math.min(window.devicePixelRatio || 1, 2)
+    let scale = 1
+    const resize = () => {
+      const width = canvas.clientWidth
+      const height = canvas.clientHeight
+      canvas.width = Math.max(1, Math.round(width * ratio))
+      canvas.height = Math.max(1, Math.round(height * ratio))
+      scale = width / BOARD_WIDTH
+      context.setTransform(ratio * scale, 0, 0, ratio * scale, 0, 0)
+    }
+    resize()
+    const sizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(resize)
+    sizeObserver?.observe(canvas)
+    let color = accent()
+    let glow = glowSprite(color)
+    const onTheme = () => {
+      color = accent()
+      glow = glowSprite(color)
+    }
+    window.addEventListener('cba-theme-change', onTheme)
+
+    const begin = performance.now() + delayMs
+    let last = 0
+    let frame = 0
+    let visible = true
+    const draw = (now: number) => {
+      frame = 0
+      if (now - last >= FRAME_MS - 1) {
+        last = now
+        context.clearRect(0, 0, BOARD_WIDTH, canvas.height / (ratio * scale))
+        const t = (now - begin) / 1000
+        if (t > 0) {
+          context.globalCompositeOperation = 'lighter'
+          context.lineCap = 'round'
+          context.lineWidth = 2.5
+          for (const { points, length } of paths) {
+            for (let k = 0; k < BOARD_PULSES; k += 1) {
+              const at = boardPulseAt(length, t, k)
+              if (at > length + 4) continue
+              for (let s = 0; s < 3; s += 1) {
+                const a = Math.min(length, at - s * 6)
+                const b = Math.max(0, at - (s + 1) * 6)
+                if (a <= 0) break
+                const [ax, ay] = pointAlong(points, a)
+                const [bx, by] = pointAlong(points, b)
+                context.strokeStyle = `rgba(${color},${0.85 - s * 0.25})`
+                context.beginPath()
+                context.moveTo(ax, ay)
+                context.lineTo(bx, by)
+                context.stroke()
+              }
+              if (at <= length) {
+                const [hx, hy] = pointAlong(points, at)
+                context.drawImage(glow, hx - 8, hy - 8, 16, 16)
+              }
+            }
+          }
+        }
+      }
+      start()
+    }
+    const start = () => {
+      if (frame || !visible || document.hidden) return
+      frame = requestAnimationFrame(draw)
+    }
+    const stop = () => {
+      cancelAnimationFrame(frame)
+      frame = 0
+    }
+    const visibility = typeof IntersectionObserver === 'undefined' ? null : new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting
+      if (visible) start()
+      else stop()
+    })
+    visibility?.observe(canvas)
+    const onVisibility = () => (document.hidden ? stop() : start())
+    document.addEventListener('visibilitychange', onVisibility)
+    start()
+    return () => {
+      stop()
+      sizeObserver?.disconnect()
+      visibility?.disconnect()
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('cba-theme-change', onTheme)
+    }
+    // The traces are compared by value (key), not by array identity.
+  }, [key, delayMs])
+
+  return <canvas ref={ref} aria-hidden="true" data-testid="board-current" className="pointer-events-none absolute inset-0 h-full w-full [will-change:transform]" />
 }

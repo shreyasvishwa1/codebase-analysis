@@ -82,13 +82,25 @@ describe('Intro page', () => {
     ctas.forEach((link) => expect(link.getAttribute('href')).toBe('/upload'))
   })
 
-  it('shows the boot screen while a saved session is checked, then the overview', async () => {
+  it('shows the intro at the root to signed-in users too, with a way into the app', async () => {
     setToken('test-token')
     mockApi({
       'GET /auth/me': { status: 200, data: USER },
       'GET /health': { status: 200, data: { status: 'ok' } },
     })
     renderWithProviders(<App />, { route: '/' })
+    expect(screen.getByRole('heading', { level: 1, name: /See inside any codebase/ })).toBeTruthy()
+    const header = screen.getByRole('banner')
+    expect((await within(header).findByRole('link', { name: 'Open the app' })).getAttribute('href')).toBe('/overview')
+  })
+
+  it('shows the boot screen while a saved session is checked, then the page', async () => {
+    setToken('test-token')
+    mockApi({
+      'GET /auth/me': { status: 200, data: USER },
+      'GET /health': { status: 200, data: { status: 'ok' } },
+    })
+    renderWithProviders(<App />, { route: '/overview' })
     expect(screen.getByRole('status').textContent).toBe('Checking your session…')
     expect(await screen.findByRole('heading', { name: 'Overview' })).toBeTruthy()
   })

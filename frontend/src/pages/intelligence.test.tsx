@@ -402,7 +402,7 @@ describe('Full analysis panel', () => {
 // --- Navigation ------------------------------------------------------------------------------
 
 describe('Navigation', () => {
-  it('opens the overview from the root and moves between sections', async () => {
+  it('opens the overview and moves between sections', async () => {
     setToken('test-token')
     mockApi({
       'GET /auth/me': { status: 200, data: USER },
@@ -410,7 +410,7 @@ describe('Navigation', () => {
       'GET /dashboard': { status: 200, data: SUMMARY },
       'GET /projects': { status: 200, data: [PROJECT] },
     })
-    renderWithProviders(<App />, { route: '/' })
+    renderWithProviders(<App />, { route: '/overview' })
     expect(await screen.findByRole('heading', { name: 'Overview' })).toBeTruthy()
     const nav = screen.getAllByRole('navigation', { name: 'Main navigation' })[0]
     fireEvent.click(within(nav).getByRole('link', { name: 'Upload Repository' }))

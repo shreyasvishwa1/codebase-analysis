@@ -8,8 +8,12 @@ import { ToastProvider } from './components/Toaster'
 import { AuthProvider } from './hooks/useAuth'
 import './index.css'
 import { createQueryClient } from './queryClient'
+import { installSmoothWheel } from './utils/smoothScroll'
 
 const queryClient = createQueryClient()
+
+// Mouse-wheel scrolling glides instead of jumping (see utils/smoothScroll).
+installSmoothWheel()
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>

@@ -138,7 +138,7 @@ export function IntroPage() {
   return (
     <div ref={page} className="pcb-surface min-h-screen overflow-x-clip bg-slate-950 text-slate-100">
       <LiveTraces density="high" />
-      <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/95">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 md:px-8">
           <Link to="/" className="flex items-center gap-2.5 text-sm font-semibold text-slate-50">
             <BrandMark />

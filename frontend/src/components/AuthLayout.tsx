@@ -2,9 +2,9 @@ import { Eye, EyeOff } from 'lucide-react'
 import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
-import { preloadPagesWhenIdle } from '../routes/pages'
+import { preloadPage } from '../routes/pages'
 import { HEALTH, INPUTS, OUTPUTS, VIAS, type ChipSpec } from './circuitLayout'
-import { LiveTraces } from './LiveTraces'
+import { BoardCurrent, LiveTraces, motionAllowed } from './LiveTraces'
 
 /** Hover and click handlers that make the board's chips interactive (the intro page). */
 export interface BoardInteraction {
@@ -70,9 +70,11 @@ export function CircuitIllustration({ boot = false, interaction }: { boot?: bool
   const traces = [...INPUTS, ...OUTPUTS]
   const hovered = interaction?.hovered ?? null
   // With boot, the traces draw in one after another and the current starts once they're done.
-  const late = (delay: number) => (boot ? { className: 'boot-late', style: { animationDelay: `${delay}ms` } } : {})
   const healthLit = hovered === HEALTH.ref
+  // The moving current is drawn on a canvas over the board (cheap); see BoardCurrent.
+  const [moving] = useState(motionAllowed)
   return (
+    <div className="relative">
     <svg
       viewBox="0 0 520 345"
       className="h-auto w-full overflow-visible"
@@ -91,20 +93,11 @@ export function CircuitIllustration({ boot = false, interaction }: { boot?: bool
           strokeLinejoin="round"
         />
       ))}
-      <g {...late(1300)}>
-        {traces.map(({ ref, trace }, index) => (
-          <path
-            key={`current-${ref}`}
-            d={trace}
-            fill="none"
-            className="animate-current stroke-indigo-400"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeDasharray="6 42"
-            style={{ animationDelay: `${index * -0.35}s` }}
-          />
+      {/* Without motion, the current is shown as still marks on the traces. */}
+      {!moving &&
+        traces.map(({ ref, trace }) => (
+          <path key={`current-${ref}`} d={trace} fill="none" className="stroke-indigo-400" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="6 42" />
         ))}
-      </g>
       {VIAS.map(([cx, cy]) => (
         <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3.5" className="fill-slate-900 stroke-indigo-500" strokeWidth="1.5" />
       ))}
@@ -136,6 +129,8 @@ export function CircuitIllustration({ boot = false, interaction }: { boot?: bool
         </g>
       </g>
     </svg>
+    {moving && <BoardCurrent traces={traces.map((chip) => chip.trace!)} delayMs={boot ? 1300 : 0} />}
+    </div>
   )
 }
 
@@ -159,8 +154,17 @@ export function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
 
 /** Split-screen frame for the sign-in, registration and password pages. */
 export function AuthLayout({ children }: { children: ReactNode }) {
-  // Someone on a sign-in page is about to use the app: fetch its pages while they type.
-  useEffect(() => preloadPagesWhenIdle(), [])
+  // Someone on a sign-in page is about to open the overview: fetch just that page, once the
+  // browser is idle (the rest load inside the app), so typing is never slowed down.
+  useEffect(() => {
+    const load = () => void preloadPage('OverviewPage')
+    if (typeof window.requestIdleCallback === 'function') {
+      const id = window.requestIdleCallback(load, { timeout: 5000 })
+      return () => window.cancelIdleCallback(id)
+    }
+    const timer = window.setTimeout(load, 2000)
+    return () => window.clearTimeout(timer)
+  }, [])
   return (
     <div className="pcb-surface flex min-h-screen bg-slate-950">
       <LiveTraces density="high" />
@@ -192,10 +196,13 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
       <main className="flex flex-1 items-center justify-center px-6 py-12">
-        <div className="w-full max-w-sm animate-fade-in rounded-2xl border border-slate-800 bg-slate-950/85 p-8 backdrop-blur-sm">
+        <div className="w-full max-w-sm animate-fade-in rounded-2xl border border-slate-800 bg-slate-950 p-8">
           <Link to="/" className="mb-8 flex w-fit items-center gap-3 lg:hidden">
             <BrandMark />
             <span className="font-semibold text-slate-50">CodeBase Analysis</span>
+          </Link>
+          <Link to="/" className="mb-6 hidden w-fit items-center gap-1.5 text-xs font-medium text-slate-400 hover:text-indigo-300 lg:inline-flex">
+            ← Back to home
           </Link>
           <div className="space-y-6">{children}</div>
         </div>

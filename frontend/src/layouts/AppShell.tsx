@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Suspense, useCallback, useEffect, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 
 import { BrandMark } from '../components/AuthLayout'
 import { CommandPalette, type PaletteLink } from '../components/CommandPalette'
@@ -136,8 +136,14 @@ function ThemeToggle() {
 }
 
 export function AppShell() {
-  const { user, logout } = useAuth()
+  const { user, logout: endSession } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
+  // Signing out returns to the intro (the site's front door), not to the sign-in form.
+  const logout = useCallback(() => {
+    navigate('/', { replace: true })
+    endSession()
+  }, [navigate, endSession])
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
@@ -215,7 +221,7 @@ export function AppShell() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-slate-800 bg-slate-950/85 px-4 backdrop-blur md:px-8">
+        <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b border-slate-800 bg-slate-950/95 px-4 md:px-8">
           <button
             type="button"
             onClick={() => setMenuOpen((open) => !open)}
@@ -263,7 +269,7 @@ export function AppShell() {
           </Suspense>
         </main>
 
-        <footer className="sticky bottom-0 flex h-8 items-center gap-4 border-t border-slate-800 bg-slate-950/90 px-4 font-mono text-[11px] text-slate-500 backdrop-blur md:px-8">
+        <footer className="sticky bottom-0 flex h-8 items-center gap-4 border-t border-slate-800 bg-slate-950 px-4 font-mono text-[11px] text-slate-500 md:px-8">
           <HealthIndicator />
           <span className="hidden sm:inline">Static analysis: repository code is never run</span>
           <button type="button" onClick={() => setHelpOpen(true)} className="ml-auto hidden hover:text-slate-300 sm:inline">

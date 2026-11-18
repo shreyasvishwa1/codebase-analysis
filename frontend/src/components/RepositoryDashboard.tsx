@@ -44,7 +44,7 @@ const SIZE_BUCKETS: { label: string; max: number }[] = [
   { label: '1,000+ lines', max: Number.POSITIVE_INFINITY },
 ]
 
-const PANEL = 'rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-glow backdrop-blur'
+const PANEL = 'rounded-2xl border border-slate-800 bg-slate-900 p-5 shadow-glow'
 const PANEL_TITLE = 'text-sm font-semibold text-slate-100'
 const PANEL_NOTE = 'mt-1 text-xs text-slate-400'
 

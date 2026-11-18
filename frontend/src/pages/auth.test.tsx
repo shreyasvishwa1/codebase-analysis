@@ -172,7 +172,9 @@ describe('protected routes', () => {
     mockApi(authenticatedRoutes)
     renderWithProviders(<App />, { route: '/projects' })
     fireEvent.click(await screen.findByRole('button', { name: 'Sign out' }))
-    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeTruthy()
+    // Back to the intro, the site's front door, offering sign-in again.
+    expect(await screen.findByRole('heading', { level: 1, name: /See inside any codebase/ })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Sign in' }).getAttribute('href')).toBe('/login')
     expect(getToken()).toBeNull()
   })
 

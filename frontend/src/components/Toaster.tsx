@@ -59,7 +59,7 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: (id: number) => 
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
       data-tone={toast.tone}
-      className={`pointer-events-auto relative flex w-full animate-slide-in gap-3 overflow-hidden rounded-xl border bg-slate-900/95 p-4 pr-10 shadow-2xl backdrop-blur ${toast.tone === 'error' ? 'border-red-500/40' : 'border-slate-700'}`}
+      className={`pointer-events-auto relative flex w-full animate-slide-in gap-3 overflow-hidden rounded-xl border bg-slate-900 p-4 pr-10 shadow-2xl ${toast.tone === 'error' ? 'border-red-500/40' : 'border-slate-700'}`}
     >
       <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${accent}`} aria-hidden="true" />
       <div className="min-w-0 space-y-1">
