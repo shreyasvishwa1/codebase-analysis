@@ -323,3 +323,130 @@ def test_settings_validate_provider_key_and_model() -> None:
     for bad in ("", "  ", "../x", "models/x", "x?key=1", "-x", "gémini", "a b", ".hidden"):
         with pytest.raises(ValidationError):
             Settings(**base, gemini_model=bad)  # type: ignore[arg-type]
+
+
+def test_settings_validate_the_fallback_model() -> None:
+    base = {"_env_file": None, "secret_key": "x" * 40}
+    assert Settings(**base).gemini_fallback_model == "gemini-3.5-flash-lite"  # type: ignore[arg-type]
+    for empty in ("", "   "):
+        assert Settings(**base, gemini_fallback_model=empty).gemini_fallback_model is None  # type: ignore[arg-type]
+    assert Settings(**base, gemini_fallback_model=" gemini-x ").gemini_fallback_model == "gemini-x"  # type: ignore[arg-type]
+    for bad in ("../x", "models/x", "x?key=1", "-x", "a b"):
+        with pytest.raises(ValidationError):
+            Settings(**base, gemini_fallback_model=bad)  # type: ignore[arg-type]
+
+
+# --- Busy models: retries and the fallback ------------------------------------------------
+
+FALLBACK = "gemini-3.5-flash-lite"
+FALLBACK_URL = f"{API_BASE_URL}/v1beta/models/{FALLBACK}:generateContent"
+
+
+@pytest.fixture(autouse=True)
+def _no_retry_wait(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(gemini_provider, "RETRY_DELAYS", (0.0, 0.0))
+
+
+@pytest.mark.parametrize("status", [429, 500, 502, 503, 504])
+async def test_a_busy_model_is_retried(api: respx.MockRouter, status: int) -> None:
+    route = api.post(URL)
+    route.side_effect = [
+        httpx.Response(status, json={"error": {"status": "UNAVAILABLE"}}),
+        httpx.Response(200, json=_response(parts=[{"text": "second try"}])),
+    ]
+    result = await GeminiProvider(TEST_KEY, MODEL, fallback_model=FALLBACK).generate(
+        MESSAGES, max_tokens=10
+    )
+    assert result.text == "second try"
+    assert route.call_count == 2
+
+
+async def test_retries_wait_before_each_attempt(
+    api: respx.MockRouter, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    waits: list[float] = []
+
+    async def record(delay: float) -> None:
+        waits.append(delay)
+
+    monkeypatch.setattr(gemini_provider, "RETRY_DELAYS", (1.0, 3.0))
+    monkeypatch.setattr(gemini_provider.asyncio, "sleep", record)
+    api.post(URL).respond(503)
+    api.post(FALLBACK_URL).respond(200, json=_response(parts=[{"text": "fallback"}], model=None))
+    result = await GeminiProvider(TEST_KEY, MODEL, fallback_model=FALLBACK).generate(
+        MESSAGES, max_tokens=10
+    )
+    assert waits == [1.0, 3.0]
+    assert (result.text, result.model) == ("fallback", FALLBACK)  # the model that answered
+
+
+async def test_a_model_still_busy_hands_over_to_the_fallback(api: respx.MockRouter) -> None:
+    primary = api.post(URL).respond(503)
+    fallback = api.post(FALLBACK_URL).respond(
+        200, json=_response(parts=[{"text": "from the fallback"}])
+    )
+    result = await GeminiProvider(TEST_KEY, MODEL, fallback_model=FALLBACK).generate(
+        MESSAGES, max_tokens=10
+    )
+    assert result.text == "from the fallback"
+    assert (primary.call_count, fallback.call_count) == (3, 1)
+    body = json.loads(fallback.calls[0].request.content)
+    assert body == json.loads(primary.calls[0].request.content)  # the same request
+
+
+async def test_both_models_busy_is_unavailable(api: respx.MockRouter) -> None:
+    primary = api.post(URL).respond(503)
+    fallback = api.post(FALLBACK_URL).respond(429)
+    with pytest.raises(LLMProviderError) as raised:
+        await GeminiProvider(TEST_KEY, MODEL, fallback_model=FALLBACK).generate(
+            MESSAGES, max_tokens=10
+        )
+    assert str(raised.value) == UNAVAILABLE
+    assert (primary.call_count, fallback.call_count) == (3, 1)
+
+
+async def test_a_timeout_goes_straight_to_the_fallback(api: respx.MockRouter) -> None:
+    primary = api.post(URL).mock(side_effect=httpx.ReadTimeout("slow"))
+    fallback = api.post(FALLBACK_URL).respond(200, json=_response())
+    await GeminiProvider(TEST_KEY, MODEL, fallback_model=FALLBACK).generate(MESSAGES, max_tokens=10)
+    assert (primary.call_count, fallback.call_count) == (1, 1)
+    fallback.mock(side_effect=httpx.ReadTimeout("slow too"))
+    with pytest.raises(LLMProviderError) as raised:
+        await GeminiProvider(TEST_KEY, MODEL, fallback_model=FALLBACK).generate(
+            MESSAGES, max_tokens=10
+        )
+    assert str(raised.value) == UNAVAILABLE and raised.value.__cause__ is None
+
+
+@pytest.mark.parametrize("status", [400, 403, 404])
+async def test_other_errors_are_not_retried(api: respx.MockRouter, status: int) -> None:
+    primary = api.post(URL).respond(status)
+    fallback = api.post(FALLBACK_URL).respond(200, json=_response())
+    with pytest.raises(LLMProviderError):
+        await GeminiProvider(TEST_KEY, MODEL, fallback_model=FALLBACK).generate(
+            MESSAGES, max_tokens=10
+        )
+    assert (primary.call_count, fallback.called) == (1, False)
+
+
+async def test_without_a_fallback_only_the_model_is_retried(api: respx.MockRouter) -> None:
+    primary = api.post(URL).respond(503)
+    for provider in (
+        GeminiProvider(TEST_KEY, MODEL),
+        GeminiProvider(TEST_KEY, MODEL, fallback_model=MODEL),
+    ):
+        primary.reset()
+        with pytest.raises(LLMProviderError):
+            await provider.generate(MESSAGES, max_tokens=10)
+        assert primary.call_count == 3  # a fallback equal to the model is no fallback
+
+
+def test_provider_is_cached_per_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = get_settings()
+    monkeypatch.setattr(settings, "gemini_api_key", SecretStr(TEST_KEY))
+    monkeypatch.setattr(settings, "gemini_fallback_model", FALLBACK)
+    first = get_gemini_provider()
+    assert first is not None and first._fallback == FALLBACK
+    monkeypatch.setattr(settings, "gemini_fallback_model", None)
+    second = get_gemini_provider()
+    assert second is not first and second is not None and second._fallback is None

@@ -48,7 +48,8 @@ SYSTEM_PROMPT = (
     "names may be wrapped in backticks; no headings, tables, HTML or long code blocks."
 )
 
-_CITATION = re.compile(r"\[(\d{1,2})\]")
+# [1], and lists such as [1, 3] or [2,4]
+_CITATION = re.compile(r"\[(\d{1,2}(?:\s*,\s*\d{1,2})*)\]")
 
 
 class ChatError(Exception):
@@ -105,9 +106,10 @@ def cited(text: str, passages: list[Passage]) -> list[dict[str, Any]]:
     by_number = {p.n: p for p in passages}
     order: dict[int, None] = {}
     for match in _CITATION.finditer(text):
-        number = int(match.group(1))
-        if number in by_number:
-            order.setdefault(number, None)
+        for item in match.group(1).split(","):
+            number = int(item)
+            if number in by_number:
+                order.setdefault(number, None)
     return [by_number[number].citation() for number in order]
 
 

@@ -6,7 +6,8 @@ code. Common English words are dropped. The terms form an OR query, with prefix 
 terms of four characters or more (``route`` finds ``routes``); terms contain only ``a-z`` and
 digits, so no query syntax can be injected. Chunks are ranked with ``ts_rank_cd`` (path and
 symbol matches count more than body matches), at most MAX_PER_FILE per file. Files the
-question names (``auth.py``, ``src/api/client.ts``) come first.
+question names (``auth.py``, ``src/api/client.ts``) come first, then the definitions whose name it
+mentions (``login``, ``verify_password``).
 """
 
 import re
@@ -28,6 +29,8 @@ CANDIDATES = 60
 MAX_CONTEXT_CHARS = 36000  # passages sent to the model, in total
 MAX_NAMED_FILES = 3
 NAMED_FILE_CHUNKS = 2
+NAMED_SYMBOL_CHUNKS = 3  # definitions whose name the question mentions
+MIN_SYMBOL_LENGTH = 3
 
 RANK_NORMALIZATION = 0  # ts_rank_cd: no length normalization (substantial chunks rank higher)
 TEST_WEIGHT = 0.4  # rank factor for test files, unless the question is about tests
@@ -35,6 +38,7 @@ TEST_PATH = r"(^|/)(tests?|__tests__|spec|specs)/|(^|/)test_[^/]*$|[._-](test|sp
 TESTS_ASKED = re.compile(r"\b(tests?|tested|testing|specs?|coverage)\b", re.I)
 
 _TERM = re.compile(r"[a-z0-9]+")
+_IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 _FILE_NAME = re.compile(r"[A-Za-z0-9_./-]*[A-Za-z0-9_-]\.[A-Za-z0-9]{1,8}\b")
 
 STOPWORDS = frozenset(
@@ -116,6 +120,17 @@ def named_files(text: str) -> list[str]:
     return list(names)[:MAX_NAMED_FILES]
 
 
+def named_symbols(text: str) -> list[str]:
+    """Identifiers in the question that could name a function or class (``login``,
+    ``verify_password``, ``getUserName``), lowercased, without common words."""
+    names: dict[str, None] = {}
+    for identifier in _IDENTIFIER.findall(text):
+        name = identifier.lower()
+        if len(name) >= MIN_SYMBOL_LENGTH and name not in STOPWORDS:
+            names[name] = None
+    return list(names)[:MAX_TERMS]
+
+
 @dataclass(frozen=True)
 class Retrieval:
     passages: list[Passage]
@@ -141,11 +156,23 @@ async def retrieve(db: AsyncSession, run_id: uuid.UUID, text: str) -> Retrieval:
         if not found:
             missing.append(name)
         rows.extend(found)
+    tests_asked = bool(TESTS_ASKED.search(text))
+    symbols = named_symbols(text)
+    if symbols:
+        # Definitions named in the question come next, application code before tests.
+        in_tests = case((CodeChunk.path.regexp_match(TEST_PATH), 1), else_=0)
+        named_definitions = await db.scalars(
+            select(CodeChunk)
+            .where(CodeChunk.run_id == run_id, func.lower(CodeChunk.symbol).in_(symbols))
+            .order_by(*([] if tests_asked else [in_tests]), CodeChunk.path, CodeChunk.start_line)
+            .limit(NAMED_SYMBOL_CHUNKS)
+        )
+        rows.extend(named_definitions)
     terms = query_terms(text)
     if terms:
         query = func.to_tsquery("simple", tsquery(terms))
         rank: ColumnElement[Any] = func.ts_rank_cd(CodeChunk.search, query, RANK_NORMALIZATION)
-        if not TESTS_ASKED.search(text):
+        if not tests_asked:
             # Questions about how something works are answered by the code, not its tests.
             rank = rank * case((CodeChunk.path.regexp_match(TEST_PATH), TEST_WEIGHT), else_=1.0)
         ranked = await db.scalars(

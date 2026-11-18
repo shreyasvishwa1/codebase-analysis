@@ -36,7 +36,15 @@ from app.analysis.summary import SnapshotFile
 from app.api.v1.routes.chat import CONVERSATION_NOT_FOUND, NOT_INDEXED, title_of
 from app.chat import retrieval as retrieval_module
 from app.chat.context import analysis_context
-from app.chat.retrieval import Passage, Retrieval, named_files, query_terms, retrieve, tsquery
+from app.chat.retrieval import (
+    Passage,
+    Retrieval,
+    named_files,
+    named_symbols,
+    query_terms,
+    retrieve,
+    tsquery,
+)
 from app.chat.service import (
     AI_UNAVAILABLE,
     CHAT_LIMIT,
@@ -242,6 +250,16 @@ def test_named_files() -> None:
     assert named_files("ab.py cd.py ef.py gh.py x.py") == ["ab.py", "cd.py", "ef.py"]
 
 
+def test_named_symbols() -> None:
+    assert named_symbols("How does login call verify_password and getUserName? Is it ok?") == [
+        "login",
+        "call",
+        "verify_password",
+        "getusername",
+    ]  # "how", "does", "and", "is", "it" are common words; "ok" is too short
+    assert named_symbols("the and of") == []
+
+
 # --- Prompt ----------------------------------------------------------------------------------------
 
 PASSAGES = [
@@ -274,6 +292,9 @@ def test_citations_in_order_of_first_use() -> None:
         {"n": 1, "path": 'app/a"b.py', "start_line": 3, "end_line": 9, "symbol": "handler"},
     ]
     assert cited("No sources.", PASSAGES) == []
+    # Lists, as some models write them; unknown numbers inside a list are skipped.
+    assert [c["n"] for c in cited("Both [2, 1] and [9,2].", PASSAGES)] == [2, 1]
+    assert cited("Not a list [1, x] or [1 2].", PASSAGES) == []
 
 
 def test_history_starts_with_a_question_and_is_bounded() -> None:
@@ -409,6 +430,61 @@ async def test_retrieval_ranks_code_over_tests_and_names_files(
     monkeypatch.setattr(retrieval_module, "MAX_CONTEXT_CHARS", 120)
     small = await retrieve(db_session, run_id, "password hash verify orders user")
     assert sum(len(p.content) for p in small.passages) <= 120 and small.passages
+
+
+@requires_db
+async def test_retrieval_finds_definitions_by_name(
+    client: httpx.AsyncClient,
+    alice: Owner,
+    monkeypatch: pytest.MonkeyPatch,
+    db_session: AsyncSession,
+) -> None:
+    run_id = uuid.UUID((await _analyzed(client, alice, monkeypatch, db_session))["id"])
+
+    async def first(question: str) -> tuple[str, str | None]:
+        passage = (await retrieve(db_session, run_id, question)).passages[0]
+        return passage.path, passage.symbol
+
+    # A test helper with the same name, in a file that sorts before app/auth.py.
+    db_session.add(
+        CodeChunk(
+            run_id=run_id,
+            path="aaa/test_login.py",
+            language="Python",
+            start_line=1,
+            end_line=2,
+            symbol="verify_password",
+            content="def verify_password(): ...",
+            search=func.to_tsvector("simple", "verify password"),
+        )
+    )
+    await db_session.flush()
+    # "verify_password" is not a search term (identifiers with "_" are split), but it names
+    # a definition, which comes first: the application's before the test's.
+    assert await first("What does verify_password return?") == ("app/auth.py", "verify_password")
+    asked = await retrieve(db_session, run_id, "Which test defines verify_password?")
+    assert (asked.passages[0].path, asked.passages[0].symbol) == (
+        "aaa/test_login.py",
+        "verify_password",
+    )
+    assert await first("Explain LIST_ORDERS please") == ("app/orders.py", "list_orders")
+    # Definitions in tests come after application code, unless the question is about tests.
+    assert await first("Where is test_hash_password?") == (
+        "tests/test_auth.py",
+        "test_hash_password",
+    )
+    both = await retrieve(db_session, run_id, "hash_password and test_hash_password")
+    assert [(p.path, p.symbol) for p in both.passages][:2] == [
+        ("app/auth.py", "hash_password"),
+        ("tests/test_auth.py", "test_hash_password"),
+    ]
+    tested = await retrieve(
+        db_session, run_id, "Which tests use hash_password or test_hash_password?"
+    )
+    assert (tested.passages[0].path, tested.passages[0].symbol) == ("app/auth.py", "hash_password")
+    monkeypatch.setattr(retrieval_module, "NAMED_SYMBOL_CHUNKS", 1)
+    one = await retrieve(db_session, run_id, "hash_password verify_password list_orders")
+    assert one.passages[0].symbol == "hash_password"  # app/auth.py comes first by path
 
 
 @requires_db

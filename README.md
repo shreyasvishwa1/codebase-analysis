@@ -250,11 +250,11 @@ Results at the final development commit:
 
 | Check | Result |
 | --- | --- |
-| Frontend tests (Vitest, Testing Library, jsdom) | 1,379 passing in 49 files |
-| Backend tests (pytest) | 3,082 passing in 53 files; 30 skipped on Windows, where creating symlinks needs a privilege |
+| Frontend tests (Vitest, Testing Library, jsdom) | 1,380 passing in 49 files |
+| Backend tests (pytest) | 3,099 passing in 53 files; 30 skipped on Windows, where creating symlinks needs a privilege |
 | TypeScript typecheck and production build | Passing |
 | `ruff check` and mypy | Passing |
-| Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine; 23/23 for security analysis; 21/21 for complexity analysis; 30/30 for dependency analysis; 30/30 for architecture analysis; 43/43 for the health score; 52/52 for the AI chat; 47/47 for PDF reports and history; 28/28 for settings and the account |
+| Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine; 23/23 for security analysis; 21/21 for complexity analysis; 30/30 for dependency analysis; 30/30 for architecture analysis; 43/43 for the health score; 52/52 for the AI chat; 47/47 for PDF reports and history; 28/28 for settings and the account; 14/14 for the chat fixes (retries and fallback, name matching, answer formatting) |
 
 - **Isolation**: frontend tests mock the API at the axios adapter, so no backend is needed.
   Backend database and API tests run against a throwaway, already-migrated PostgreSQL database
@@ -361,7 +361,8 @@ below exists in the code.
 | `ANTHROPIC_API_KEY` | Optional | empty | Enables AI file explanations and the AI chat with Anthropic; empty keeps them disabled |
 | `LLM_MODEL` | Optional | `claude-opus-5-5` | Claude model for explanations |
 | `GEMINI_API_KEY` | Optional | empty | Enables AI file explanations and the AI chat with Google Gemini (free tier available) |
-| `GEMINI_MODEL` | Optional | `gemini-3.8-flash` | Gemini model for explanations |
+| `GEMINI_MODEL` | Optional | `gemini-3.8-flash` | Gemini model for explanations and the chat |
+| `GEMINI_FALLBACK_MODEL` | Optional | `gemini-3.5-flash-lite` | Asked once when `GEMINI_MODEL` stays overloaded after two retries or times out; empty turns the fallback off |
 | `SMTP_HOST` | Optional | empty | Mail server for password-reset emails, such as `smtp.gmail.com`; password reset stays off until `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` and `APP_BASE_URL` are all set |
 | `SMTP_PORT` | Optional | `587` | Mail server port; the connection is upgraded with STARTTLS |
 | `SMTP_USERNAME`, `SMTP_PASSWORD` | Optional | empty | Mail server login; for Gmail, the address and a Google app password (not the account password) |

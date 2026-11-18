@@ -36,6 +36,15 @@ class ConfigurationError(RuntimeError):
     """Raised when configuration is missing or invalid. Never contains setting values."""
 
 
+def _model_id(value: str) -> str:
+    """A Gemini model id. It is part of the request path, so only plain ids are accepted."""
+    value = value.strip()
+    allowed = all(c.isascii() and (c.isalnum() or c in "-._") for c in value)
+    if not value or not value[0].isalnum() or not allowed:
+        raise ValueError("must be a model id such as gemini-3.8-flash")
+    return value
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=ENV_FILE,
@@ -86,6 +95,8 @@ class Settings(BaseSettings):
     llm_model: str = "claude-opus-5-5"
     gemini_api_key: SecretStr | None = None
     gemini_model: str = "gemini-3.8-flash"
+    # Asked once when GEMINI_MODEL is overloaded or times out; empty turns the fallback off.
+    gemini_fallback_model: str | None = "gemini-3.5-flash-lite"
 
     # Password reset by email (SMTP with STARTTLS, e.g. Gmail with an app password). The
     # feature is enabled only when all of SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM
@@ -227,12 +238,15 @@ class Settings(BaseSettings):
     @field_validator("gemini_model")
     @classmethod
     def _validate_gemini_model(cls, value: str) -> str:
-        # The model is part of the request path, so only plain model ids are accepted.
-        value = value.strip()
-        allowed = all(c.isascii() and (c.isalnum() or c in "-._") for c in value)
-        if not value or not value[0].isalnum() or not allowed:
-            raise ValueError("must be a model id such as gemini-3.8-flash")
-        return value
+        return _model_id(value)
+
+    @field_validator("gemini_fallback_model")
+    @classmethod
+    def _validate_gemini_fallback_model(cls, value: str | None) -> str | None:
+        # Empty means no fallback; otherwise the same rules as GEMINI_MODEL.
+        if value is None or not value.strip():
+            return None
+        return _model_id(value)
 
     @field_validator("app_base_url")
     @classmethod

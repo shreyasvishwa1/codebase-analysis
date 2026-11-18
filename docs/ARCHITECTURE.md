@@ -288,8 +288,15 @@ Densities are per 1,000 lines of code (at least 1,000). A density `d` becomes a 
   -ed/-ing stems; terms contain only letters and digits, so no query syntax can be
   injected). Chunks are ranked with `ts_rank_cd`; test files count 0.4 unless the question is
   about tests. Files the question names come first, and named files that are not in the
-  analysis are reported to the model. At most 8 passages, 3 per file and 36,000 characters.
-  A follow-up question also searches with the previous question.
+  analysis are reported to the model; then up to 3 definitions whose name the question
+  mentions (`login`, `verify_password`), application code before tests. At most 8 passages,
+  3 per file and 36,000 characters. A follow-up question also searches with the previous
+  question.
+- **Busy provider:** Gemini answers meaning "overloaded" or "rate limited" (429, 500, 502,
+  503, 504) are retried after 1 and 3 seconds; if the model is still busy, or times out, the
+  fallback model (`GEMINI_FALLBACK_MODEL`, default `gemini-3.5-flash-lite`) is asked once.
+- **Answers on screen:** paragraphs, `- ` lists, bold and heading lines (shown as bold text),
+  `code` names, and citations as `[1]` or `[1, 3]`; nothing is interpreted as HTML.
 - **Analysis context** (`app/chat/context.py`): every question also gets a summary of the run
   from its stored results: languages, the health score, the most severe security findings,
   code quality, the most complex functions, vulnerable dependencies and the architecture,

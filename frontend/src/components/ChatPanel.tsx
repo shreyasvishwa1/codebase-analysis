@@ -24,7 +24,9 @@ export const SUGGESTIONS = [
   'How is authentication handled?',
 ]
 
-const TOKEN = /(\[\d{1,2}\]|`[^`\n]+`)/
+// Citations ([1], or lists such as [1, 3]), `code` and **bold**.
+const TOKEN = /(\[\d{1,2}(?:\s*,\s*\d{1,2})*\]|`[^`\n]+`|\*\*[^*\n]+\*\*)/
+const HEADING = /^#{1,6}\s+/
 
 function CitationLink({ citation, explorer, children }: { citation: ChatCitation; explorer: string; children: ReactNode }) {
   return (
@@ -41,15 +43,22 @@ function CitationLink({ citation, explorer, children }: { citation: ChatCitation
 
 function inline(text: string, citations: Map<number, ChatCitation>, explorer: string): ReactNode[] {
   return text.split(TOKEN).map((part, index) => {
-    const marker = /^\[(\d{1,2})\]$/.exec(part)
+    const marker = /^\[(\d{1,2}(?:\s*,\s*\d{1,2})*)\]$/.exec(part)
     if (marker) {
-      const citation = citations.get(Number(marker[1]))
-      return citation ? (
+      const numbers = marker[1].split(',').map((item) => Number(item.trim()))
+      if (!numbers.some((n) => citations.has(n))) return part // cites nothing that exists
+      return (
         <sup key={index}>
-          <CitationLink citation={citation} explorer={explorer}>{part}</CitationLink>
+          {numbers.map((n, position) => {
+            const citation = citations.get(n)
+            return (
+              <span key={position}>
+                {position > 0 && ' '}
+                {citation ? <CitationLink citation={citation} explorer={explorer}>[{n}]</CitationLink> : `[${n}]`}
+              </span>
+            )
+          })}
         </sup>
-      ) : (
-        part
       )
     }
     if (part.length > 2 && part.startsWith('`') && part.endsWith('`')) {
@@ -59,12 +68,19 @@ function inline(text: string, citations: Map<number, ChatCitation>, explorer: st
         </code>
       )
     }
+    if (part.length > 4 && part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={index} className="font-semibold text-slate-100">
+          {inline(part.slice(2, -2), citations, explorer)}
+        </strong>
+      )
+    }
     return part
   })
 }
 
-/** An answer as paragraphs and "- " lists, with [n] citations linked to the code. Text only:
- * nothing in the answer is interpreted as HTML. */
+/** An answer as paragraphs, "- " lists, headings and **bold**, with [n] and [n, m] citations
+ * linked to the code. Text only: nothing in the answer is interpreted as HTML. */
 export function AnswerText({ text, citations, explorer }: { text: string; citations: ChatCitation[]; explorer: string }) {
   const byNumber = new Map(citations.map((c) => [c.n, c]))
   const blocks: ReactNode[] = []
@@ -90,7 +106,16 @@ export function AnswerText({ text, citations, explorer }: { text: string; citati
   }
   for (const line of text.split('\n')) {
     const trimmed = line.trim()
-    if (/^[-*] /.test(trimmed)) {
+    if (HEADING.test(trimmed)) {
+      // Models sometimes write Markdown headings: shown as a bold line of its own.
+      flushParagraph()
+      flushList()
+      blocks.push(
+        <p key={blocks.length} className="font-semibold text-slate-100">
+          {inline(trimmed.replace(HEADING, ''), byNumber, explorer)}
+        </p>,
+      )
+    } else if (/^[-*] /.test(trimmed)) {
       flushParagraph()
       items.push(trimmed.slice(2))
     } else if (!trimmed) {

@@ -138,6 +138,19 @@ describe('Answer text', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Source 1: app/auth.py line 4' }))
     expect(screen.getByTestId('location').textContent).toBe(`${REPO_URL} app/auth.py:4`)
   })
+
+  it('shows headings and bold as text styles, and links citation lists', () => {
+    renderAnswer('### Critical findings\n**Hashing:** with `argon2` [1, 9]\n\n- **Note** [9, 8]\n## [1]')
+    const paragraphs = [...document.querySelectorAll('p')]
+    expect(paragraphs.map((p) => p.textContent)).toEqual(['Critical findings', 'Hashing: with argon2 [1] [9]', '[1]'])
+    expect(paragraphs[0].className).toContain('font-semibold') // a heading line, without the #s
+    expect(document.querySelector('h1, h2, h3')).toBeNull()
+    expect(screen.getByText('Hashing:').tagName).toBe('STRONG')
+    expect(screen.getByText('argon2').tagName).toBe('CODE')
+    expect(screen.getAllByRole('link', { name: 'Source 1: app/auth.py line 4' })).toHaveLength(2) // [9] is not a link
+    expect(screen.getByRole('listitem').textContent).toBe('Note [9, 8]') // a list citing nothing stays text
+    expect(screen.getByText('Note').tagName).toBe('STRONG')
+  })
 })
 
 describe('Repository chat', () => {
