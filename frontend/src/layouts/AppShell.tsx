@@ -18,6 +18,7 @@ import {
   UploadCloud,
   X,
 } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 
@@ -26,6 +27,7 @@ import { CommandPalette, type PaletteLink } from '../components/CommandPalette'
 import { useAuth } from '../hooks/useAuth'
 import { useHealth } from '../hooks/useHealth'
 import { useTheme } from '../hooks/useTheme'
+import { prefetchPage } from '../utils/prefetch'
 
 function HealthIndicator() {
   const health = useHealth()
@@ -72,6 +74,7 @@ const SECTIONS: { title: string; links: PaletteLink[] }[] = [
 const PAGES = SECTIONS.flatMap((section) => section.links)
 
 function MainNavigation({ className, onNavigate }: { className: string; onNavigate?: () => void }) {
+  const queryClient = useQueryClient()
   return (
     <nav aria-label="Main navigation" className={className}>
       {SECTIONS.map((section) => (
@@ -84,6 +87,8 @@ function MainNavigation({ className, onNavigate }: { className: string; onNaviga
                 key={to}
                 to={to}
                 onClick={onNavigate}
+                onMouseEnter={() => prefetchPage(queryClient, to)}
+                onFocus={() => prefetchPage(queryClient, to)}
                 className={({ isActive }) =>
                   `group relative flex items-center gap-2.5 rounded-md py-1.5 pl-9 pr-3 text-[13px] font-medium transition ${isActive ? 'bg-slate-800/70 text-slate-50' : 'text-slate-400 hover:bg-slate-900/80 hover:text-slate-100'}`
                 }
@@ -144,8 +149,11 @@ export function AppShell() {
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // The mobile menu closes when the page changes.
-  useEffect(() => setMenuOpen(false), [location.pathname])
+  // A new page closes the mobile menu and starts at the top (instantly, not smooth-scrolled).
+  useEffect(() => {
+    setMenuOpen(false)
+    if (!/jsdom/i.test(navigator.userAgent)) window.scrollTo({ top: 0, behavior: 'instant' })
+  }, [location.pathname])
 
   const name = user ? user.display_name ?? user.email : ''
   return (

@@ -1,6 +1,6 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 
-import { RequireAuth } from './components/RequireAuth'
+import { RequireAuth, RootRoute } from './components/RequireAuth'
 import { AppShell } from './layouts/AppShell'
 import { ArchitecturePage } from './pages/ArchitecturePage'
 import { ChatPage } from './pages/ChatPage'
@@ -10,6 +10,7 @@ import { DependenciesPage } from './pages/DependenciesPage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
 import { HealthPage } from './pages/HealthPage'
 import { HistoryPage } from './pages/HistoryPage'
+import { IntroPage } from './pages/IntroPage'
 import { LoginPage } from './pages/LoginPage'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { OverviewPage } from './pages/OverviewPage'
@@ -34,13 +35,14 @@ import { UploadPage } from './pages/UploadPage'
 export default function App() {
   return (
     <Routes>
+      <Route path="/" element={<RootRoute />} />
+      <Route path="/welcome" element={<IntroPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
-          <Route path="/" element={<Navigate to="/overview" replace />} />
           <Route path="/overview" element={<OverviewPage />} />
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/code-analysis" element={<CodeAnalysisPage />} />

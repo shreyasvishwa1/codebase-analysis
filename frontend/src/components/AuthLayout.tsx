@@ -1,5 +1,6 @@
 import { Eye, EyeOff } from 'lucide-react'
 import { useId, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 
 /** The analysis modules as chips on a board, wired into the health score (an illustration
  * of what a full analysis does, not live data). */
@@ -39,8 +40,10 @@ function Chip({ x, y, width, label, refDes }: { x: number; y: number; width: num
 
 /** The board illustration on the sign-in pages: current flows from every module chip into the
  * health score and on to the report and the chat. Motion stops under reduced-motion. */
-export function CircuitIllustration() {
+export function CircuitIllustration({ boot = false }: { boot?: boolean }) {
   const traces = [...INPUTS, ...OUTPUTS]
+  // With boot, the traces draw in one after another and the current starts once they're done.
+  const late = (delay: number) => (boot ? { className: 'boot-late', style: { animationDelay: `${delay}ms` } } : {})
   return (
     <svg
       viewBox="0 0 520 345"
@@ -48,21 +51,32 @@ export function CircuitIllustration() {
       role="img"
       aria-label="Quality, security, complexity, dependency and architecture analysis feed one health score, a PDF report and an AI chat"
     >
-      {traces.map(({ ref, trace }) => (
-        <path key={`base-${ref}`} d={trace} fill="none" className="stroke-slate-700" strokeWidth="2.5" strokeLinejoin="round" />
-      ))}
       {traces.map(({ ref, trace }, index) => (
         <path
-          key={`current-${ref}`}
+          key={`base-${ref}`}
           d={trace}
           fill="none"
-          className="animate-current stroke-indigo-400"
+          pathLength={1}
+          className={`stroke-slate-700 ${boot ? 'boot-trace' : ''}`}
+          style={boot ? { animationDelay: `${250 + index * 110}ms` } : undefined}
           strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeDasharray="6 42"
-          style={{ animationDelay: `${index * -0.35}s` }}
+          strokeLinejoin="round"
         />
       ))}
+      <g {...late(1300)}>
+        {traces.map(({ ref, trace }, index) => (
+          <path
+            key={`current-${ref}`}
+            d={trace}
+            fill="none"
+            className="animate-current stroke-indigo-400"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeDasharray="6 42"
+            style={{ animationDelay: `${index * -0.35}s` }}
+          />
+        ))}
+      </g>
       {VIAS.map(([cx, cy]) => (
         <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3.5" className="fill-slate-900 stroke-indigo-500" strokeWidth="1.5" />
       ))}
@@ -122,10 +136,10 @@ export function AuthLayout({ children }: { children: ReactNode }) {
     <div className="pcb-surface flex min-h-screen bg-slate-950">
       <aside className="relative hidden flex-1 overflow-hidden border-r border-slate-800 bg-slate-950/40 lg:flex">
         <div className="relative z-10 flex w-full flex-col justify-between p-12">
-          <div className="flex items-center gap-3 text-base font-semibold text-slate-50">
+          <Link to="/" className="flex w-fit items-center gap-3 text-base font-semibold text-slate-50">
             <BrandMark size="lg" />
             CodeBase Analysis
-          </div>
+          </Link>
           <div className="max-w-xl space-y-8">
             <div className="space-y-3">
               <p className="page-eyebrow">Repository intelligence</p>
@@ -149,10 +163,10 @@ export function AuthLayout({ children }: { children: ReactNode }) {
       </aside>
       <main className="flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-sm animate-fade-in rounded-2xl border border-slate-800 bg-slate-950/85 p-8 backdrop-blur-sm">
-          <div className="mb-8 flex items-center gap-3 lg:hidden">
+          <Link to="/" className="mb-8 flex w-fit items-center gap-3 lg:hidden">
             <BrandMark />
             <span className="font-semibold text-slate-50">CodeBase Analysis</span>
-          </div>
+          </Link>
           <div className="space-y-6">{children}</div>
         </div>
       </main>

@@ -44,6 +44,42 @@ function CancelButton({ projectId, repositoryId, job, onError }: CancelButtonPro
   )
 }
 
+const STAGES = [
+  { label: 'Queued', reached: () => true },
+  { label: 'Processing', reached: (job: AnalysisJob) => job.status !== 'pending' },
+  { label: 'Done', reached: (job: AnalysisJob) => job.status === 'completed' },
+] as const
+
+/** The job as a trace: three pads that light up as it moves on, joined by a bar that fills
+ * with the job's progress and carries a moving pulse while it runs. */
+function JobStages({ job }: { job: AnalysisJob }) {
+  const running = job.status === 'pending' || job.status === 'processing'
+  const failed = job.status === 'failed'
+  return (
+    <div className="space-y-2">
+      <div className="relative h-1.5 overflow-hidden rounded-full bg-slate-800">
+        <div
+          className={`absolute inset-y-0 left-0 rounded-full transition-[width] duration-500 ${failed ? 'bg-red-400' : 'bg-indigo-400 shadow-[0_0_10px_rgb(var(--indigo-400)/0.7)]'}`}
+          style={{ width: `${job.progress}%` }}
+        >
+          {running && <span aria-hidden="true" className="absolute inset-0 animate-[shimmer_1.4s_linear_infinite] bg-gradient-to-r from-transparent via-white/50 to-transparent" style={{ transform: 'translateX(-100%)' }} />}
+        </div>
+      </div>
+      <ol aria-hidden="true" className="flex justify-between font-mono text-[10px] uppercase tracking-[0.14em]">
+        {STAGES.map(({ label, reached }) => {
+          const lit = reached(job) && !(failed && label === 'Done')
+          return (
+            <li key={label} className={`flex items-center gap-1.5 ${lit ? 'text-indigo-300' : 'text-slate-600'}`}>
+              <span className={`led ${lit ? 'text-indigo-400' : 'text-slate-700'} ${lit && running && label === 'Processing' ? 'animate-pulse' : ''}`} />
+              {label}
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
+}
+
 interface JobProgressProps {
   projectId: string
   repositoryId: string
@@ -89,9 +125,7 @@ export function JobProgress({
         )}
       </div>
       {cancelError && <ErrorMessage message={cancelError} />}
-      <div className="h-1.5 rounded bg-slate-800">
-        <div className="h-1.5 rounded bg-emerald-500" style={{ width: `${latest.progress}%` }} />
-      </div>
+      <JobStages job={latest} />
       {latest.error_message && <ErrorMessage message={latest.error_message} />}
       <p className="text-xs text-slate-500">
         Created {formatDateTime(latest.created_at)} · Finished {formatDateTime(latest.completed_at)}
