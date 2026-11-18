@@ -45,10 +45,20 @@ export const VIAS: readonly (readonly [number, number])[] = [
   [200, 98], [185, 140], [185, 218], [200, 258], [366, 138], [366, 220],
 ]
 
-/** The points of an SVG path made of M, L, H and V commands (absolute), as [x, y] pairs. */
-export function tracePoints(path: string): [number, number][] {
+/** The background's repeating tile of traces (240 x 240), the same shape the page's CSS
+ * pattern draws, so animated current can run exactly on the printed traces. */
+export const TRACE_TILE_SIZE = 240
+export const TRACE_TILE =
+  'M0 40h70l20 20h60l20-20h70M200 0v100l-20 20v20l20 20v80M0 190h50l20-20h46M120 0v11M120 240v-25l15-15h21M30 100h40l20 20v30'
+
+/**
+ * The polylines of an SVG path made of move, line, horizontal and vertical commands
+ * (M L H V, absolute, and m l h v, relative): one polyline per subpath.
+ */
+export function tracePaths(path: string): [number, number][][] {
   const tokens = path.match(/[A-Za-z]|-?\d*\.?\d+/g) ?? []
-  const points: [number, number][] = []
+  const paths: [number, number][][] = []
+  let points: [number, number][] = []
   let x = 0
   let y = 0
   let index = 0
@@ -59,19 +69,36 @@ export function tracePoints(path: string): [number, number][] {
   }
   while (index < tokens.length) {
     const command = tokens[index++]
-    if (command === 'M' || command === 'L') {
-      x = next()
-      y = next()
-    } else if (command === 'H') {
-      x = next()
-    } else if (command === 'V') {
-      y = next()
-    } else {
-      throw new Error(`Unsupported trace command ${command} in ${path}`)
+    const relative = command === command.toLowerCase()
+    switch (command.toUpperCase()) {
+      case 'M':
+        if (points.length) paths.push(points)
+        x = (relative ? x : 0) + next()
+        y = (relative ? y : 0) + next()
+        points = []
+        break
+      case 'L':
+        x = (relative ? x : 0) + next()
+        y = (relative ? y : 0) + next()
+        break
+      case 'H':
+        x = (relative ? x : 0) + next()
+        break
+      case 'V':
+        y = (relative ? y : 0) + next()
+        break
+      default:
+        throw new Error(`Unsupported trace command ${command} in ${path}`)
     }
     points.push([x, y])
   }
-  return points
+  if (points.length) paths.push(points)
+  return paths
+}
+
+/** The points of a single-subpath trace. */
+export function tracePoints(path: string): [number, number][] {
+  return tracePaths(path)[0] ?? []
 }
 
 /** Total length of a polyline. */

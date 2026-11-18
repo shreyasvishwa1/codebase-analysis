@@ -25,6 +25,7 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { BrandMark } from '../components/AuthLayout'
 import { CommandPalette, type PaletteLink } from '../components/CommandPalette'
 import { ShortcutsDialog, useGlobalShortcuts } from '../components/KeyboardShortcuts'
+import { LiveTraces } from '../components/LiveTraces'
 import { PageSkeleton } from '../components/PageSkeleton'
 import { useToast } from '../components/Toaster'
 import { useAuth } from '../hooks/useAuth'
@@ -180,6 +181,7 @@ export function AppShell() {
   const name = user ? user.display_name ?? user.email : ''
   return (
     <div className="pcb-surface flex min-h-screen bg-slate-950">
+      <LiveTraces density="low" />
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-slate-800 bg-slate-950/90 md:flex">
         <Link to="/overview" className="flex h-14 items-center gap-2.5 border-b border-slate-800 px-4 text-sm font-semibold tracking-tight text-slate-50">
           <BrandMark />

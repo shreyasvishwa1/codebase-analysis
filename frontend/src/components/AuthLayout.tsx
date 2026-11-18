@@ -1,42 +1,82 @@
 import { Eye, EyeOff } from 'lucide-react'
-import { useEffect, useId, useState, type ReactNode } from 'react'
+import { useEffect, useId, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
 import { preloadPagesWhenIdle } from '../routes/pages'
-import { INPUTS, OUTPUTS, VIAS } from './circuitLayout'
+import { HEALTH, INPUTS, OUTPUTS, VIAS, type ChipSpec } from './circuitLayout'
+import { LiveTraces } from './LiveTraces'
 
-function Chip({ x, y, width, label, refDes }: { x: number; y: number; width: number; label: string; refDes: string }) {
+/** Hover and click handlers that make the board's chips interactive (the intro page). */
+export interface BoardInteraction {
+  hovered: string | null
+  onHover: (chip: ChipSpec | null) => void
+  onSelect: (chip: ChipSpec) => void
+}
+
+/** Props that turn a chip into a keyboard- and pointer-operable button. */
+function chipControls(chip: ChipSpec, interaction?: BoardInteraction) {
+  if (!interaction) return {}
+  return {
+    role: 'button',
+    tabIndex: 0,
+    'aria-label': chip.description,
+    'data-chip': chip.ref,
+    className: 'cursor-pointer outline-none',
+    onMouseEnter: () => interaction.onHover(chip),
+    onMouseLeave: () => interaction.onHover(null),
+    onFocus: () => interaction.onHover(chip),
+    onBlur: () => interaction.onHover(null),
+    onClick: () => interaction.onSelect(chip),
+    onKeyDown: (event: KeyboardEvent<SVGGElement>) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        interaction.onSelect(chip)
+      }
+    },
+  }
+}
+
+function Chip({ chip, lit, interaction }: { chip: ChipSpec; lit: boolean; interaction?: BoardInteraction }) {
+  const { x, y, width, label, ref } = chip
   return (
-    <g>
-      {[0.25, 0.5, 0.75].map((at) => (
-        <g key={at} className="stroke-slate-600" strokeWidth="2">
-          <line x1={x + width * at} y1={y - 5} x2={x + width * at} y2={y} />
-          <line x1={x + width * at} y1={y + 34} x2={x + width * at} y2={y + 39} />
-        </g>
-      ))}
-      <rect x={x} y={y} width={width} height="34" rx="3" className="fill-slate-950 stroke-slate-600" strokeWidth="1.25" />
-      <circle cx={x + 7} cy={y + 7} r="1.75" className="fill-slate-600" />
-      <text x={x + 12} y={y + 21} className="fill-slate-200 font-mono text-[10.5px] font-medium tracking-[0.08em]">
-        {label}
-      </text>
-      <text x={x + width - 6} y={y + 30} textAnchor="end" className="fill-slate-500 font-mono text-[8px]">
-        {refDes}
-      </text>
+    <g {...chipControls(chip, interaction)}>
+      <g
+        className="transition-transform duration-200"
+        style={{ transform: lit ? 'translateY(-3px)' : undefined, filter: lit ? 'drop-shadow(0 0 8px rgb(var(--indigo-400) / 0.6))' : undefined }}
+      >
+        {[0.25, 0.5, 0.75].map((at) => (
+          <g key={at} className={lit ? 'stroke-indigo-400' : 'stroke-slate-600'} strokeWidth="2">
+            <line x1={x + width * at} y1={y - 5} x2={x + width * at} y2={y} />
+            <line x1={x + width * at} y1={y + 34} x2={x + width * at} y2={y + 39} />
+          </g>
+        ))}
+        <rect x={x} y={y} width={width} height="34" rx="3" className={`fill-slate-950 transition-colors ${lit ? 'stroke-indigo-400' : 'stroke-slate-600'}`} strokeWidth={lit ? 1.75 : 1.25} />
+        <circle cx={x + 7} cy={y + 7} r="1.75" className={lit ? 'fill-indigo-400' : 'fill-slate-600'} />
+        <text x={x + 12} y={y + 21} className={`font-mono text-[10.5px] font-medium tracking-[0.08em] ${lit ? 'fill-indigo-200' : 'fill-slate-200'}`}>
+          {label}
+        </text>
+        <text x={x + width - 6} y={y + 30} textAnchor="end" className="fill-slate-500 font-mono text-[8px]">
+          {ref}
+        </text>
+      </g>
     </g>
   )
 }
 
-/** The board illustration on the sign-in pages: current flows from every module chip into the
- * health score and on to the report and the chat. Motion stops under reduced-motion. */
-export function CircuitIllustration({ boot = false }: { boot?: boolean }) {
+/** The board illustration: current flows from every module chip into the health score and on
+ * to the report and the chat. With `interaction`, its chips are buttons (hover lifts and names
+ * them, click selects them). Motion stops under reduced-motion. */
+export function CircuitIllustration({ boot = false, interaction }: { boot?: boolean; interaction?: BoardInteraction }) {
   const traces = [...INPUTS, ...OUTPUTS]
+  const hovered = interaction?.hovered ?? null
   // With boot, the traces draw in one after another and the current starts once they're done.
   const late = (delay: number) => (boot ? { className: 'boot-late', style: { animationDelay: `${delay}ms` } } : {})
+  const healthLit = hovered === HEALTH.ref
   return (
     <svg
       viewBox="0 0 520 345"
-      className="h-auto w-full"
-      role="img"
+      className="h-auto w-full overflow-visible"
+      role={interaction ? 'group' : 'img'}
       aria-label="Quality, security, complexity, dependency and architecture analysis feed one health score, a PDF report and an AI chat"
     >
       {traces.map(({ ref, trace }, index) => (
@@ -45,7 +85,7 @@ export function CircuitIllustration({ boot = false }: { boot?: boolean }) {
           d={trace}
           fill="none"
           pathLength={1}
-          className={`stroke-slate-700 ${boot ? 'boot-trace' : ''}`}
+          className={`${hovered === ref ? 'stroke-indigo-500' : 'stroke-slate-700'} transition-colors ${boot ? 'boot-trace' : ''}`}
           style={boot ? { animationDelay: `${250 + index * 110}ms` } : undefined}
           strokeWidth="2.5"
           strokeLinejoin="round"
@@ -68,33 +108,32 @@ export function CircuitIllustration({ boot = false }: { boot?: boolean }) {
       {VIAS.map(([cx, cy]) => (
         <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r="3.5" className="fill-slate-900 stroke-indigo-500" strokeWidth="1.5" />
       ))}
-      {INPUTS.map(({ label, ref, y }) => (
-        <Chip key={ref} x={20} y={y} width={120} label={label} refDes={ref} />
+      {traces.map((chip) => (
+        <Chip key={chip.ref} chip={chip} lit={hovered === chip.ref} interaction={interaction} />
       ))}
-      {OUTPUTS.map(({ label, ref, y }) => (
-        <Chip key={ref} x={400} y={y} width={110} label={label} refDes={ref} />
-      ))}
-      <g>
-        {[150, 165, 180, 195, 210].map((py) => (
-          <line key={py} x1="224" y1={py} x2="230" y2={py} className="stroke-indigo-500" strokeWidth="2" />
-        ))}
-        {[250, 270, 290, 310].map((px) => (
-          <g key={px} className="stroke-slate-600" strokeWidth="2">
-            <line x1={px} y1="124" x2={px} y2="130" />
-            <line x1={px} y1="230" x2={px} y2="236" />
-          </g>
-        ))}
-        <rect x="230" y="130" width="110" height="100" rx="5" className="fill-slate-950 stroke-indigo-500" strokeWidth="1.5" />
-        <circle cx="240" cy="140" r="2.5" className="fill-indigo-500" />
-        <text x="285" y="176" textAnchor="middle" className="fill-indigo-300 font-mono text-[12px] font-semibold tracking-[0.14em]">
-          HEALTH
-        </text>
-        <text x="285" y="194" textAnchor="middle" className="fill-slate-400 font-mono text-[9px] tracking-[0.1em]">
-          SCORE 0-100
-        </text>
-        <text x="334" y="224" textAnchor="end" className="fill-slate-500 font-mono text-[8px]">
-          U0
-        </text>
+      <g {...chipControls(HEALTH, interaction)}>
+        <g style={{ filter: healthLit ? 'drop-shadow(0 0 10px rgb(var(--indigo-400) / 0.6))' : undefined }}>
+          {[150, 165, 180, 195, 210].map((py) => (
+            <line key={py} x1="224" y1={py} x2="230" y2={py} className="stroke-indigo-500" strokeWidth="2" />
+          ))}
+          {[250, 270, 290, 310].map((px) => (
+            <g key={px} className={healthLit ? 'stroke-indigo-400' : 'stroke-slate-600'} strokeWidth="2">
+              <line x1={px} y1="124" x2={px} y2="130" />
+              <line x1={px} y1="230" x2={px} y2="236" />
+            </g>
+          ))}
+          <rect x="230" y="130" width="110" height="100" rx="5" className={`fill-slate-950 ${healthLit ? 'stroke-indigo-300' : 'stroke-indigo-500'}`} strokeWidth={healthLit ? 2 : 1.5} />
+          <circle cx="240" cy="140" r="2.5" className="fill-indigo-500" />
+          <text x="285" y="176" textAnchor="middle" className="fill-indigo-300 font-mono text-[12px] font-semibold tracking-[0.14em]">
+            HEALTH
+          </text>
+          <text x="285" y="194" textAnchor="middle" className="fill-slate-400 font-mono text-[9px] tracking-[0.1em]">
+            SCORE 0-100
+          </text>
+          <text x="334" y="224" textAnchor="end" className="fill-slate-500 font-mono text-[8px]">
+            U0
+          </text>
+        </g>
       </g>
     </svg>
   )
@@ -124,6 +163,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
   useEffect(() => preloadPagesWhenIdle(), [])
   return (
     <div className="pcb-surface flex min-h-screen bg-slate-950">
+      <LiveTraces density="high" />
       <aside className="relative hidden flex-1 overflow-hidden border-r border-slate-800 bg-slate-950/40 lg:flex">
         <div className="relative z-10 flex w-full flex-col justify-between p-12">
           <Link to="/" className="flex w-fit items-center gap-3 text-base font-semibold text-slate-50">

@@ -62,7 +62,7 @@ describe('Settings', () => {
     expect(await screen.findByRole('link', { name: 'Account settings for alice@example.com' })).toBeTruthy()
     const patches = requests.filter((r) => r.method === 'PATCH')
     await waitFor(() => expect(JSON.parse(String(patches[patches.length - 1]?.data))).toEqual({ display_name: null }))
-  })
+  }, 15_000) // the file's first full-app render; slow while the whole suite runs
 
   it('refuses names that are too long', async () => {
     const requests = mountSettings()

@@ -14,11 +14,12 @@ import {
   UploadCloud,
   type LucideIcon,
 } from 'lucide-react'
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 
-import { BrandMark } from '../components/AuthLayout'
-import { Board3D } from '../components/Board3D'
+import { BrandMark, CircuitIllustration } from '../components/AuthLayout'
+import type { ChipSpec } from '../components/circuitLayout'
+import { LiveTraces } from '../components/LiveTraces'
 import { useAuth } from '../hooks/useAuth'
 import { useHealth } from '../hooks/useHealth'
 import { useReveal, useScrollProgress, useTilt } from '../hooks/useMotion'
@@ -100,6 +101,30 @@ function showModule(ref: string) {
   window.setTimeout(() => card.classList.remove('module-flash'), 1800)
 }
 
+/** The hero board: the flat circuit, powering on, whose chips light up and are named on
+ * hover or focus, and open their module's card when clicked. */
+function HeroBoard() {
+  const [hovered, setHovered] = useState<ChipSpec | null>(null)
+  return (
+    <div className="space-y-3">
+      <CircuitIllustration
+        boot
+        interaction={{ hovered: hovered?.ref ?? null, onHover: setHovered, onSelect: (chip) => showModule(chip.ref) }}
+      />
+      <p className="flex min-h-5 items-center justify-center gap-2 text-center font-mono text-[11px] text-slate-400" aria-live="polite">
+        {hovered ? (
+          <>
+            <span className="text-indigo-300">{hovered.ref}</span>
+            {hovered.description}
+          </>
+        ) : (
+          <span className="text-slate-500">Hover a chip to see what it checks · click to jump to it</span>
+        )}
+      </p>
+    </div>
+  )
+}
+
 /** The landing page: what the app does, shown as a board that powers on, then the four steps
  * and every module, revealed as the visitor scrolls. */
 export function IntroPage() {
@@ -112,6 +137,7 @@ export function IntroPage() {
 
   return (
     <div ref={page} className="pcb-surface min-h-screen overflow-x-clip bg-slate-950 text-slate-100">
+      <LiveTraces density="high" />
       <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 md:px-8">
           <Link to="/" className="flex items-center gap-2.5 text-sm font-semibold text-slate-50">
@@ -183,7 +209,7 @@ export function IntroPage() {
           <div className="relative animate-fade-in [animation-delay:120ms]">
             <div aria-hidden="true" className="absolute -inset-6 rounded-[2rem] bg-indigo-500/10 blur-3xl" />
             <div className="pcb-card relative bg-slate-900/90 px-3 pb-3 pt-4 shadow-2xl sm:px-5">
-              <Board3D onSelect={(chip) => showModule(chip.ref)} />
+              <HeroBoard />
             </div>
           </div>
         </section>
