@@ -4,7 +4,8 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import App from '../App'
-import { componentOf, layout, shortName } from '../components/ArchitectureDiagram'
+import { componentOf, shortName } from '../components/ArchitectureDiagram'
+import { curveBetween, cyclic, defaultFocus, LANES, neighbours } from '../components/ArchitectureViews'
 import { setToken } from '../services/session'
 import { mockApi, PROJECT, USER, ZIP_REPOSITORY, type MockResponse } from '../test/mockApi'
 import { createTestQueryClient, renderWithProviders } from '../test/render'
@@ -141,31 +142,51 @@ const standard = {
 // spend their waits on the test environment's on-demand compilation.
 beforeAll(() => preloadAllPages(), 120_000)
 
-describe('Diagram layout', () => {
-  it('places components in role columns, wraps tall columns and links data stores', () => {
-    const { nodes, links } = layout(DOCUMENT, new Set())
-    const x = (id: string) => nodes.find((n) => n.id === id)?.x
-    // Columns: tests, interface, API, core, data, data stores.
-    expect([x('backend/tests'), x('frontend/src'), x('backend/app/api'), x('backend/app/services'), x('backend/app/models'), x('store:PostgreSQL')]).toEqual([24, 260, 496, 732, 968, 1204])
-    const mutual = links.filter((l) => l.mutual).map((l) => `${l.source}->${l.target}`)
-    expect(mutual).toEqual(['backend/app/api->backend/app/services', 'backend/app/services->backend/app/api'])
-    const stores = links.filter((l) => l.store)
-    expect(stores.map((l) => `${l.source}->${l.target}`)).toEqual(['backend/app/models->store:PostgreSQL']) // docker-compose.yml is in no component
-    const many: ArchitectureDocument = {
-      ...DOCUMENT,
-      components: Array.from({ length: 9 }, (_, n) => component(`pkg/m${n}`, 'core')),
-      edges: [],
-      data_stores: [],
-    }
-    const wrapped = layout(many, new Set())
-    expect(new Set(wrapped.nodes.map((n) => n.x))).toEqual(new Set([24, 260])) // 7 + 2
-    expect(Math.max(...wrapped.nodes.map((n) => n.y))).toBe(24 + 6 * 62)
+describe('Architecture views', () => {
+  it('finds what a component uses, what uses it and the data stores it touches', () => {
+    expect(neighbours(DOCUMENT, 'backend/app/services')).toEqual({
+      uses: [
+        { id: 'backend/app/models', imports: 3, mutual: false },
+        { id: 'backend/app/api', imports: 1, mutual: true },
+      ],
+      usedBy: [
+        { id: 'backend/app/api', imports: 6, mutual: true },
+        { id: 'backend/tests', imports: 4, mutual: false },
+      ],
+      stores: [],
+    })
+    expect(neighbours(DOCUMENT, 'backend/app/models').stores).toEqual(['PostgreSQL']) // docker-compose.yml is in no component
+    expect(neighbours(DOCUMENT, 'frontend/src')).toEqual({ uses: [], usedBy: [], stores: [] })
+    expect([...cyclic(DOCUMENT)].sort()).toEqual(['backend/app/api', 'backend/app/services'])
   })
 
-  it('hides roles with their edges', () => {
-    const { nodes, links } = layout(DOCUMENT, new Set(['test', 'core']))
-    expect(nodes.map((n) => n.id).sort()).toEqual(['backend/app/api', 'backend/app/models', 'frontend/src', 'store:PostgreSQL'])
-    expect(links.filter((l) => !l.store)).toEqual([])
+  it('focuses first on the most connected component, then the largest', () => {
+    expect(defaultFocus(DOCUMENT)).toBe('backend/app/services')
+    const tie: ArchitectureDocument = { ...DOCUMENT, components: [component('a', 'core', { code_lines: 10 }), component('b', 'core', { code_lines: 90 })] }
+    expect(defaultFocus(tie)).toBe('b')
+    expect(defaultFocus({ ...DOCUMENT, components: [] })).toBeNull()
+  })
+
+  it('orders the lanes from the interface down to the data, tests last', () => {
+    expect(LANES.map((lane) => lane.key)).toEqual(['ui', 'api', 'worker', 'core', 'data', 'test'])
+    const roles = LANES.flatMap((lane) => lane.roles).sort()
+    expect(roles).toEqual(['api', 'auth', 'config', 'core', 'data', 'test', 'ui', 'worker'])
+  })
+
+  it('draws curves between edges: top to bottom across lanes, side to side within one', () => {
+    const down = curveBetween({ x: 0, y: 0, width: 100, height: 40 }, { x: 200, y: 100, width: 100, height: 40 })
+    expect(down.d).toBe('M50,40 C50,70 250,70 250,100')
+    expect(down.label).toEqual({ x: 150, y: 70 })
+    const up = curveBetween({ x: 200, y: 100, width: 100, height: 40 }, { x: 0, y: 0, width: 100, height: 40 })
+    expect(up.d).toBe('M250,100 C250,70 50,70 50,40')
+    const side = curveBetween({ x: 0, y: 0, width: 100, height: 40 }, { x: 300, y: 10, width: 100, height: 40 })
+    expect(side.d).toBe('M100,20 C200,20 200,30 300,30')
+    const back = curveBetween({ x: 300, y: 0, width: 100, height: 40 }, { x: 0, y: 0, width: 100, height: 40 })
+    expect(back.d).toBe('M300,20 C200,20 200,20 100,20')
+    // Sideways always joins the facing sides, even far above or below (the focus map's columns).
+    const far = curveBetween({ x: 300, y: 300, width: 100, height: 40 }, { x: 0, y: 0, width: 100, height: 40 }, 'sideways')
+    expect(far.d).toBe('M300,320 C200,320 200,20 100,20')
+    expect(far.label).toEqual({ x: 200, y: 170 })
   })
 
   it('names components and maps files to them', () => {
@@ -187,11 +208,31 @@ describe('Repository architecture', () => {
     expect([value('Components'), value('Connections'), value('API routes'), value('Entry points'), value('Technologies'), value('Data stores')]).toEqual(['5', '4', '32', '1', '3', '1'])
     expect(screen.getByText(/shown 3 levels deep\); connections are 14 imports/)).toBeTruthy()
 
-    const diagram = screen.getByRole('region', { name: 'Architecture diagram' })
-    expect(within(diagram).getByRole('img').getAttribute('aria-label')).toBe('Diagram of 6 components and data stores with 5 connections')
-    expect(within(diagram).getByRole('button', { name: 'backend/app/api: API, 2 files' })).toBeTruthy()
-    expect(within(diagram).getByRole('button', { name: 'PostgreSQL data store' })).toBeTruthy()
-    expect(diagram.querySelectorAll('[data-edge]')).toHaveLength(5)
+    const lanes = screen.getByRole('region', { name: 'Layer lanes' })
+    expect(within(lanes).getAllByRole('group', { name: / lane$/ }).map((lane) => lane.getAttribute('aria-label'))).toEqual([
+      'User interface lane',
+      'API and authentication lane',
+      'Core logic and configuration lane',
+      'Data access lane',
+      'Tests lane',
+      'Data stores lane',
+    ])
+    expect(within(lanes).getByRole('button', { name: 'backend/app/api: API, 2 files' }).textContent).toContain('in an import cycle')
+    expect(within(lanes).getByRole('button', { name: 'PostgreSQL data store' })).toBeTruthy()
+    expect(lanes.querySelectorAll('[data-edge]')).toHaveLength(0) // no lines until something is pointed at
+    fireEvent.mouseEnter(within(lanes).getByRole('button', { name: 'backend/app/services: Core logic, 2 files' }))
+    expect([...lanes.querySelectorAll('[data-edge]')].map((edge) => edge.getAttribute('data-edge')).sort()).toEqual([
+      'backend/app/api->backend/app/services',
+      'backend/app/services->backend/app/api',
+      'backend/app/services->backend/app/models',
+      'backend/tests->backend/app/services',
+    ])
+    expect(within(lanes).getByRole('button', { name: 'frontend/src: User interface, 2 files' }).getAttribute('data-dimmed')).toBe('true')
+    expect(within(lanes).getByRole('button', { name: 'backend/tests: Tests, 2 files' }).getAttribute('data-dimmed')).toBe('false')
+    fireEvent.mouseEnter(within(lanes).getByRole('button', { name: 'PostgreSQL data store' }))
+    expect([...lanes.querySelectorAll('[data-edge]')].map((edge) => edge.getAttribute('data-edge'))).toEqual(['backend/app/models->store:PostgreSQL'])
+    fireEvent.mouseLeave(within(lanes).getByRole('group', { name: 'Tests lane' }).parentElement!)
+    expect(lanes.querySelectorAll('[data-edge]')).toHaveLength(0)
 
     const observations = within(screen.getByRole('region', { name: 'Observations' }))
     expect(observations.getByText('Circular dependency')).toBeTruthy()
@@ -228,7 +269,7 @@ describe('Repository architecture', () => {
       'backend/tests (4)',
     ])
     // Unconnected components are dimmed.
-    expect(screen.getByRole('button', { name: 'frontend/src: User interface, 2 files' }).getAttribute('opacity')).toBe('0.3')
+    expect(screen.getByRole('button', { name: 'frontend/src: User interface, 2 files' }).getAttribute('data-dimmed')).toBe('true')
     fireEvent.click(node)
     expect(screen.queryByRole('complementary')).toBeNull()
 
@@ -238,32 +279,94 @@ describe('Repository architecture', () => {
     fireEvent.click(store.getByRole('button', { name: 'Close details' }))
     expect(screen.queryByRole('complementary')).toBeNull()
 
-    fireEvent.keyDown(screen.getByRole('button', { name: 'backend/app/api: API, 2 files' }), { key: 'Enter' })
+    // Components are real buttons, so the keyboard activates them like any button.
+    fireEvent.click(screen.getByRole('button', { name: 'backend/app/api: API, 2 files' }))
     const api = within(screen.getByRole('complementary', { name: 'Details of backend/app/api' }))
     expect(api.getByText(/api evidence/)).toBeTruthy()
     fireEvent.click(api.getByRole('link', { name: 'backend/app/api/routes.py:2' }))
     expect(screen.getByTestId('location').textContent).toBe(REPO_URL)
   })
 
-  it('filters roles and zooms', async () => {
+  it('filters roles and finds components by name', async () => {
     mountRepositoryPage(standard)
-    const diagram = within(await screen.findByRole('region', { name: 'Architecture diagram' }))
-    fireEvent.click(diagram.getByRole('button', { name: 'backend/tests: Tests, 2 files' }))
-    const tests = diagram.getByRole('button', { name: 'Tests', pressed: true })
+    const lanes = within(await screen.findByRole('region', { name: 'Layer lanes' }))
+    fireEvent.click(lanes.getByRole('button', { name: 'backend/tests: Tests, 2 files' }))
+    const tests = lanes.getByRole('button', { name: 'Tests', pressed: true })
     fireEvent.click(tests)
     expect(tests.getAttribute('aria-pressed')).toBe('false')
-    expect(diagram.queryByRole('button', { name: 'backend/tests: Tests, 2 files' })).toBeNull()
+    expect(lanes.queryByRole('button', { name: 'backend/tests: Tests, 2 files' })).toBeNull()
+    expect(lanes.queryByRole('group', { name: 'Tests lane' })).toBeNull()
     expect(screen.queryByRole('complementary')).toBeNull() // the selected component was hidden
     fireEvent.click(tests)
-    expect(diagram.getByRole('button', { name: 'backend/tests: Tests, 2 files' })).toBeTruthy()
+    expect(lanes.getByRole('button', { name: 'backend/tests: Tests, 2 files' })).toBeTruthy()
 
-    const svg = diagram.getByRole('img')
-    const width = Number(svg.getAttribute('width'))
-    fireEvent.click(diagram.getByRole('button', { name: 'Zoom in' }))
-    expect(Number(svg.getAttribute('width'))).toBeCloseTo(width * 1.25)
-    fireEvent.click(diagram.getByRole('button', { name: 'Reset zoom' }))
-    fireEvent.click(diagram.getByRole('button', { name: 'Zoom out' }))
-    expect(Number(svg.getAttribute('width'))).toBeCloseTo(width * 0.8)
+    fireEvent.change(lanes.getByRole('textbox', { name: 'Find a component' }), { target: { value: 'MODELS' } })
+    expect(lanes.getByRole('button', { name: 'backend/app/models: Data access, 2 files' }).getAttribute('data-dimmed')).toBe('false')
+    expect(lanes.getByRole('button', { name: 'backend/app/api: API, 2 files' }).getAttribute('data-dimmed')).toBe('true')
+    expect(lanes.getByRole('button', { name: 'PostgreSQL data store' }).getAttribute('data-dimmed')).toBe('true')
+    fireEvent.change(lanes.getByRole('textbox', { name: 'Find a component' }), { target: { value: 'postgres' } })
+    expect(lanes.getByRole('button', { name: 'PostgreSQL data store' }).getAttribute('data-dimmed')).toBe('false')
+  })
+
+  it('finds components whatever the case of their name', async () => {
+    mountRepositoryPage({
+      ...standard,
+      [`GET ${ARCH_URL}`]: {
+        status: 200,
+        data: { run_id: 'run-1', created_at: '2026-11-18T10:00:00Z', document: { ...DOCUMENT, components: [...DOCUMENT.components, component('web/Widgets', 'ui')] } },
+      },
+    })
+    const lanes = within(await screen.findByRole('region', { name: 'Layer lanes' }))
+    fireEvent.change(lanes.getByRole('textbox', { name: 'Find a component' }), { target: { value: 'widgets' } })
+    expect(lanes.getByRole('button', { name: 'web/Widgets: User interface, 2 files' }).getAttribute('data-dimmed')).toBe('false')
+    expect(lanes.getByRole('button', { name: 'frontend/src: User interface, 2 files' }).getAttribute('data-dimmed')).toBe('true')
+  })
+
+  it('focuses on one component at a time and moves the focus', async () => {
+    mountRepositoryPage(standard)
+    fireEvent.click(await screen.findByRole('button', { name: 'Focus map' }))
+    const map = within(screen.getByRole('region', { name: 'Focus map' }))
+    // The most connected component first.
+    expect(map.getByRole('heading', { name: 'backend/app/services' })).toBeTruthy()
+    expect(within(map.getByRole('list', { name: 'Components backend/app/services uses' })).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Focus on backend/app/models (3 imports)',
+      'Focus on backend/app/api (1 import)',
+    ])
+    expect(within(map.getByRole('list', { name: 'Components using backend/app/services' })).getAllByRole('button').map((b) => b.getAttribute('aria-label'))).toEqual([
+      'Focus on backend/app/api (6 imports)',
+      'Focus on backend/tests (4 imports)',
+    ])
+    expect(map.getByRole('button', { name: 'Focus on backend/app/api (1 import)' }).textContent).toContain('imports each other')
+    const back = map.getByRole('button', { name: 'Back' }) as HTMLButtonElement
+    expect(back.disabled).toBe(true)
+
+    fireEvent.click(map.getByRole('button', { name: 'Focus on backend/app/models (3 imports)' }))
+    expect(map.getByRole('heading', { name: 'backend/app/models' })).toBeTruthy()
+    expect(map.getByText('PostgreSQL')).toBeTruthy() // the data store it uses
+    expect(map.getByText('Imports no other component.')).toBeTruthy()
+    expect(screen.getByRole('complementary', { name: 'Details of backend/app/models' })).toBeTruthy() // moving the focus selects it
+    const trail = within(map.getByRole('navigation', { name: 'Focus trail' }))
+    expect(trail.getByText('app/models').getAttribute('aria-current')).toBe('location')
+    expect(back.disabled).toBe(false)
+    fireEvent.click(back)
+    expect(map.getByRole('heading', { name: 'backend/app/services' })).toBeTruthy()
+
+    fireEvent.change(map.getByRole('combobox', { name: 'Focus on a component' }), { target: { value: 'frontend/src' } })
+    expect(map.getByRole('heading', { name: 'frontend/src' })).toBeTruthy()
+    expect(map.getByText('No other component imports it.')).toBeTruthy()
+    fireEvent.click(within(map.getByRole('navigation', { name: 'Focus trail' })).getByRole('button', { name: 'app/services' }))
+    expect(map.getByRole('heading', { name: 'backend/app/services' })).toBeTruthy()
+    fireEvent.click(map.getByRole('button', { name: 'Show evidence' }))
+    expect(screen.getByRole('complementary', { name: 'Details of backend/app/services' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Layer lanes' }))
+    expect(screen.getByRole('button', { name: 'backend/app/services: Core logic, 2 files' }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  it('opens the focus map on the selected component', async () => {
+    mountRepositoryPage(standard)
+    fireEvent.click(await screen.findByRole('button', { name: 'frontend/src: User interface, 2 files' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Focus map' }))
+    expect(within(screen.getByRole('region', { name: 'Focus map' })).getByRole('heading', { name: 'frontend/src' })).toBeTruthy()
   })
 
   it('filters the API routes and shows more', async () => {
@@ -324,7 +427,7 @@ describe('Repository architecture', () => {
     fireEvent.click(screen.getByRole('button', { name: 'old/pkg: Core logic, 2 files' }))
     fireEvent.change(screen.getByLabelText('Run'), { target: { value: 'run-1' } })
     const api = await screen.findByRole('button', { name: 'backend/app/api: API, 2 files' })
-    expect(api.getAttribute('opacity')).toBe('1')
+    expect(api.getAttribute('data-dimmed')).toBe('false')
     expect(api.getAttribute('aria-pressed')).toBe('false')
   })
 })

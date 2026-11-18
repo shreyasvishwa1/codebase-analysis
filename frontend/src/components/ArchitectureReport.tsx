@@ -1,9 +1,10 @@
-import { FileCode2, X } from 'lucide-react'
+import { FileCode2, Focus, Rows3, X } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import type { ArchitectureDocument, ComponentRole, EvidenceItem } from '../types/api'
-import { ArchitectureDiagram, ROLE_LABELS, type Selection } from './ArchitectureDiagram'
+import { ROLE_LABELS, type Selection } from './ArchitectureDiagram'
+import { FocusMap, LayerLanes } from './ArchitectureViews'
 
 const CATEGORY_LABELS: Record<string, string> = {
   backend: 'Backend',
@@ -186,6 +187,7 @@ export function ArchitectureReport({ document, projectId, repositoryId }: {
   repositoryId: string
 }) {
   const [selection, setSelection] = useState<Selection>(null)
+  const [view, setView] = useState<'lanes' | 'focus'>('lanes')
   const explorer = `/projects/${projectId}/repositories/${repositoryId}`
   const imports = document.edges.reduce((sum, e) => sum + e.imports, 0)
   const categories = [...new Set(document.technologies.map((t) => t.category))]
@@ -220,11 +222,34 @@ export function ArchitectureReport({ document, projectId, repositoryId }: {
         Everything below links to the file and line it comes from.
       </p>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_20rem]">
-        <ArchitectureDiagram document={document} selection={selection} onSelect={setSelection} />
+        <div className="min-w-0 space-y-3">
+          <div role="group" aria-label="Architecture view" className="inline-flex rounded-lg border border-slate-700 bg-slate-950/60 p-1">
+            {([
+              ['lanes', 'Layer lanes', Rows3],
+              ['focus', 'Focus map', Focus],
+            ] as const).map(([key, label, Icon]) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={view === key}
+                onClick={() => setView(key)}
+                className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition ${view === key ? 'bg-indigo-500 font-semibold' : 'text-slate-300 hover:bg-slate-800'}`}
+              >
+                <Icon className="h-4 w-4" aria-hidden="true" />
+                {label}
+              </button>
+            ))}
+          </div>
+          {view === 'lanes' ? (
+            <LayerLanes document={document} selection={selection} onSelect={setSelection} />
+          ) : (
+            <FocusMap document={document} selection={selection} onSelect={setSelection} />
+          )}
+        </div>
         {selection ? (
           <Details document={document} selection={selection} onClose={() => setSelection(null)} explorer={explorer} />
         ) : (
-          <p className={`${CARD} text-sm text-slate-400`}>Select a component or data store in the diagram to see its files, connections and evidence.</p>
+          <p className={`${CARD} text-sm text-slate-400`}>Select a component or data store to see its files, connections and evidence.</p>
         )}
       </div>
 
