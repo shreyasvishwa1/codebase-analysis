@@ -305,6 +305,30 @@ describe('Repository architecture', () => {
     expect((await screen.findByRole('alert')).textContent).toContain('This run has no architecture report')
   })
 
+  it('switches between the diagram and the code city, which needs complexity results', async () => {
+    mountRepositoryPage(standard) // run() has no complexity results
+    const views = await screen.findByRole('group', { name: 'Architecture view' })
+    const diagram = within(views).getByRole('button', { name: 'Diagram' })
+    const city = within(views).getByRole('button', { name: 'Code city (3D)' })
+    expect([diagram.getAttribute('aria-pressed'), city.getAttribute('aria-pressed')]).toEqual(['true', 'false'])
+    fireEvent.click(city)
+    expect(city.getAttribute('aria-pressed')).toBe('true')
+    expect(await screen.findByText(/built from the complexity results, which this run does not have/)).toBeTruthy()
+    fireEvent.click(diagram)
+    expect(screen.queryByText(/built from the complexity results/)).toBeNull()
+  })
+
+  it('opens the code city for a run with complexity results', async () => {
+    const requests = mountRepositoryPage({
+      [`GET ${RUNS_URL}`]: { status: 200, data: { job: null, runs: [run({ complexity: {} as AnalysisRun['complexity'] })] } },
+      [`GET ${ARCH_URL}`]: standard[`GET ${ARCH_URL}`],
+      [`GET ${RUNS_URL}/run-1/complexity/files`]: { status: 200, data: { items: [], total: 0, page: 1, page_size: 200 } },
+    })
+    fireEvent.click(await screen.findByRole('button', { name: 'Code city (3D)' }))
+    expect(await screen.findByText(/no measured source files/, {}, { timeout: 15_000 })).toBeTruthy()
+    expect(requests.filter((r) => r.url.endsWith('/complexity/files'))).toHaveLength(1)
+  }, 30_000)
+
   it('switches runs', async () => {
     const older = run({ id: 'run-0', created_at: '2026-11-17T09:00:00Z' })
     mountRepositoryPage({

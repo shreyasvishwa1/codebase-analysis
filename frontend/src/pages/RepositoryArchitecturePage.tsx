@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { Building2, Network } from 'lucide-react'
+import { lazy, Suspense, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import { ArchitectureReport } from '../components/ArchitectureReport'
@@ -9,11 +10,64 @@ import { useRunArchitecture } from '../hooks/useArchitecture'
 import { getErrorMessage } from '../services/client'
 import { formatDateTime } from '../utils/format'
 
-function RunArchitecture({ projectId, repositoryId, runId }: { projectId: string; repositoryId: string; runId: string }) {
+// The city (and three.js with it) loads only when it is opened.
+const CodeCity = lazy(() => import('../components/CodeCity').then((module) => ({ default: module.CodeCity })))
+
+type View = 'diagram' | 'city'
+
+function RunArchitecture({
+  projectId,
+  repositoryId,
+  runId,
+  hasComplexity,
+}: {
+  projectId: string
+  repositoryId: string
+  runId: string
+  hasComplexity: boolean
+}) {
   const report = useRunArchitecture(projectId, repositoryId, runId)
+  const [view, setView] = useState<View>('diagram')
   if (report.isPending) return <p className="text-sm text-slate-400">Loading architecture…</p>
   if (report.isError) return <ErrorMessage message={getErrorMessage(report.error, 'Could not load the architecture')} />
-  return <ArchitectureReport document={report.data.document} projectId={projectId} repositoryId={repositoryId} />
+  const views: { key: View; label: string; icon: typeof Network }[] = [
+    { key: 'diagram', label: 'Diagram', icon: Network },
+    { key: 'city', label: 'Code city (3D)', icon: Building2 },
+  ]
+  return (
+    <div className="space-y-4">
+      <div role="group" aria-label="Architecture view" className="inline-flex rounded-lg border border-slate-700 bg-slate-950/60 p-1">
+        {views.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            type="button"
+            aria-pressed={view === key}
+            onClick={() => setView(key)}
+            className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition ${view === key ? 'bg-indigo-500 font-semibold' : 'text-slate-300 hover:bg-slate-800'}`}
+          >
+            <Icon className="h-4 w-4" aria-hidden="true" />
+            {label}
+          </button>
+        ))}
+      </div>
+      {view === 'diagram' ? (
+        <ArchitectureReport document={report.data.document} projectId={projectId} repositoryId={repositoryId} />
+      ) : hasComplexity ? (
+        <Suspense fallback={<p className="text-sm text-slate-400">Loading the code city…</p>}>
+          <CodeCity
+            projectId={projectId}
+            repositoryId={repositoryId}
+            runId={runId}
+            components={report.data.document.components.map((component) => component.id)}
+          />
+        </Suspense>
+      ) : (
+        <p className="rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">
+          The code city is built from the complexity results, which this run does not have. Run a new full analysis to see it.
+        </p>
+      )}
+    </div>
+  )
 }
 
 function Architecture({ projectId, repositoryId }: { projectId: string; repositoryId: string }) {
@@ -76,7 +130,7 @@ function Architecture({ projectId, repositoryId }: { projectId: string; reposito
       {run?.architecture && (
         <>
           <p className="text-xs text-slate-500">Analyzed {formatDateTime(run.created_at)}</p>
-          <RunArchitecture key={run.id} projectId={projectId} repositoryId={repositoryId} runId={run.id} />
+          <RunArchitecture key={run.id} projectId={projectId} repositoryId={repositoryId} runId={run.id} hasComplexity={Boolean(run.complexity)} />
         </>
       )}
     </section>
