@@ -140,9 +140,10 @@ export function IntroPage() {
       <LiveTraces density="high" />
       <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/95">
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4 md:px-8">
-          <Link to="/" className="flex items-center gap-2.5 text-sm font-semibold text-slate-50">
+          {/* On phones the mark alone, so nothing in the header wraps. */}
+          <Link to="/" aria-label="CodeBase Analysis home" className="flex shrink-0 items-center gap-2.5 text-sm font-semibold text-slate-50">
             <BrandMark />
-            CodeBase Analysis
+            <span className="hidden whitespace-nowrap sm:inline">CodeBase Analysis</span>
           </Link>
           <nav aria-label="Intro" className="ml-6 hidden gap-5 text-[13px] text-slate-400 md:flex">
             <a href="#how" className="hover:text-slate-100">How it works</a>
@@ -153,20 +154,20 @@ export function IntroPage() {
               type="button"
               onClick={toggle}
               aria-label={theme === 'dark' ? 'Switch to the light theme' : 'Switch to the dark theme'}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-800 text-slate-400 hover:text-slate-100"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-slate-800 text-slate-400 hover:text-slate-100 sm:h-8 sm:w-8"
             >
               <ThemeIcon className="h-4 w-4" aria-hidden="true" />
             </button>
             {signedIn ? (
-              <Link to="/overview" className="rounded-lg bg-indigo-500 px-3.5 py-1.5 text-sm font-semibold hover:bg-indigo-400">
+              <Link to="/overview" className="whitespace-nowrap rounded-lg bg-indigo-500 px-3.5 py-1.5 text-sm font-semibold hover:bg-indigo-400">
                 Open the app
               </Link>
             ) : (
               <>
-                <Link to="/login" className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-300 hover:text-slate-50">
+                <Link to="/login" className="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-slate-300 hover:text-slate-50">
                   Sign in
                 </Link>
-                <Link to="/register" className="rounded-lg bg-indigo-500 px-3.5 py-1.5 text-sm font-semibold hover:bg-indigo-400">
+                <Link to="/register" className="whitespace-nowrap rounded-lg bg-indigo-500 px-3.5 py-1.5 text-sm font-semibold hover:bg-indigo-400">
                   Get started
                 </Link>
               </>
@@ -179,20 +180,21 @@ export function IntroPage() {
         {/* Hero */}
         <section className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-20 pt-14 md:px-8 lg:grid-cols-[1fr_1.1fr] lg:pt-20">
           <div className="space-y-6">
-            <div className="animate-fade-in">
+            {/* The copy paints with the page: only the board beside it fades in. */}
+            <div>
               <ServerLight />
             </div>
-            <p className="page-eyebrow animate-fade-in">Repository intelligence</p>
-            <h1 className="animate-fade-in text-4xl font-semibold leading-[1.05] tracking-tight text-slate-50 [animation-delay:80ms] sm:text-5xl lg:text-6xl">
+            <p className="page-eyebrow">Repository intelligence</p>
+            <h1 className="text-4xl font-semibold leading-[1.05] tracking-tight text-slate-50 sm:text-5xl lg:text-6xl">
               See inside any codebase{' '}
               <span className="bg-gradient-to-r from-indigo-300 to-indigo-500 bg-clip-text text-transparent">before you touch it.</span>
             </h1>
-            <p className="max-w-xl animate-fade-in text-base leading-relaxed text-slate-400 [animation-delay:160ms]">
+            <p className="max-w-xl text-base leading-relaxed text-slate-400">
               Upload a repository and one analysis checks its quality, security, complexity,
               dependencies and architecture, scores its health, and lets you ask an AI about it with
               answers that cite the lines they came from.
             </p>
-            <div className="flex animate-fade-in flex-wrap items-center gap-3 [animation-delay:240ms]">
+            <div className="flex flex-wrap items-center gap-3">
               <Link
                 to={signedIn ? '/upload' : '/register'}
                 className="group inline-flex items-center gap-2 rounded-lg bg-indigo-500 px-5 py-3 text-sm font-semibold shadow-[0_0_24px_rgb(var(--indigo-500)/0.35)] hover:bg-indigo-400"

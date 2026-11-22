@@ -105,12 +105,62 @@ describe('Intro page', () => {
     expect(await screen.findByRole('heading', { name: 'Overview' })).toBeTruthy()
   })
 
+  it('paints the hero copy at once and fades in only the board beside it', async () => {
+    mockApi({ 'GET /health': { status: 200, data: { status: 'ok' } } })
+    renderWithProviders(<App />, { route: '/' })
+    const heading = await screen.findByRole('heading', { level: 1, name: /See inside any codebase/ })
+    const copy = heading.parentElement as HTMLElement
+    // Nothing in the copy column starts invisible waiting for an entrance animation (the
+    // server light's pulse never hides anything).
+    expect(copy.querySelectorAll('[class*="animate-fade"], [class*="animate-pop"]')).toHaveLength(0)
+    expect(copy.className).not.toMatch(/animate-(fade|pop)/)
+    const cta = screen.getByRole('link', { name: /Analyze your first repository/ })
+    expect(copy.contains(cta)).toBe(true)
+    // The decorative board still fades in.
+    const board = copy.nextElementSibling as HTMLElement
+    expect(board.className).toMatch(/animate-fade-in/)
+  })
+
+  it('keeps the phone header on one line with a full-size theme button', async () => {
+    mockApi({ 'GET /health': { status: 200, data: { status: 'ok' } } })
+    renderWithProviders(<App />, { route: '/' })
+    const header = screen.getByRole('banner')
+    const home = within(header).getByRole('link', { name: 'CodeBase Analysis home' })
+    expect(home.getAttribute('href')).toBe('/')
+    // Below 640px only the mark shows; the name never wraps.
+    const name = within(home).getByText('CodeBase Analysis')
+    expect(name.className.split(' ')).toEqual(expect.arrayContaining(['hidden', 'sm:inline', 'whitespace-nowrap']))
+    for (const label of ['Sign in', 'Get started']) {
+      expect(within(header).getByRole('link', { name: label }).className).toMatch(/\bwhitespace-nowrap\b/)
+    }
+    const theme = within(header).getByRole('button', { name: /Switch to the/ })
+    expect(theme.className.split(' ')).toEqual(expect.arrayContaining(['h-11', 'w-11', 'sm:h-8', 'sm:w-8']))
+  })
+
   it('links the sign-in logo back to the intro', async () => {
     mockApi({ 'GET /health': { status: 200, data: { status: 'ok' } } })
     renderWithProviders(<App />, { route: '/login' })
     const home = screen.getAllByRole('link', { name: /CodeBase Analysis/ })
     expect(home.length).toBeGreaterThan(0)
     home.forEach((link) => expect(link.getAttribute('href')).toBe('/'))
+  })
+})
+
+describe('Unknown pages', () => {
+  it('offers a signed-out visitor the way home, not the projects', async () => {
+    mockApi({ 'GET /health': { status: 200, data: { status: 'ok' } } })
+    renderWithProviders(<App />, { route: '/no-such-page' })
+    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Back to home' }).getAttribute('href')).toBe('/')
+    expect(screen.queryByRole('link', { name: 'Go to projects' })).toBeNull()
+  })
+
+  it('offers a signed-in user both home and the projects', async () => {
+    setToken('test-token')
+    mockApi({ 'GET /auth/me': { status: 200, data: USER }, 'GET /health': { status: 200, data: { status: 'ok' } } })
+    renderWithProviders(<App />, { route: '/no-such-page' })
+    expect((await screen.findByRole('link', { name: 'Go to projects' })).getAttribute('href')).toBe('/projects')
+    expect(screen.getByRole('link', { name: 'Back to home' }).getAttribute('href')).toBe('/')
   })
 })
 
