@@ -3,8 +3,9 @@
 # One container: the built frontend behind Caddy on $PORT, the API, the arq worker and a
 # private Redis (queue and rate-limit counters only; Render's free Key Value can be wiped at
 # any time). PostgreSQL is external (for example Neon), set through DATABASE_URL. The disk is
-# not persistent on the free plan: uploaded repositories must be ingested again after the
-# service restarts or wakes from sleep, while accounts and projects stay in the database.
+# not persistent on the free plan, so uploaded files are also kept in the database
+# (file_blobs) and a repository's folder is rebuilt from it when missing: nothing has to be
+# uploaded again after the service restarts, sleeps or redeploys.
 
 FROM node:20-alpine AS frontend
 WORKDIR /build

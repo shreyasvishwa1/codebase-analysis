@@ -48,6 +48,7 @@ from app.services.analysis_jobs import (
     new_ingestion_job,
 )
 from app.services.archive import MIB, ArchiveError, ArchiveLimits, extract_zip
+from app.services.file_blobs import store_contents
 from app.services.github import (
     GitHubError,
     archive_download_url,
@@ -93,7 +94,7 @@ def repository_storage_dir(settings: Settings, repository_id: uuid.UUID) -> Path
     return repositories_root(settings) / str(repository_id)
 
 
-def _new_staging_dir(settings: Settings, repository_id: uuid.UUID) -> Path:
+def new_staging_dir(settings: Settings, repository_id: uuid.UUID) -> Path:
     root = repositories_root(settings)
     root.mkdir(parents=True, exist_ok=True)
     # Same parent as the final directory, so the swap is a rename on one filesystem.
@@ -315,7 +316,7 @@ async def _run_pipeline(
     try:
         try:
             archive = await provide_archive()
-            staging = await run_in_threadpool(_new_staging_dir, settings, repository_id)
+            staging = await run_in_threadpool(new_staging_dir, settings, repository_id)
             files = await run_in_threadpool(extract_zip, archive, staging, archive_limits(settings))
         except (ArchiveError, GitHubError) as exc:
             raise IngestionError(exc.status_code, exc.detail) from None
@@ -333,6 +334,9 @@ async def _run_pipeline(
             )
             for f in files
         )
+        # The bytes are stored in the same transaction as the rows, so the folder can be
+        # rebuilt from the database if the server's disk is reset (app.services.file_store).
+        await store_contents(db, staging, files)
         await db.execute(
             update(Repository)
             .where(Repository.id == repository_id)

@@ -26,6 +26,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -701,7 +702,7 @@ class _Db:
 @pytest.fixture
 def storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, list[Any]]:
     root, rows = _repo(tmp_path, {"m.py": ORDERED, "notes.md": "import os\n"})
-    monkeypatch.setattr(code_unused_imports, "repository_storage_dir", lambda settings, rid: root)
+    monkeypatch.setattr(code_unused_imports, "repository_files_dir", AsyncMock(return_value=root))
     return root, rows
 
 
@@ -1103,14 +1104,14 @@ async def test_storage_swap_during_the_request_fails_with_409(
     client: httpx.AsyncClient, alice: Owner, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """The row is selected, then storage changes before the file is read."""
-    real = code_unused_imports.repository_storage_dir
+    real = code_unused_imports.repository_files_dir
 
-    def swap_then_root(settings: Any, repository_id: Any) -> Path:
-        root = real(settings, repository_id)
+    async def swap_then_root(db: Any, repository_id: Any) -> Path:
+        root = await real(db, repository_id)
         (root / "app" / "mod.py").write_bytes(b"import os  # new snapshot\n")
         return root
 
-    monkeypatch.setattr(code_unused_imports, "repository_storage_dir", swap_then_root)
+    monkeypatch.setattr(code_unused_imports, "repository_files_dir", swap_then_root)
     response = await _get(client, alice, TARGET)
     assert (response.status_code, response.json()) == (409, CHANGED)
 

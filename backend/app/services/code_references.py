@@ -46,7 +46,6 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.config import get_settings
 from app.models import File, Repository
 from app.schemas.code_definition import DefinitionLocation
 from app.schemas.code_references import (
@@ -88,7 +87,7 @@ from app.services.file_content import (
     _read_verified,
     _Unavailable,
 )
-from app.services.ingestion import repository_storage_dir
+from app.services.file_store import repository_files_dir
 from app.services.rate_limit import Limit
 
 MAX_REFERENCES = 500
@@ -453,7 +452,7 @@ async def code_references(
         (r for r in rows if _is_python(r.language, r.extension)), key=lambda r: r.path
     )
     indexed = python_rows[:MAX_INDEXED_PATHS]
-    root = repository_storage_dir(get_settings(), repository.id)
+    root = await repository_files_dir(db, repository.id)
     return await run_in_threadpool(
         analyze_references, root, target, indexed, line, len(python_rows) > MAX_INDEXED_PATHS
     )

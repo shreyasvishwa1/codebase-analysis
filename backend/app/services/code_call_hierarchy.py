@@ -59,7 +59,6 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.config import get_settings
 from app.models import File, Repository
 from app.schemas.code_call_hierarchy import (
     CalleeGroup,
@@ -101,7 +100,7 @@ from app.services.code_references import (
     _target,
 )
 from app.services.file_content import FILE_NOT_FOUND, FileContentError
-from app.services.ingestion import repository_storage_dir
+from app.services.file_store import repository_files_dir
 from app.services.rate_limit import Limit
 
 MAX_CALLEE_CALLS = 5000  # call sites owned by the target that are examined, in source order
@@ -595,7 +594,7 @@ async def code_call_hierarchy(
         (r for r in rows if _is_python(r.language, r.extension)), key=lambda r: r.path
     )
     indexed = python_rows[:MAX_INDEXED_PATHS]
-    root = repository_storage_dir(get_settings(), repository.id)
+    root = await repository_files_dir(db, repository.id)
     return await run_in_threadpool(
         analyze_call_hierarchy, root, target, indexed, line, len(python_rows) > MAX_INDEXED_PATHS
     )

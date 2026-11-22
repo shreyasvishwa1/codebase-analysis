@@ -33,7 +33,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.config import get_settings
 from app.models import File, Repository
 from app.schemas.code_outline import OutlineStatus, OutlineSymbol
 from app.schemas.symbol_search import SymbolResult, SymbolSearchResponse, SymbolSearchSummary
@@ -56,7 +55,7 @@ from app.services.file_content import (
     _read_verified,
     _Unavailable,
 )
-from app.services.ingestion import repository_storage_dir
+from app.services.file_store import repository_files_dir
 from app.services.rate_limit import Limit
 
 MAX_RESULTS = 200
@@ -170,7 +169,7 @@ async def symbol_search(
         (r for r in rows if _is_python(r.language, r.extension)), key=lambda r: r.path
     )
     indexed = python_rows[:MAX_INDEXED_PATHS]
-    root = repository_storage_dir(get_settings(), repository.id)
+    root = await repository_files_dir(db, repository.id)
     results, summary, truncated = await run_in_threadpool(scan_symbols, root, indexed, normalized)
     return SymbolSearchResponse(
         results=results,

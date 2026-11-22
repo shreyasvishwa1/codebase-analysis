@@ -27,7 +27,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.config import get_settings
 from app.models import File, Repository
 from app.schemas.dependencies import (
     DependencyEntry,
@@ -38,7 +37,7 @@ from app.schemas.dependencies import (
 
 # Step 21's verified reader and decoder, reused unchanged (never duplicated).
 from app.services.file_content import MAX_CONTENT_BYTES, _decode, _read_verified, _Unavailable
-from app.services.ingestion import repository_storage_dir
+from app.services.file_store import repository_files_dir
 
 MAX_MANIFESTS = 50
 MAX_DEPENDENCIES = 5000
@@ -196,7 +195,7 @@ async def dependency_inventory(
         key=lambda candidate: candidate[0].path,
     )
     truncated = len(candidates) > MAX_MANIFESTS
-    root = repository_storage_dir(get_settings(), repository.id)
+    root = await repository_files_dir(db, repository.id)
 
     manifests: list[ManifestResponse] = []
     counts = {"parsed": 0, "invalid": 0, "too_large": 0, "unavailable": 0}

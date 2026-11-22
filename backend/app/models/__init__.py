@@ -16,6 +16,7 @@ from app.models.enums import (
     RepositoryStatus,
 )
 from app.models.file import File
+from app.models.file_blob import FileBlob
 from app.models.file_metric import FileMetric
 from app.models.generated_report import GeneratedReport
 from app.models.project import Project
@@ -38,6 +39,7 @@ __all__ = [
     "ComplexityFunction",
     "DependencyRecord",
     "File",
+    "FileBlob",
     "FileMetric",
     "GeneratedReport",
     "Project",

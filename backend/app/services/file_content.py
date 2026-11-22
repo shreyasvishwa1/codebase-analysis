@@ -22,10 +22,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.config import get_settings
 from app.models import File, Repository
 from app.schemas.file_content import FileContentResponse
-from app.services.ingestion import repository_storage_dir
+from app.services.file_store import repository_files_dir
 
 MAX_CONTENT_BYTES = 1 * 1024 * 1024
 
@@ -119,7 +118,7 @@ async def read_file_content(
 
     if file.size_bytes > MAX_CONTENT_BYTES:
         return response(None, "too_large")  # the file is never opened
-    root = repository_storage_dir(get_settings(), repository.id)
+    root = await repository_files_dir(db, repository.id)
     try:
         data = await run_in_threadpool(_read_verified, root, file.path, file.sha256)
     except _Unavailable:

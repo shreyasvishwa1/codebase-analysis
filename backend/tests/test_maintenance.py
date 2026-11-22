@@ -640,7 +640,7 @@ def _interleave_swap_with_sweep(
         nonlocal swap_thread
         if swap_thread is not None:
             return
-        staging = ingestion._new_staging_dir(settings, repository_id)
+        staging = ingestion.new_staging_dir(settings, repository_id)
         (staging / "new.txt").write_bytes(b"new")
         observed["staging"] = staging
         swap_thread = threading.Thread(target=run_swap, args=(staging,))

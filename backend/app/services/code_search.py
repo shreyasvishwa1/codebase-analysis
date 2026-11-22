@@ -24,13 +24,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.config import get_settings
 from app.models import File, Repository
 from app.schemas.code_search import CodeSearchMatch, CodeSearchResponse, CodeSearchSummary
 
 # Step 21's verified reader and decoder, reused unchanged (never duplicated).
 from app.services.file_content import MAX_CONTENT_BYTES, _decode, _read_verified, _Unavailable
-from app.services.ingestion import repository_storage_dir
+from app.services.file_store import repository_files_dir
 from app.services.rate_limit import Limit
 
 MAX_FILES = 5000
@@ -106,7 +105,7 @@ async def code_search(db: AsyncSession, repository: Repository, query: str) -> C
     ).all()
     rows = sorted(rows, key=lambda row: row.path)
     truncated = len(rows) > MAX_FILES
-    root = repository_storage_dir(get_settings(), repository.id)
+    root = await repository_files_dir(db, repository.id)
 
     counts = {"scanned": 0, "binary": 0, "too_large": 0, "unavailable": 0}
     matches: list[CodeSearchMatch] = []

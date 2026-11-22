@@ -11,6 +11,8 @@
    removed once its repository's final directory exists again (or the repository is gone):
    while the final directory is missing, the ``.old-*`` directory is the previous snapshot
    that an in-progress swap may still restore (see ``_old_dir_is_garbage``).
+4. Stored file contents (``file_blobs``) that no file refers to any more, and that no
+   ingestion used within the last hour, are deleted.
 
 Database changes use conditional updates (only rows still in the stale state change).
 Filesystem deletion is restricted to exact UUID-named direct children of
@@ -36,6 +38,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.config import get_settings
 from app.models import AnalysisJob, AnalysisJobStatus, AnalysisJobType, Repository, RepositoryStatus
+from app.services.file_blobs import remove_unused_contents
 from app.services.ingestion import ingestion_uploads_root, repositories_root
 
 # Worker job_timeout (JOB_TIMEOUT_SECONDS = 1800 in app.workers.worker) plus grace.
@@ -63,6 +66,7 @@ class MaintenanceReport:
     uploads_removed: int = 0
     leftover_dirs_removed: int = 0
     storage_dirs_removed: int = 0
+    contents_removed: int = 0
 
 
 # --- Database ----------------------------------------------------------------------------
@@ -275,6 +279,7 @@ async def run_maintenance(db: AsyncSession) -> MaintenanceReport:
     report.processing_jobs_failed = await _fail_stale_processing_jobs(db)
     report.pending_jobs_failed = await _fail_stale_pending_jobs(db)
     await _cleanup_files(db, report)
+    report.contents_removed = await remove_unused_contents(db)
     return report
 
 

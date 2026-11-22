@@ -37,7 +37,6 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.config import get_settings
 from app.models import File, Repository
 from app.schemas.code_definition import DefinitionLocation
 from app.schemas.code_method_overrides import (
@@ -60,7 +59,7 @@ from app.services.code_outline import SUPPORTED_LANGUAGE, _is_python
 from app.services.code_references import _key, _Scan, _Source, _target
 from app.services.code_type_hierarchy import analyze_type_hierarchy
 from app.services.file_content import FILE_NOT_FOUND, FileContentError
-from app.services.ingestion import repository_storage_dir
+from app.services.file_store import repository_files_dir
 from app.services.rate_limit import Limit
 
 MAX_OVERRIDE_CLASSES = 1000  # related classes inspected per request, overridden direction first
@@ -322,7 +321,7 @@ async def code_method_overrides(
         (r for r in rows if _is_python(r.language, r.extension)), key=lambda r: r.path
     )
     indexed = python_rows[:MAX_INDEXED_PATHS]
-    root = repository_storage_dir(get_settings(), repository.id)
+    root = await repository_files_dir(db, repository.id)
     return await run_in_threadpool(
         analyze_method_overrides,
         root,

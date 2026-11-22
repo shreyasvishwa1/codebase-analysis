@@ -209,6 +209,8 @@ backend/app/
   chat/               retrieval (PostgreSQL full-text search), analysis context, prompt
   reports/            PDF reports: data gathered from a run, ReportLab builder
   services/           existing services: ingestion, archive, GitHub, code intelligence
+    file_blobs.py     file contents kept in PostgreSQL (compressed, by SHA-256)
+    file_store.py     the repository folder, rebuilt from file_blobs when the disk was reset
   models/ schemas/    SQLAlchemy models, Pydantic schemas
   workers/            arq worker and queue
 ```
@@ -231,6 +233,7 @@ it:
 | `users.health_weights` | Health-score weights (migration 0010) | JSONB, one integer 0-100 per dimension; null means the defaults. Scores are not stored: they are computed from the run's summaries when read, so a change of weights or formulas applies to every run at once |
 | `code_chunks` | Retrieval units for the chat (migration 0011) | `run_id` (FK, cascade), `path`, `language`, `start_line`, `end_line`, `symbol`, `content` (secrets masked), `search` (tsvector: path and symbol weight A, body D; GIN index); index (`run_id`, `path`). The run's counts are in `analysis_runs.chat_index` (JSONB) |
 | `chat_conversations` / `chat_messages` | Chat history per user and repository (migration 0011) | conversation: `user_id`, `project_id`, `repository_id`, `run_id` (all FK, cascade), `title`, `created_at`, `updated_at`; message: `conversation_id` (FK, cascade), `role` (user/assistant), `content`, `citations` (JSONB: number, path, lines, symbol), `model`, token counts, `created_at` |
+| `file_blobs` | Stored file contents (migration 0014) | `sha256` (primary key), `size_bytes`, `content` (zlib-compressed), `last_used_at`; plus an index on `files.sha256`. Ingestion stores every file's bytes in the same transaction as its `files` row; a missing repository folder (hosts without a persistent disk wipe it on restart) is rebuilt from these rows, each file checked against its size and SHA-256, so nothing is uploaded twice. Rows are shared by identical files; maintenance removes those no file uses and unused for an hour |
 | `generated_reports` | Saved PDF reports (migration 0012) | `user_id`, `project_id`, `repository_id`, `run_id` (all FK, cascade), `filename`, `size_bytes`, `sha256`, `pages`, `content` (the PDF, loaded only for downloads), `created_at`; indexes (`user_id`, `created_at`), (`run_id`) |
 
 Every result table cascades on delete from its run. Runs cascade from their repository, and

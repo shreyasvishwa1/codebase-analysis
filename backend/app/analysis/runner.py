@@ -56,7 +56,7 @@ from app.services.analysis_jobs import claim_pending_job, fail_pending_job
 
 # The snapshot lock shared with the code-metrics analysis, reused unchanged.
 from app.services.code_metrics import _lock_current_snapshot
-from app.services.ingestion import repository_storage_dir
+from app.services.file_store import repository_files_dir
 from app.workers import queue
 
 PROCESSING_STALE_AFTER = timedelta(seconds=1800 + 300)  # worker job timeout plus grace
@@ -445,9 +445,10 @@ async def run_full_analysis_job(db: AsyncSession, job_id: uuid.UUID) -> str:
                 )
             )
         ).all()
+        # Rebuilt from the database first if the server's disk was reset since ingestion.
+        root = await repository_files_dir(db, repository.id)
         await db.commit()  # no transaction is held while files are read
         snapshot_rows = [SnapshotRow(r.path, r.language, r.size_bytes, r.sha256) for r in rows]
-        root = repository_storage_dir(get_settings(), repository.id)
         result = await _analyze_with_progress(db, job_id, root, snapshot_rows)
         await progress.set_job_progress(db, job_id, progress.DEPENDENCIES)
         result = await check_dependencies(result)

@@ -24,6 +24,7 @@ class File(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     extension: Mapped[str | None] = mapped_column(String(32))
     language: Mapped[str | None] = mapped_column(String(64))
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    sha256: Mapped[str | None] = mapped_column(String(64))
+    # Indexed for maintenance, which keeps only the stored contents (file_blobs) a file uses.
+    sha256: Mapped[str | None] = mapped_column(String(64), index=True)
 
     repository: Mapped["Repository"] = relationship(back_populates="files")

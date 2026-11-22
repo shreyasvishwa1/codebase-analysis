@@ -32,7 +32,6 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.config import get_settings
 from app.models import File, Repository
 from app.schemas.code_imports import CodeImportsResponse, ImportEntry, ImportResolution
 from app.schemas.code_outline import OutlineStatus
@@ -53,7 +52,7 @@ from app.services.file_content import (
     _read_verified,
     _Unavailable,
 )
-from app.services.ingestion import repository_storage_dir
+from app.services.file_store import repository_files_dir
 from app.services.rate_limit import Limit
 
 MAX_IMPORTS = 500
@@ -226,7 +225,7 @@ async def code_imports(db: AsyncSession, repository: Repository, path: str) -> C
         return response("unsupported_language")  # never read
     if row.size_bytes > MAX_CONTENT_BYTES:
         return response("too_large")  # never opened
-    root = repository_storage_dir(get_settings(), repository.id)
+    root = await repository_files_dir(db, repository.id)
     try:
         # Verified against this snapshot's hash: a swapped snapshot can only yield 409.
         data = await run_in_threadpool(_read_verified, root, row.path, row.sha256)

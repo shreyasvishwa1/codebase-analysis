@@ -488,8 +488,8 @@ All endpoints are under `/api/v1`. Repository endpoints share the prefix
 - **Deployment**: single-server only. The root `docker-compose.yml` is for local development;
   for hosting, see [DEPLOY.md](DEPLOY.md) (Railway), [DEPLOY-ORACLE.md](DEPLOY-ORACLE.md)
   (free, on an Oracle Cloud Always Free server) or [DEPLOY-RENDER.md](DEPLOY-RENDER.md)
-  (free, no card: Render with a Neon database; it sleeps when idle, and uploaded code must be
-  ingested again after it wakes).
+  (free, no card: Render with a Neon database; it sleeps when idle, and uploaded files are kept
+  in the database and restored automatically when it wakes).
 
 ## Future Scope
 

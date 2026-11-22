@@ -31,7 +31,6 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.config import get_settings
 from app.models import File, Repository
 from app.schemas.code_importers import (
     CodeImportersResponse,
@@ -65,7 +64,7 @@ from app.services.file_content import (
     _read_verified,
     _Unavailable,
 )
-from app.services.ingestion import repository_storage_dir
+from app.services.file_store import repository_files_dir
 from app.services.rate_limit import Limit
 
 MAX_SCANNED_BYTES = 64 * 1024 * 1024  # stored size of the files read
@@ -210,7 +209,7 @@ async def code_importers(
         return CodeImportersResponse(
             path=target.path, status="scanned", importers=[], summary=empty, truncated=truncated
         )
-    root = repository_storage_dir(get_settings(), repository.id)
+    root = await repository_files_dir(db, repository.id)
     importers, summary, cut = await run_in_threadpool(scan_importers, root, indexed, target.path)
     return CodeImportersResponse(
         path=target.path,

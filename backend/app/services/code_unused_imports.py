@@ -61,7 +61,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.config import get_settings
 from app.models import File, Repository
 from app.schemas.code_outline import OutlineStatus
 from app.schemas.code_unused_imports import (
@@ -100,7 +99,7 @@ from app.services.file_content import (
     _read_verified,
     _Unavailable,
 )
-from app.services.ingestion import repository_storage_dir
+from app.services.file_store import repository_files_dir
 from app.services.rate_limit import Limit
 
 MAX_UNUSED_IMPORTS = 500  # entries returned, the first in source order
@@ -313,5 +312,5 @@ async def code_unused_imports(
         raise FileContentError(404, FILE_NOT_FOUND)
     if not _is_python(row.language, row.extension):
         return _empty(row.path, "unsupported_language")  # never read
-    root = repository_storage_dir(get_settings(), repository.id)
+    root = await repository_files_dir(db, repository.id)
     return await run_in_threadpool(analyze_unused_imports, root, row)

@@ -32,7 +32,6 @@ from sqlalchemy.exc import DBAPIError, IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
-from app.config import get_settings
 from app.models import (
     AnalysisJob,
     AnalysisJobStatus,
@@ -48,7 +47,7 @@ from app.services.analysis_jobs import claim_pending_job, fail_pending_job
 
 # Step 21's verified reader and decoder, reused unchanged (never duplicated).
 from app.services.file_content import MAX_CONTENT_BYTES, _decode, _read_verified, _Unavailable
-from app.services.ingestion import repository_storage_dir
+from app.services.file_store import repository_files_dir
 from app.workers import queue
 
 # Code-metrics stale-job thresholds (the Step 16 maintenance task recovers ingestion jobs
@@ -372,8 +371,9 @@ async def run_code_metrics_job(db: AsyncSession, job_id: uuid.UUID) -> str:
                 )
             )
         ).all()
+        # Rebuilt from the database first if the server's disk was reset since ingestion.
+        root = await repository_files_dir(db, repository_id)
         await db.commit()  # no transaction is held while files are read
-        root = repository_storage_dir(get_settings(), repository_id)
         results = [
             (
                 row.id,
