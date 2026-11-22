@@ -90,6 +90,19 @@ def _rules(path: str, language: str | None, text: str) -> list[tuple[str, int]]:
         ("execSync('rm -rf ' + dir)", "js-child-process"),
         ('db.query("SELECT * FROM t WHERE id = " + id)', "js-sql-concat"),
         ("db.query(`select * from t where id = ${id}`)", "js-sql-concat"),
+        ("db.query(`SELECT id, name FROM users WHERE email = '${email}'`)", "js-sql-concat"),
+        ("db.query('INSERT INTO t (a) VALUES (' + a + ')')", "js-sql-concat"),
+        ("db.query(`UPDATE users SET name = '${name}'`)", "js-sql-concat"),
+        ("db.query(`DELETE FROM sessions WHERE token = ${t}`)", "js-sql-concat"),
+        ("db.query('DELETE FROM t WHERE id = ' + id)", "js-sql-concat"),
+        # Each statement shape on its own, without a WHERE clause.
+        ("db.query(`SELECT id, name FROM users ORDER BY ${field}`)", "js-sql-concat"),
+        ("db.query(`SELECT ${cols} FROM t ORDER BY ${order}`)", "js-sql-concat"),
+        ("db.query(`DELETE FROM ${table}`)", "js-sql-concat"),
+        ("db.query(base + ' WHERE name LIKE ' + pattern)", "js-sql-concat"),
+        # A query split across strings is caught by its WHERE comparison.
+        ("q = 'SELECT ' + cols + ' FROM t WHERE id = ' + id", "js-sql-concat"),
+        ("q = `SELECT ${cols} FROM t WHERE owner LIKE ${pattern}`", "js-sql-concat"),
         ("el.innerHTML = text", "js-inner-html"),
         ("el.outerHTML += part", "js-inner-html"),
         ("el.insertAdjacentHTML('beforeend', html)", "js-inner-html"),
@@ -124,6 +137,14 @@ def test_javascript_line_rules(line: str, rule_id: str) -> None:
         "// eval(code) only mentioned in a comment",
         " * el.innerHTML = x  (documentation comment)",
         "new https.Agent({ rejectUnauthorized: true })",
+        # Words that also start SQL statements, in text that is not SQL.
+        "aria-label={`Delete conversation ${conversation.title}`}",
+        "<button aria-label={`Delete ${report.filename}`} />",
+        "[`DELETE ${ALPHA_URL}`]: { status: 204 },",
+        "expect(calls).toEqual([`PATCH ${url}`, `DELETE ${url}`])",
+        "const label = 'Update ' + name",
+        "toast(`Select a project from ${list.length} projects`)",
+        "const message = 'Insert a disk into drive ' + letter",
     ],
 )
 def test_safe_javascript_is_not_reported(line: str) -> None:

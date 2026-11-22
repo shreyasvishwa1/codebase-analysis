@@ -49,7 +49,15 @@ def _r(pattern: str, flags: int = 0) -> re.Pattern[str]:
     return re.compile(pattern, flags)
 
 
-_SQL_KEYWORDS = r"(?:SELECT|INSERT|UPDATE|DELETE)\b"
+# SQL statement shapes rather than bare keywords: a lone "Delete" or "DELETE" also starts UI
+# text (`Delete ${name}`) and HTTP method strings (`DELETE ${url}`), which are not SQL. A WHERE
+# comparison catches queries split across strings ("SELECT " + cols + " FROM t WHERE id = " + id).
+_SQL_COLUMN = r"(?:\*|DISTINCT\b|[\w.\"]+|\$\{[^}]{0,100}\})"
+_SQL_KEYWORDS = (
+    r"(?:SELECT\s+" + _SQL_COLUMN + r"(?:\s*,\s*" + _SQL_COLUMN + r")*\s+FROM\b"
+    r"|INSERT\s+INTO\b|UPDATE\s+\S+\s+SET\b|DELETE\s+FROM\b"
+    r"|WHERE\s+[\w.\"]+\s*(?:=|<>|!=|<|>|LIKE\b|IN\b))"
+)
 LINE_RULES: tuple[_LineRule, ...] = (
     _LineRule(
         "js-eval", _r(r"(?<![\w.$])eval\s*\("), "eval() runs a string as code.", JS_LANGUAGES
