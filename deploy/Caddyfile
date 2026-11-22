@@ -43,6 +43,15 @@
 		X-Content-Type-Options nosniff
 		Referrer-Policy strict-origin-when-cross-origin
 		X-Frame-Options DENY
+		# Scripts only from this origin, plus the inline theme script in index.html by its
+		# hash (update the hash if that script changes; a test checks they match). Styles and
+		# fonts also from Google Fonts. Nothing may frame the app or load plugins.
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'sha256-EhDTmW3oJ9AlKl/v2xozsvROowVdxXASelS3RSDRS5o='; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		# HTTPS only for a year once a browser has seen the site over HTTPS (browsers ignore
+		# this header on plain HTTP, so local runs are unaffected).
+		Strict-Transport-Security "max-age=31536000"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy same-origin
 		-Server
 	}
 }

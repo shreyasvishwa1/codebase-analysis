@@ -5,6 +5,9 @@ X-Forwarded-For chain made uvicorn use the last proxy hop, so every visitor shar
 one set of per-IP rate limits.
 """
 
+import base64
+import hashlib
+import re
 from pathlib import Path
 
 import yaml
@@ -32,6 +35,66 @@ def test_render_reads_the_cloudflare_client_header() -> None:
 def test_no_diagnostic_request_logging_is_left_enabled() -> None:
     lines = _directives()
     assert "log" not in lines and "log_skip" not in lines
+
+
+def _header(name: str) -> str:
+    [line] = [line for line in _directives() if line.startswith(name + " ")]
+    value = line[len(name) :].strip()
+    return value[1:-1] if value.startswith('"') else value
+
+
+def _csp() -> dict[str, list[str]]:
+    policy: dict[str, list[str]] = {}
+    for directive in _header("Content-Security-Policy").split(";"):
+        name, *sources = directive.split()
+        policy[name] = sources
+    return policy
+
+
+def test_csp_allows_each_inline_script_in_index_html_by_its_hash() -> None:
+    index = (CADDYFILE.parents[1] / "frontend" / "index.html").read_text(encoding="utf-8")
+    inline = re.findall(r"<script>(.*?)</script>", index, re.S)
+    assert inline  # the theme script that runs before the first paint
+    allowed = _csp()["script-src"]
+    for script in inline:
+        digest = base64.b64encode(hashlib.sha256(script.encode()).digest()).decode()
+        assert f"'sha256-{digest}'" in allowed
+
+
+def test_csp_never_allows_inline_or_evaluated_scripts() -> None:
+    policy = _csp()
+    assert policy["default-src"] == ["'self'"]
+    assert policy["script-src"][0] == "'self'"
+    assert all(source.startswith("'sha256-") for source in policy["script-src"][1:])
+    assert policy["connect-src"] == ["'self'"]
+
+
+def test_csp_blocks_plugins_framing_and_base_rewrites() -> None:
+    policy = _csp()
+    assert policy["object-src"] == ["'none'"]
+    assert policy["frame-ancestors"] == ["'none'"]
+    assert policy["base-uri"] == ["'self'"]
+    assert policy["form-action"] == ["'self'"]
+
+
+def test_csp_admits_google_fonts_only_where_needed() -> None:
+    policy = _csp()
+    assert policy["style-src"] == ["'self'", "https://fonts.googleapis.com"]
+    assert policy["font-src"] == ["'self'", "https://fonts.gstatic.com"]
+
+
+def test_https_is_remembered_and_device_features_are_off() -> None:
+    assert _header("Strict-Transport-Security") == "max-age=31536000"
+    features = dict(item.split("=") for item in _header("Permissions-Policy").split(", "))
+    assert features == {
+        "camera": "()",
+        "microphone": "()",
+        "geolocation": "()",
+        "payment": "()",
+        "usb": "()",
+    }
+    assert _header("Cross-Origin-Opener-Policy") == "same-origin"
+    assert _header("X-Frame-Options") == "DENY"
 
 
 def _keep_awake() -> dict:
