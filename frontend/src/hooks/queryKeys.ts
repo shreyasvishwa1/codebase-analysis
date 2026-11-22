@@ -15,6 +15,8 @@ export const queryKeys = {
     ['projects', projectId, 'repositories', repositoryId] as const,
   tree: (projectId: string, repositoryId: string) =>
     ['projects', projectId, 'repositories', repositoryId, 'tree'] as const,
+  storage: (projectId: string, repositoryId: string) =>
+    ['projects', projectId, 'repositories', repositoryId, 'storage'] as const,
   languages: (projectId: string, repositoryId: string) =>
     ['projects', projectId, 'repositories', repositoryId, 'languages'] as const,
   jobs: (projectId: string, repositoryId: string) =>

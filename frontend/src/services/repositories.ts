@@ -3,6 +3,7 @@ import type {
   Repository,
   RepositoryCreate,
   RepositoryLanguages,
+  RepositoryStorage,
   RepositoryTree,
   RepositoryUpdate,
 } from '../types/api'
@@ -23,6 +24,14 @@ export async function listRepositories(projectId: string): Promise<Repository[]>
 
 export async function getRepository(projectId: string, repositoryId: string): Promise<Repository> {
   const { data } = await apiClient.get<Repository>(repositoryPath(projectId, repositoryId))
+  return data
+}
+
+export async function getRepositoryStorage(
+  projectId: string,
+  repositoryId: string,
+): Promise<RepositoryStorage> {
+  const { data } = await apiClient.get<RepositoryStorage>(`${repositoryPath(projectId, repositoryId)}/storage`)
   return data
 }
 

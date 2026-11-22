@@ -77,7 +77,7 @@ const networkError: MockRoute = () => {
 }
 
 /** The seven requests a RepositoryPage makes for the repository at ``url``. */
-const PAGE_SUFFIXES = ['', '/tree', '/languages', '/jobs', '/analysis/code-metrics', '/analysis/dependencies', '/analysis/secrets']
+const PAGE_SUFFIXES = ['', '/tree', '/languages', '/storage', '/jobs', '/analysis/code-metrics', '/analysis/dependencies', '/analysis/secrets']
 
 function pageRoutes(url: string, repository: Repository, jobs: AnalysisJob[] = []): Record<string, MockRoute> {
   const empty = { repository_id: repository.id, status: 'ready', total_bytes: 0 }
@@ -88,6 +88,7 @@ function pageRoutes(url: string, repository: Repository, jobs: AnalysisJob[] = [
       data: { ...empty, file_count: 0, tree: { type: 'directory', name: '', path: '', children: [] } },
     },
     [`GET ${url}/languages`]: { status: 200, data: { ...empty, total_files: 0, languages: [] } },
+    [`GET ${url}/storage`]: { status: 200, data: { files: 'available' } },
     [`GET ${url}/jobs`]: { status: 200, data: jobs },
     [`GET ${url}/analysis/code-metrics`]: { status: 200, data: { job: null, summary: null, files: [] } },
     [`GET ${url}/analysis/dependencies`]: {

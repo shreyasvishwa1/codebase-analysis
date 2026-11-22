@@ -432,3 +432,62 @@ async def test_deleting_a_repository_lets_maintenance_free_its_contents(
     await db_session.execute(update(FileBlob).values(last_used_at=func.now() - timedelta(hours=2)))
     assert await remove_unused_contents(db_session) == len({_sha(d) for d in FILES.values()})
     assert await _blobs(db_session) == {}
+
+
+# --- Storage status (shown on the repository page) -----------------------------------------
+
+
+async def _storage_state(client: httpx.AsyncClient, owner: Owner) -> httpx.Response:
+    return await client.get(f"{owner.base}/storage", headers=owner.headers)
+
+
+@requires_db
+async def test_storage_status_is_available_and_opening_a_repository_restores_it(
+    client: httpx.AsyncClient, data_dir: Path, alice: Owner
+) -> None:
+    assert (await _storage_state(client, alice)).json() == {"files": "available"}
+    _wipe_disk(data_dir)
+    response = await _storage_state(client, alice)
+    assert (response.status_code, response.json()) == (200, {"files": "available"})
+    assert (_storage(data_dir, alice) / "src/app.py").read_bytes() == FILES["src/app.py"]
+
+
+@requires_db
+async def test_storage_status_says_missing_when_nothing_can_be_restored(
+    client: httpx.AsyncClient, db_session: AsyncSession, data_dir: Path, alice: Owner
+) -> None:
+    await db_session.execute(FileBlob.__table__.delete())
+    _wipe_disk(data_dir)
+    assert (await _storage_state(client, alice)).json() == {"files": "missing"}
+
+
+@requires_db
+async def test_storage_status_before_any_import_and_for_an_empty_repository(
+    client: httpx.AsyncClient, data_dir: Path, alice: Owner
+) -> None:
+    created = await client.post(
+        f"/api/v1/projects/{alice.project_id}/repositories",
+        json={"name": "empty", "source_type": "zip"},
+        headers=alice.headers,
+    )
+    empty = Owner(alice.headers, alice.project_id, created.json()["id"])
+    assert (await _storage_state(client, empty)).json() == {"files": "none"}
+    await _ingest(client, empty, {})
+    _wipe_disk(data_dir)
+    assert (await _storage_state(client, empty)).json() == {"files": "available"}
+
+
+@requires_db
+async def test_storage_status_of_another_users_repository_is_not_found(
+    client: httpx.AsyncClient, alice: Owner
+) -> None:
+    await client.post(
+        "/api/v1/auth/register", json={"email": "bob@example.com", "password": PASSWORD}
+    )
+    login = await client.post(
+        "/api/v1/auth/login", json={"email": "bob@example.com", "password": PASSWORD}
+    )
+    bob_headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    response = await client.get(f"{alice.base}/storage", headers=bob_headers)
+    assert (response.status_code, response.json()) == (404, {"detail": "Repository not found"})
+    assert (await client.get(f"{alice.base}/storage")).status_code == 401

@@ -1,3 +1,4 @@
+import os
 import uuid
 from collections.abc import Sequence
 from typing import Annotated
@@ -5,11 +6,18 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.concurrency import run_in_threadpool
 
 from app.api.v1.dependencies import get_current_user
 from app.database import get_db
-from app.models import Project, Repository, User
-from app.schemas.repository import RepositoryCreate, RepositoryResponse, RepositoryUpdate
+from app.models import File, Project, Repository, RepositoryStatus, User
+from app.schemas.repository import (
+    RepositoryCreate,
+    RepositoryResponse,
+    RepositoryStorageResponse,
+    RepositoryUpdate,
+)
+from app.services.file_store import repository_files_dir
 
 # Every route requires an authenticated user.
 router = APIRouter(
@@ -86,6 +94,23 @@ async def get_repository(
     project_id: uuid.UUID, repository_id: uuid.UUID, db: DbSession, user: CurrentUser
 ) -> Repository:
     return await _get_owned_repository(db, project_id, repository_id, user)
+
+
+@router.get("/{repository_id}/storage", response_model=RepositoryStorageResponse)
+async def get_repository_storage(
+    project_id: uuid.UUID, repository_id: uuid.UUID, db: DbSession, user: CurrentUser
+) -> RepositoryStorageResponse:
+    """Whether the repository's files are on the server. Asking restores them from the
+    database if the server's disk was reset, so opening a repository brings its files back."""
+    repository = await _get_owned_repository(db, project_id, repository_id, user)
+    if repository.status != RepositoryStatus.READY:
+        return RepositoryStorageResponse(files="none")
+    root = await repository_files_dir(db, repository.id)
+    if await run_in_threadpool(os.path.lexists, root):
+        return RepositoryStorageResponse(files="available")
+    # An empty repository has nothing to lose; only a lost, unrecoverable snapshot is missing.
+    has_files = await db.scalar(select(File.id).where(File.repository_id == repository.id).limit(1))
+    return RepositoryStorageResponse(files="missing" if has_files else "available")
 
 
 @router.patch("/{repository_id}", response_model=RepositoryResponse)

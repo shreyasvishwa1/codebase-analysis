@@ -50,6 +50,12 @@ export interface Repository {
   updated_at: string
 }
 
+/** Whether a repository's files are on the server (GET .../storage). Asking restores them from
+ * the database if the server's disk was reset; ``missing`` means one more import is needed. */
+export interface RepositoryStorage {
+  files: 'available' | 'missing' | 'none'
+}
+
 export interface RepositoryCreate {
   name: string
   source_type: RepositorySourceType

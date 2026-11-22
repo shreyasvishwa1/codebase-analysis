@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
@@ -94,3 +95,12 @@ class RepositoryResponse(BaseModel):
     status: RepositoryStatus
     created_at: datetime
     updated_at: datetime
+
+
+class RepositoryStorageResponse(BaseModel):
+    """Whether a repository's files are on the server (rebuilt from the database first when
+    the disk was reset): ``available``; ``missing`` only when they could not be restored
+    (uploaded before contents were stored, so the repository needs one more import); ``none``
+    while the repository has no completed import."""
+
+    files: Literal["available", "missing", "none"]

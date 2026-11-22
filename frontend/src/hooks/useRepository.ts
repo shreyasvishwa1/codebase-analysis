@@ -5,6 +5,7 @@ import {
   deleteRepository,
   getRepository,
   getRepositoryLanguages,
+  getRepositoryStorage,
   getRepositoryTree,
   ingestGithub,
   ingestZip,
@@ -83,6 +84,15 @@ export function useRepositoryLanguages(projectId: string, repositoryId: string) 
   return useQuery({
     queryKey: queryKeys.languages(projectId, repositoryId),
     queryFn: () => getRepositoryLanguages(projectId, repositoryId),
+  })
+}
+
+/** Whether the files are on the server; asking restores them after a disk reset. */
+export function useRepositoryStorage(projectId: string, repositoryId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.storage(projectId, repositoryId),
+    queryFn: () => getRepositoryStorage(projectId, repositoryId),
+    enabled,
   })
 }
 

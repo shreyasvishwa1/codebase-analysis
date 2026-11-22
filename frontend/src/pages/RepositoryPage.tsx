@@ -6,6 +6,7 @@ import { CodeSearchPanel } from '../components/CodeSearchPanel'
 import { DependenciesPanel } from '../components/DependenciesPanel'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { FileTree } from '../components/FileTree'
+import { FilesMissingNotice, INGESTION_ANCHOR } from '../components/FilesMissingNotice'
 import { FileViewer, type LineSelection } from '../components/FileViewer'
 import { IngestPanel } from '../components/IngestPanel'
 import { JobProgress } from '../components/JobProgress'
@@ -19,6 +20,7 @@ import { SymbolSearchPanel } from '../components/SymbolSearchPanel'
 import {
   useRepository,
   useRepositoryLanguages,
+  useRepositoryStorage,
   useRepositoryTree,
 } from '../hooks/useRepository'
 import { getErrorMessage } from '../services/client'
@@ -39,6 +41,8 @@ export function RepositoryPage() {
   const repository = useRepository(projectId, repositoryId)
   const tree = useRepositoryTree(projectId, repositoryId)
   const languages = useRepositoryLanguages(projectId, repositoryId)
+  // Asking also restores the files if the server's disk was reset since the import.
+  const storage = useRepositoryStorage(projectId, repositoryId, repository.data?.status === 'ready')
   const [openFile] = useState(() => openFileFrom(location.state))
   const [selectedPath, setSelectedPath] = useState<string | null>(openFile?.path ?? null)
   // A fresh object per selection, so choosing the same line again scrolls to it again.
@@ -120,6 +124,8 @@ export function RepositoryPage() {
         />
       </div>
 
+      {storage.data?.files === 'missing' && <FilesMissingNotice repository={repo} />}
+
       <RepositoryNav projectId={projectId} repositoryId={repositoryId} />
 
       <RepositoryDashboard
@@ -132,7 +138,7 @@ export function RepositoryPage() {
       />
 
       <div className="grid gap-6 md:grid-cols-2">
-        <div className={CARD}>
+        <div id={INGESTION_ANCHOR} className={`${CARD} scroll-mt-20`}>
           <IngestPanel repository={repo} />
         </div>
         <div className={CARD}>

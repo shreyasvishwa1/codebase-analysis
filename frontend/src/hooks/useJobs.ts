@@ -32,6 +32,7 @@ export function useJobs(
         queryKeys.repository(projectId, repositoryId),
         queryKeys.tree(projectId, repositoryId),
         queryKeys.languages(projectId, repositoryId),
+        queryKeys.storage(projectId, repositoryId),
         queryKeys.jobs(projectId, repositoryId),
         queryKeys.codeMetrics(projectId, repositoryId),
         queryKeys.dependencies(projectId, repositoryId),
