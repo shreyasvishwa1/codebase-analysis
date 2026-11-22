@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { ErrorMessage } from '../components/ErrorMessage'
+import { SampleImport } from '../components/SampleImport'
 import { useToast } from '../components/Toaster'
 import { ZipSocket } from '../components/ZipSocket'
 import { queryKeys } from '../hooks/queryKeys'
@@ -190,6 +191,8 @@ export function UploadPage() {
           for analysis; repository code is never executed.
         </p>
       </div>
+
+      <SampleImport disabled={busy} />
 
       <form
         onSubmit={(event) => void onSubmit(event)}
