@@ -7,6 +7,8 @@ one set of per-IP rate limits.
 
 from pathlib import Path
 
+import yaml
+
 CADDYFILE = Path(__file__).resolve().parents[2] / "deploy" / "Caddyfile"
 
 
@@ -30,6 +32,28 @@ def test_render_reads_the_cloudflare_client_header() -> None:
 def test_no_diagnostic_request_logging_is_left_enabled() -> None:
     lines = _directives()
     assert "log" not in lines and "log_skip" not in lines
+
+
+def _keep_awake() -> dict:
+    path = CADDYFILE.parents[1] / ".github" / "workflows" / "keep-awake.yml"
+    return yaml.safe_load(path.read_text())
+
+
+def test_keep_awake_pings_more_often_than_render_sleeps() -> None:
+    workflow = _keep_awake()
+    triggers = workflow[True]  # PyYAML reads the bare key "on" as True
+    [schedule] = triggers["schedule"]
+    minute = schedule["cron"].split()[0]
+    assert minute.startswith("*/")
+    assert int(minute[2:]) < 15  # Render's free plan sleeps after 15 idle minutes
+
+
+def test_keep_awake_requests_the_health_endpoint_without_permissions() -> None:
+    workflow = _keep_awake()
+    assert workflow["permissions"] == {}
+    [step] = workflow["jobs"]["ping"]["steps"]
+    assert step["run"].startswith("curl --fail ")
+    assert step["run"].endswith(" https://codebase-analysis.onrender.com/health")
 
 
 def test_every_api_route_forwards_only_the_resolved_client_ip() -> None:

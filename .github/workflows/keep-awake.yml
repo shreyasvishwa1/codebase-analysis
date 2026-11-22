@@ -1,0 +1,24 @@
+# Keeps the free Render demo awake. Render's free plan stops the service after 15 minutes
+# without a request; waking it takes close to a minute and wipes its disk (uploaded
+# repositories). A request every 10 minutes keeps it running between visits.
+#
+# GitHub may start scheduled runs a few minutes late under load, and it pauses schedules in
+# a public repository after 60 days without activity (re-enable them in the Actions tab).
+name: Keep the demo awake
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    # Only the original repository pings the demo; forks do nothing.
+    if: github.repository == 'shreyasvishwa1/codebase-analysis'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Request the health endpoint
+        run: curl --fail --silent --show-error --max-time 120 --retry 2 --retry-delay 10 https://codebase-analysis.onrender.com/health
