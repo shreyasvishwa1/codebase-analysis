@@ -6,12 +6,25 @@ import { ErrorMessage } from '../components/ErrorMessage'
 import { useAuth } from '../hooks/useAuth'
 import { getErrorMessage } from '../services/client'
 
+const DEFAULT_AFTER_SIGN_IN = '/projects'
+
+/** Where to go after signing in: only a path on this site. Anything else ("//host",
+ * "/\\host", "https://...", a backslash or a control character) falls back to the projects,
+ * so the redirect can never be turned into an open redirect. */
+export function safeReturnPath(from: unknown): string {
+  if (typeof from !== 'string' || !from.startsWith('/') || from.startsWith('//')) {
+    return DEFAULT_AFTER_SIGN_IN
+  }
+  if (/[\\\u0000-\u001f\u007f]/.test(from)) return DEFAULT_AFTER_SIGN_IN
+  return from
+}
+
 export function LoginPage() {
   const { status, login } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const state = location.state as { from?: string; notice?: string } | null
-  const from = state?.from ?? '/projects'
+  const state = location.state as { from?: unknown; notice?: string } | null
+  const from = safeReturnPath(state?.from)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)

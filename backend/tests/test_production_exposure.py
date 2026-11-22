@@ -55,7 +55,11 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 client = TestClient(app)
-result = {"status": {}, "routes": sorted(getattr(r, "path", "") for r in app.routes)}
+# Top-level paths (root, health, docs) plus every API endpoint from the schema, which FastAPI
+# builds from the included routers in every environment (only its public URL is switched off
+# in production); app.routes no longer lists the endpoints of included routers.
+top_level = {r.path for r in app.routes if getattr(r, "path", None)}
+result = {"status": {}, "routes": sorted(top_level | set(app.openapi()["paths"]))}
 for path in %(paths)r:
     result["status"][path] = client.get(path).status_code
 root = client.get("/")
