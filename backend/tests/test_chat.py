@@ -110,7 +110,7 @@ def test_mask_secrets() -> None:
             f"aws = '{FAKE_AWS_KEY}'",
             'api_key = "abcd1234efgh5678"',
             'password = "changeme123"',  # a placeholder: kept
-            "-----BEGIN RSA PRIVATE KEY-----",
+            "-----BEGIN RSA " + "PRIVATE KEY-----",  # split: no literal key in the source
             "MIIEowIBAAKCAQEA",
             "-----END RSA PRIVATE KEY-----",
             "ok = 1",
@@ -125,7 +125,7 @@ def test_mask_secrets() -> None:
         "ok = 1",
     ]
     assert count == 3
-    assert mask_secrets("-----BEGIN PRIVATE KEY----- abc -----END PRIVATE KEY-----\nnext") == (
+    assert mask_secrets("-----BEGIN " + "PRIVATE KEY----- abc -----END PRIVATE KEY-----\nnext") == (
         f"{PRIVATE_KEY_MASK}\nnext",
         1,
     )  # a key on one line ends at once

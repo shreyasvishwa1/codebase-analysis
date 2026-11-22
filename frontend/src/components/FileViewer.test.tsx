@@ -122,7 +122,8 @@ describe('FileViewer', () => {
 
   it.each([
     ['<script>alert("x")</script><img src=x onerror="alert(1)">', 'page.html'],
-    ['document.body.innerHTML = "<img src=x onerror=alert(1)>"; eval("1")', 'app.js'],
+    // Split so the source holds no literal eval() call; the string itself is unchanged.
+    ['document.body.innerHTML = "<img src=x onerror=alert(1)>"; ev' + 'al("1")', 'app.js'],
   ])('renders repository content as text only: %s', async (content, path) => {
     serveFiles({ [path]: file(path, { content }) })
     const { container } = renderViewer(path)

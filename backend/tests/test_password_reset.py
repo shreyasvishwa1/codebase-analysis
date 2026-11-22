@@ -129,7 +129,7 @@ def test_expired_tokens_are_rejected() -> None:
 def test_tokens_expire_after_the_configured_minutes() -> None:
     settings = _settings(password_reset_token_minutes=30)
     token = create_reset_token(settings, uuid.uuid4(), "h")
-    exp = jwt.decode(token, options={"verify_signature": False})["exp"]
+    exp = jwt.decode(token, password_reset._signing_key(settings), algorithms=["HS256"])["exp"]
     remaining = exp - datetime.now(timezone.utc).timestamp()
     assert 29 * 60 < remaining <= 30 * 60
 

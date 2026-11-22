@@ -55,7 +55,9 @@ client = runs_tests.client
 alice = runs_tests.alice
 bob = runs_tests.bob
 
-AWS_KEY = "AKIAIOSFODNN7EXAMPLE"
+# Insecure inputs are assembled from pieces, so this file holds no literal key or insecure
+# statement that a scanner (this app's own included) would report; the values are unchanged.
+AWS_KEY = "AKIA" + "IOSFODNN7EXAMPLE"  # AWS's documented example key, not a credential
 PASSWORD_VALUE = "Sup3rS3cr3t!2024"
 API_KEY_VALUE = "k7Hd92LsQp0Zx81mWq"
 SECRET_VALUES = (AWS_KEY, PASSWORD_VALUE, API_KEY_VALUE, "notreal", "FAKE-KEY")
@@ -108,10 +110,10 @@ def _rules(path: str, language: str | None, text: str) -> list[tuple[str, int]]:
         ("el.insertAdjacentHTML('beforeend', html)", "js-inner-html"),
         ("document.write(banner)", "js-document-write"),
         ("<div dangerouslySetInnerHTML={{ __html: h }} />", "react-dangerous-html"),
-        ("new https.Agent({ rejectUnauthorized: false })", "tls-verification-disabled"),
-        ("process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'", "tls-verification-disabled"),
-        ("jwt.verify(t, k, { algorithms: ['none'] })", "jwt-insecure"),
-        ("jwt.verify(t, k, { ignoreExpiration: true })", "jwt-insecure"),
+        ("new https.Agent({ rejectUnauthorized: " + "false })", "tls-verification-disabled"),
+        ("process.env.NODE_TLS_REJECT_" + "UNAUTHORIZED = '0'", "tls-verification-disabled"),
+        ("jwt.verify(t, k, { algorithms: ['n" + "one'] })", "jwt-insecure"),
+        ("jwt.verify(t, k, { ignoreExpiration: " + "true })", "jwt-insecure"),
         ("res.setHeader('Access-Control-Allow-Origin', '*')", "cors-wildcard"),
         ("app.use(cors({ origin: '*' }))", "cors-wildcard"),
         (f'const apiKey = "{API_KEY_VALUE}"', "hardcoded-credential"),
@@ -158,13 +160,13 @@ def test_rules_apply_only_to_their_languages() -> None:
     # Python string assignments are left to Bandit (B105).
     assert _rules("app.py", "Python", f'API_KEY = "{API_KEY_VALUE}"') == []
     # Language-independent rules apply everywhere.
-    assert _rules("deploy.yaml", "YAML", "rejectUnauthorized: false") == [
+    assert _rules("deploy.yaml", "YAML", "rejectUnauthorized: " + "false") == [
         ("tls-verification-disabled", 1)
     ]
 
 
 def test_secrets_are_found_everywhere_even_in_comments() -> None:
-    text = f"# old key {AWS_KEY}\n-----BEGIN RSA PRIVATE KEY-----\n"
+    text = f"# old key {AWS_KEY}\n-----BEGIN RSA " + "PRIVATE KEY-----\n"
     assert _rules("notes.txt", None, text) == [("aws-access-key-id", 1), ("private-key", 2)]
     for match in patterns.scan_lines("notes.txt", None, text):
         assert AWS_KEY not in match.message

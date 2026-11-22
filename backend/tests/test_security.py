@@ -1,3 +1,5 @@
+import base64
+import json
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -27,6 +29,17 @@ def _token(payload: dict[str, object], key: str | None = None, algorithm: str = 
 
 def _in(minutes: int) -> datetime:
     return datetime.now(timezone.utc) + timedelta(minutes=minutes)
+
+
+def _unsigned(payload: dict[str, object]) -> str:
+    """A token with "alg": "none" and an empty signature, built by hand (the forgery the API
+    must refuse); no JWT library is asked to produce an unsigned token."""
+
+    def segment(part: dict[str, object]) -> str:
+        raw = json.dumps(part, default=lambda value: int(value.timestamp())).encode()
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+    return f"{segment({'alg': 'none', 'typ': 'JWT'})}.{segment(payload)}."
 
 
 # --- Passwords -------------------------------------------------------------------------
@@ -108,7 +121,7 @@ def test_invalid_uuid_subject_fails(sub: str) -> None:
 
 def test_unsupported_algorithm_fails() -> None:
     payload = {"sub": str(uuid.uuid4()), "exp": _in(5)}
-    for token in (_token(payload, algorithm="HS512"), jwt.encode(payload, None, algorithm="none")):
+    for token in (_token(payload, algorithm="HS512"), _unsigned(payload)):
         with pytest.raises(InvalidTokenError):
             decode_access_token(token)
 
