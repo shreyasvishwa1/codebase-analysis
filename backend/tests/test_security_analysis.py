@@ -118,6 +118,14 @@ def _rules(path: str, language: str | None, text: str) -> list[tuple[str, int]]:
         ("app.use(cors({ origin: '*' }))", "cors-wildcard"),
         (f'const apiKey = "{API_KEY_VALUE}"', "hardcoded-credential"),
         ("  client_secret: 'q8Zr2LmN0pX4tY6w'", "hardcoded-credential"),
+        # The SQL string holds the other quote (a quoted value ends the string).
+        ("db.query(\"SELECT * FROM t WHERE name = '\" + name + \"'\")", "js-sql-concat"),
+        ("db.query('SELECT \"id\" FROM t WHERE \"owner\" = ' + owner)", "js-sql-concat"),
+        # The credential word ends a longer name, in snake, kebab or camel case.
+        (f'const PAYMENT_API_SECRET = "{API_KEY_VALUE}"', "hardcoded-credential"),
+        (f'const myDbPassword = "{PASSWORD_VALUE}"', "hardcoded-credential"),
+        (f'  "payment-api-key": "{API_KEY_VALUE}",', "hardcoded-credential"),
+        (f"export const stripeAccessToken = '{API_KEY_VALUE}'", "hardcoded-credential"),
     ],
 )
 def test_javascript_line_rules(line: str, rule_id: str) -> None:
@@ -147,6 +155,15 @@ def test_javascript_line_rules(line: str, rule_id: str) -> None:
         "const label = 'Update ' + name",
         "toast(`Select a project from ${list.length} projects`)",
         "const message = 'Insert a disk into drive ' + letter",
+        "db.query(\"SELECT * FROM t WHERE name = ?\", [name])",
+        # A credential word that starts or sits inside a longer name is not a credential.
+        f'const passwordHint = "{API_KEY_VALUE}"',
+        f'const SECRET_NAME = "{API_KEY_VALUE}"',
+        f'const secretsManagerRegion = "{API_KEY_VALUE}"',
+        f'const dbPasswordHash = "{API_KEY_VALUE}"',
+        f'const nonsecret = "{API_KEY_VALUE}"',  # inside a word, not after a name part
+        "const DB_PASSWORD = process.env.DB_PASSWORD",
+        'const PAYMENT_API_SECRET = "your-secret-here"',  # placeholder
     ],
 )
 def test_safe_javascript_is_not_reported(line: str) -> None:

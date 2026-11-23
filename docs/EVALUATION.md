@@ -75,18 +75,22 @@ Precision = TP / (TP + FP). Recall = TP / (TP + FN). F1 is their harmonic mean.
 
 | Tool | TP | FP | FN | Precision | Recall | F1 | Safe cases flagged |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| **CodeBase Analysis** | 44 | 7 | 21 | 0.863 | **0.677** | **0.759** | 2 / 47 |
+| **CodeBase Analysis** | 46 | 7 | 19 | 0.868 | **0.708** | **0.780** | 2 / 47 |
 | Bandit only | 22 | 7 | 43 | 0.759 | 0.338 | 0.468 | 2 / 47 |
-| Own rules only | 22 | 0 | 43 | 1.000 | 0.338 | 0.506 | 0 / 47 |
+| Own rules only | 24 | 0 | 41 | 1.000 | 0.369 | 0.539 | 0 / 47 |
 | Semgrep (default) | 41 | 3 | 24 | **0.932** | 0.631 | 0.752 | 0 / 47 |
 | Semgrep (extended) | 41 | 3 | 24 | 0.932 | 0.631 | 0.752 | 0 / 47 |
-| CodeBase Analysis + Semgrep | 57 | 8 | 8 | 0.877 | 0.877 | 0.877 | 2 / 47 |
+| CodeBase Analysis + Semgrep | 59 | 8 | 6 | 0.881 | 0.908 | 0.894 | 2 / 47 |
+
+These are the numbers after two rule fixes that this evaluation prompted; see "Changes after
+the first measurement" below. The first measurement gave CodeBase Analysis 44 TP, 7 FP and
+21 FN: precision 0.863, recall 0.677, F1 0.759.
 
 Detected cases per category (detected / cases):
 
 | Category | Cases | CodeBase Analysis | Bandit only | Own rules only | Semgrep |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| SQL injection | 5 | 4 | 3 | 1 | 3 |
+| SQL injection | 5 | 5 | 3 | 2 | 3 |
 | OS command injection | 5 | 5 | 3 | 2 | 5 |
 | Code injection (eval, exec, new Function) | 5 | 5 | 2 | 3 | 4 |
 | Cross-site scripting | 8 | 4 | 0 | 4 | 7 |
@@ -101,7 +105,7 @@ Detected cases per category (detected / cases):
 | Weak random | 2 | 1 | 1 | 0 | 0 |
 | TLS verification disabled | 3 | 3 | 2 | 1 | 3 |
 | Insecure JWT | 2 | 1 | 0 | 1 | 2 |
-| Hard-coded secrets and keys | 8 | 5 | 3 | 2 | 2 |
+| Hard-coded secrets and keys | 8 | 6 | 3 | 3 | 2 |
 | Debug mode on | 2 | 2 | 1 | 1 | 1 |
 | CORS allows every origin | 2 | 2 | 0 | 2 | 0 |
 | Django `ALLOWED_HOSTS = ['*']` | 1 | 1 | 0 | 1 | 0 |
@@ -115,11 +119,11 @@ configuration already finds, so its scores equal the default configuration's.
 
 ## Discussion
 
-**Overall.** On this corpus CodeBase Analysis has the highest recall (0.677 against 0.631)
-and a slightly higher F1 (0.759 against 0.752). Semgrep is more precise (0.932 against 0.863)
-and flags none of the safe cases.
+**Overall.** On this corpus CodeBase Analysis has the higher recall (0.708 against 0.631)
+and a higher F1 (0.780 against 0.752). Semgrep is more precise (0.932 against 0.868) and
+flags none of the safe cases. Before the two rule fixes, the F1 scores were 0.759 and 0.752.
 
-**Own rules.** The app's own rules more than double Bandit's recall (0.338 to 0.677) and add
+**Own rules.** The app's own rules more than double Bandit's recall (0.338 to 0.708) and add
 no false positives. They cover what Bandit cannot see: JavaScript and React, configuration
 files, Dockerfiles, committed `.env` files and secrets.
 
@@ -134,7 +138,7 @@ the weaknesses the app's line rules cannot:
 **Where CodeBase Analysis is stronger:**
 - configuration and deployment weaknesses (CORS, `ALLOWED_HOSTS`, the `.env` file, unpinned
   images, `ADD` from a URL);
-- hard-coded secrets in Python and Django settings;
+- hard-coded secrets in Python, Django settings and JavaScript (6 of 8 cases, Semgrep 2);
 - XML parsing, temporary files and weak random in Python.
 
 **False positives.** All seven of the app's false positives come from Bandit; none comes from
@@ -144,9 +148,31 @@ the app's own rules. They are:
 - one `random` call that only shuffles a display order;
 - one `subprocess.run` with an argument list (B603 and B607 on the same line).
 
-**Complementary.** Both tools find 28 of the same cases. Another 16 are found only by CodeBase
-Analysis and 13 only by Semgrep. Together they reach 0.877 recall at 0.877 precision, which
+**Complementary.** Both tools find 28 of the same cases. Another 18 are found only by CodeBase
+Analysis and 13 only by Semgrep. Together they reach 0.908 recall at 0.881 precision, which
 suggests running Semgrep alongside the app (see "Future work").
+
+## Changes after the first measurement
+
+The first run showed two gaps in the app's own rules. Both were general bugs, not features
+missing for one case, so they were fixed. Every other result was left as measured.
+
+1. **SQL injection in JavaScript.** The rule missed SQL in a string that also contains the
+   other quote mark, the usual way a quoted value is concatenated:
+   `"... WHERE name = '" + value + "'"`. Each quote style is now matched on its own.
+2. **Hard-coded secrets.** The rule recognised `password = "..."` but not a name that ends in
+   the word, such as `PAYMENT_API_SECRET`, `payment-api-key` or `myDbPassword`. Names in
+   snake, kebab and camel case are now recognised. A name that only starts with the word, such
+   as `passwordHint` or `SECRET_NAME`, is still not reported.
+
+Each fix comes with unit tests for the new cases and for near-misses that must not match, and
+was mutation-tested. Over every file in this repository, including both sample archives, the
+fixes add three findings:
+- the two corpus cases above;
+- one password in a frontend test file, like two that were already reported.
+
+Because these fixes followed this benchmark, its two cases no longer measure them blind. That
+is why both the first and the current numbers are given here.
 
 ## Limitations
 
@@ -154,8 +180,8 @@ suggests running Semgrep alongside the app (see "Future work").
   knew its rules. The safe look-alikes and the categories outside the app's scope limit this
   bias, but it cannot be ruled out. An independent benchmark would be stronger evidence.
 - **Small corpus.** 65 vulnerable and 47 safe cases: a difference of a few cases moves the
-  scores by several points. The two tools' F1 scores (0.759 and 0.752) are too close to call
-  either one better overall.
+  scores by several points. The F1 scores (0.780 against 0.752, and 0.759 against 0.752
+  before the fixes) are too close to call either tool better overall.
 - **Labelling choices.** The CWE groups and the seven rule overrides are judgment calls,
   listed in full in the script. Changing them changes the numbers.
 - **Rule packs change.** Semgrep's registry packs are updated over time; the rules downloaded
@@ -164,10 +190,9 @@ suggests running Semgrep alongside the app (see "Future work").
 ## Future work
 
 - Data-flow (taint) analysis from request inputs, for path traversal, SSRF and open redirects.
-- The one SQL-injection case the app misses: a quoted value concatenated at the end of the
-  string (`"... = '" + value + "'"`) in JavaScript.
-- Secrets assigned in JavaScript and inside `.env` files (the app reports the committed `.env`
-  file itself, but not each value in it).
+- Each secret inside a committed `.env` file (the app reports the file itself, but not each
+  value in it).
+- Weak random in JavaScript (`Math.random()` used for a token).
 - Optionally running Semgrep inside an analysis, as Bandit runs today.
 
 ## Reproducing

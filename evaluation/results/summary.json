@@ -32,12 +32,12 @@
   },
   "tools": {
     "codebase-analysis": {
-      "tp": 44,
+      "tp": 46,
       "fp": 7,
-      "fn": 21,
-      "precision": 0.863,
-      "recall": 0.677,
-      "f1": 0.759,
+      "fn": 19,
+      "precision": 0.868,
+      "recall": 0.708,
+      "f1": 0.78,
       "safe_cases_flagged": 2,
       "safe_cases": 47
     },
@@ -52,12 +52,12 @@
       "safe_cases": 47
     },
     "own-rules-only": {
-      "tp": 22,
+      "tp": 24,
       "fp": 0,
-      "fn": 43,
+      "fn": 41,
       "precision": 1.0,
-      "recall": 0.338,
-      "f1": 0.506,
+      "recall": 0.369,
+      "f1": 0.539,
       "safe_cases_flagged": 0,
       "safe_cases": 47
     },
@@ -82,12 +82,12 @@
       "safe_cases": 47
     },
     "codebase-analysis+semgrep": {
-      "tp": 57,
+      "tp": 59,
       "fp": 8,
-      "fn": 8,
-      "precision": 0.877,
-      "recall": 0.877,
-      "f1": 0.877,
+      "fn": 6,
+      "precision": 0.881,
+      "recall": 0.908,
+      "f1": 0.894,
       "safe_cases_flagged": 2,
       "safe_cases": 47
     }
@@ -147,11 +147,11 @@
         4
       ],
       "secret": [
-        5,
+        6,
         8
       ],
       "sqli": [
-        4,
+        5,
         5
       ],
       "ssrf": [
@@ -335,11 +335,11 @@
         4
       ],
       "secret": [
-        2,
+        3,
         8
       ],
       "sqli": [
-        1,
+        2,
         5
       ],
       "ssrf": [
@@ -617,11 +617,11 @@
         4
       ],
       "secret": [
-        5,
+        6,
         8
       ],
       "sqli": [
-        4,
+        5,
         5
       ],
       "ssrf": [
@@ -667,8 +667,6 @@
       "js/server.js line 118 jwt",
       "js/server.js line 143 weak-hash",
       "js/server.js line 153 weak-random",
-      "js/server.js line 167 secret",
-      "js/server.js line 20 sqli",
       "js/server.js line 51 xss",
       "js/server.js line 58 xss",
       "js/server.js line 69 path-traversal",
@@ -735,8 +733,6 @@
       "js/server.js line 118 jwt",
       "js/server.js line 143 weak-hash",
       "js/server.js line 153 weak-random",
-      "js/server.js line 167 secret",
-      "js/server.js line 20 sqli",
       "js/server.js line 51 xss",
       "js/server.js line 58 xss",
       "js/server.js line 69 path-traversal",
@@ -828,8 +824,6 @@
       "deploy/.env line 5 secret",
       "deploy/.env line 7 secret",
       "js/server.js line 153 weak-random",
-      "js/server.js line 167 secret",
-      "js/server.js line 20 sqli",
       "js/server.js line 74 path-traversal",
       "js/server.js line 84 ssrf",
       "python/views.py line 123 path-traversal"

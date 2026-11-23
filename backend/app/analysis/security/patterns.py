@@ -77,8 +77,12 @@ LINE_RULES: tuple[_LineRule, ...] = (
     _LineRule(
         "js-sql-concat",
         _r(
+            # A template literal with ${...}, or a quoted string followed by "+". Each quote
+            # style is matched on its own, so the SQL may contain the other quote, as in
+            # "... WHERE name = '" + value + "'".
             r"(?:`[^`]{0,500}\b" + _SQL_KEYWORDS + r"[^`]{0,500}\$\{"
-            r"|['\"][^'\"]{0,500}\b" + _SQL_KEYWORDS + r"[^'\"]{0,500}['\"]\s*\+)",
+            r"|\"[^\"]{0,500}\b" + _SQL_KEYWORDS + r"[^\"]{0,500}\"\s*\+"
+            r"|'[^']{0,500}\b" + _SQL_KEYWORDS + r"[^']{0,500}'\s*\+)",
             re.I,
         ),
         "SQL text is built with string concatenation or a template literal.",
@@ -141,10 +145,12 @@ _SETTINGS_RULES: tuple[tuple[str, re.Pattern[str], str], ...] = (
     ),
 )
 
+# The credential word may end a longer name, DB_PASSWORD, payment-api-secret or
+# myDbPassword (snake, kebab or camel case), but not start one (passwordHint, SECRET_NAME).
 _CREDENTIAL = _r(
-    r"\b(?:password|passwd|pwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token"
+    r"\b(?:[A-Za-z0-9]+[_-]|[A-Za-z][a-z0-9]*(?=[A-Z]))*"
+    r"(?i:password|passwd|pwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token"
     r"|client[_-]?secret|private[_-]?key)\b['\"]?\s*[:=]\s*['\"]([^'\"\s]{8,200})['\"]",
-    re.I,
 )
 _PLACEHOLDER_WORDS = (
     "example", "changeme", "change_me", "change-me", "your", "xxx", "placeholder", "dummy",
