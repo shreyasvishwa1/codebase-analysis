@@ -115,8 +115,67 @@ async def _get_json(
         await response.aclose()
 
 
+# PyPI's project document starts with its "info" object (which holds the latest version),
+# followed by every release and file ever published: megabytes for a large project.
+_LEADING_INFO = re.compile(rb'\A\s*\{\s*"info"\s*:\s*')
+_NOT_LEADING = object()
+
+
+def _leading_info(data: bytes | bytearray) -> Any:
+    """The document's leading "info" object once it has arrived in full; None while it is
+    incomplete; _NOT_LEADING when the document does not start with it."""
+    start = _LEADING_INFO.match(data)
+    if start is None:
+        return None if len(data) < 64 else _NOT_LEADING
+    try:
+        text = bytes(data).decode("utf-8")
+    except UnicodeDecodeError as error:  # a character split across chunks
+        text = bytes(data[: error.start]).decode("utf-8")
+    try:
+        # The matched prefix is ASCII, so its byte length is also its length in characters.
+        info, _ = json.JSONDecoder().raw_decode(text, start.end())
+    except ValueError:
+        return None
+    return info
+
+
+async def _pypi_info(client: httpx.AsyncClient, url: str, limit: int) -> Any:
+    """PyPI's project document, read only as far as its leading "info" object: the same value
+    as ``_get_json(...)["info"]`` without downloading and decoding every release. A document
+    that does not start with "info" is read in full, as before."""
+    request = client.build_request("GET", url)
+    response = await client.send(request, stream=True)
+    try:
+        if response.status_code == 404:
+            return None
+        if response.status_code != 200:
+            raise _ResponseError
+        data = bytearray()
+        leading = True
+        next_try = 0
+        async for chunk in response.aiter_bytes():
+            data.extend(chunk)
+            if len(data) > limit:
+                raise _ResponseError
+            # Try again each time the buffer has doubled, so a long "info" costs O(n).
+            if leading and len(data) >= next_try:
+                info = _leading_info(data)
+                if info is _NOT_LEADING:
+                    leading = False
+                elif info is not None:
+                    return {"info": info}
+                next_try = 2 * len(data)
+        return json.loads(bytes(data))
+    finally:
+        await response.aclose()
+
+
 async def _latest(client: httpx.AsyncClient, ecosystem: str, name: str) -> str | None:
-    data = await _get_json(client, "GET", registry_url(ecosystem, name), MAX_REGISTRY_BYTES)
+    url = registry_url(ecosystem, name)
+    if ecosystem == "python":
+        data = await _pypi_info(client, url, MAX_REGISTRY_BYTES)
+    else:
+        data = await _get_json(client, "GET", url, MAX_REGISTRY_BYTES)
     if not isinstance(data, dict):
         return None
     version = (

@@ -17,6 +17,7 @@ from typing import Any
 
 import yaml  # type: ignore[import-untyped]
 
+from app.analysis import python_ast
 from app.analysis.architecture.catalog import npm_import_package, python_import_package
 from app.services.code_imports import import_statements
 from app.services.code_outline import _PARSE_ERRORS, MAX_OUTLINE_BYTES
@@ -168,7 +169,7 @@ def _python(facts: FileFacts, text: str) -> None:
     lines = _lines(text)
     if len(text.encode("utf-8")) <= MAX_OUTLINE_BYTES:
         try:
-            tree = ast.parse(text)  # a syntax tree only; nothing is compiled or run
+            tree = python_ast.parse(text)  # a syntax tree only; nothing is compiled or run
         except _PARSE_ERRORS:
             tree = None
         if tree is not None:

@@ -17,6 +17,7 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 
+from app.analysis import python_ast
 from app.analysis.security.patterns import _CREDENTIAL, _placeholder, is_env_file
 from app.analysis.summary import SnapshotFile
 from app.services.secret_scan import RULES as SECRET_RULES
@@ -130,7 +131,7 @@ def _definitions(text: str) -> list[tuple[int, int, str]] | None:
     """Top-level functions and classes as (first line incl. decorators, last line, name), or
     None when the file does not parse."""
     try:
-        tree = ast.parse(text)
+        tree = python_ast.parse(text)
     except (SyntaxError, ValueError):
         return None
     found = []

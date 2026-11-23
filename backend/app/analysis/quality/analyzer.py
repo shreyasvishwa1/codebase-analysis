@@ -12,13 +12,13 @@ Every issue carries its file, line, category, severity, an explanation and a sug
 correction. All issues are counted; the most severe ``MAX_STORED_ISSUES`` are stored.
 """
 
-import ast
 import re
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from app.analysis import python_ast
 from app.analysis.exclusions import excluded_directory
 from app.analysis.quality.duplication import DuplicationDetector, DuplicationResult
 from app.analysis.quality.rules import CATEGORIES, OWN_RULES, SEVERITIES, RuleInfo, ruff_rule
@@ -157,7 +157,7 @@ class QualityAnalyzer:
         if len(text.encode("utf-8")) > MAX_OUTLINE_BYTES:
             return
         try:
-            tree = ast.parse(text)  # a syntax tree only; nothing is compiled or run
+            tree = python_ast.parse(text)  # a syntax tree only; nothing is compiled or run
         except _PARSE_ERRORS:
             return  # Ruff reports the syntax error
         for region in _regions(tree):

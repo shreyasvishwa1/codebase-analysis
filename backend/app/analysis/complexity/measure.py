@@ -15,7 +15,6 @@ and the maintainability index.
 Nothing is executed: Lizard tokenizes text and Radon parses a syntax tree.
 """
 
-import ast
 import math
 import re
 from dataclasses import dataclass, field
@@ -23,7 +22,11 @@ from typing import Literal
 
 from lizard import analyze_file
 from lizard_languages import get_reader_for
-from radon.metrics import mi_visit
+from radon.metrics import h_visit_ast, mi_compute
+from radon.raw import analyze as raw_metrics
+from radon.visitors import ComplexityVisitor
+
+from app.analysis import python_ast
 
 Rank = Literal["low", "medium", "high"]
 Maintainability = Literal["good", "moderate", "poor"]
@@ -129,15 +132,26 @@ def halstead_volume(path: str, text: str) -> float:
 
 def _python_classes(text: str) -> int | None:
     try:
-        tree = ast.parse(text)  # a syntax tree only; nothing is compiled or run
+        tree = python_ast.parse(text)
     except (SyntaxError, ValueError, RecursionError, MemoryError):
         return None
-    return sum(isinstance(node, ast.ClassDef) for node in ast.walk(tree))
+    return python_ast.count_classes(tree)
+
+
+def _radon_mi(text: str) -> float:
+    """Radon's ``mi_visit(text, multi=True)``, computed as its ``mi_parameters`` does but
+    from the syntax tree the other analyzers share, instead of parsing the file again."""
+    tree = python_ast.parse(text)
+    raw = raw_metrics(text)
+    comments = (raw.comments + raw.multi) / float(raw.sloc) * 100 if raw.sloc != 0 else 0
+    volume = h_visit_ast(tree).total.volume
+    complexity = ComplexityVisitor.from_ast(tree).total_complexity
+    return float(mi_compute(volume, complexity, raw.lloc, comments))
 
 
 def _python_mi(text: str) -> float | None:
     try:
-        return round(max(0.0, float(mi_visit(text, multi=True))), 1)
+        return round(max(0.0, _radon_mi(text)), 1)
     except (SyntaxError, ValueError, RecursionError, MemoryError, TypeError):
         return None
 

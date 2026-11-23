@@ -27,7 +27,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app.analysis.architecture.analyzer import ArchitectureAnalyzer, ArchitectureResult
 from app.analysis.chunks import ChunkBuilder
-from app.analysis import progress
+from app.analysis import progress, python_ast
 from app.analysis.complexity.analyzer import ComplexityAnalyzer, ComplexityResult
 from app.analysis.dependencies.analyzer import DependencyAnalyzer
 from app.analysis.quality.analyzer import QualityAnalyzer, QualityResult
@@ -112,6 +112,13 @@ def analyze_snapshot(
     on_progress, if given, receives the job percentage as files are read and when the
     tools start (see app.analysis.progress)."""
     report = on_progress or (lambda value: None)
+    try:
+        return _analyze(root, rows, report)
+    finally:
+        python_ast.clear()  # the shared syntax trees are not kept after the pass
+
+
+def _analyze(root: Path, rows: list[SnapshotRow], report: Callable[[int], None]) -> RunResult:
     summary = SummaryBuilder()
     with tempfile.TemporaryDirectory(prefix="cba-analysis-") as directory:
         workdir = Path(directory)
