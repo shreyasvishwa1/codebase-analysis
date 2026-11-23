@@ -7,22 +7,40 @@
 repositories through static analysis, repository intelligence and AI-assisted code
 understanding.**
 
-Self-hosted · FastAPI + React/TypeScript · analyzes Python without ever executing it.
+Self-hosted · FastAPI + React/TypeScript · repository code is never executed.
+
+**Live demo:** https://codebase-analysis.onrender.com (free hosting: the first visit after a
+quiet spell can take about a minute to wake the server). The **Import the sample** button on the
+Upload page loads a small repository with planted problems, so there is something to analyze
+straight away.
+
+![CodeBase Analysis: repository dashboard](docs/screenshots/05-repository.png)
 
 ## Overview
 
-Import a repository as a ZIP upload or a public GitHub archive, then explore it in the
-browser:
-- browse and search the code;
-- navigate Python code across files;
-- run five static diagnostics;
-- review code metrics, declared dependencies and likely committed secrets.
+Import a repository as a ZIP upload or a public GitHub archive. One **full analysis** then
+checks it in the background and keeps every run in its history:
+- **code quality**: bug risks, unused and dead code, duplication, naming, documentation;
+- **security**: committed secrets, injection and XSS risks, insecure settings and containers,
+  mapped to the OWASP Top 10;
+- **complexity and maintainability** of every function and file;
+- **dependencies**: outdated packages and known vulnerabilities (OSV.dev);
+- **architecture**: components, the imports between them, routes, data stores and
+  infrastructure, drawn as a diagram;
+- a **health score** from 0 to 100 that shows how it was calculated and how to raise it.
 
-An optional feature explains a single file through Anthropic's API or Google Gemini (which has a
-free tier).
+Each analysis can be saved as a **PDF report**. You can also browse and search the code,
+navigate Python across files, and run five static diagnostics. Two optional AI features need an
+Anthropic or Google Gemini key: an **AI chat** that answers questions about the repository with
+citations to the exact lines, and a one-file explanation.
 
-Every analysis reads the stored files and parses Python with the standard-library `ast` and
-`tokenize` modules. Analyzed code is never executed, imported or compiled to bytecode.
+Analyzed code is never executed, imported or installed. Python is parsed with the
+standard-library `ast` and `tokenize` modules, and the external analyzers (Ruff, Bandit,
+Lizard, Radon) read a private copy of the files.
+
+How accurate is the security analysis? On a labelled benchmark it was compared with Semgrep:
+precision 0.868, recall 0.708 and F1 0.780, against Semgrep's 0.932, 0.631 and 0.752. The
+method and the limitations are in [docs/EVALUATION.md](docs/EVALUATION.md).
 
 ## Problem Statement
 
@@ -45,7 +63,7 @@ guesses.
 
 | Area | Capabilities |
 | --- | --- |
-| Ingestion | ZIP upload or public GitHub archive, from one Upload Repository page; background jobs with status; pending jobs can be cancelled |
+| Ingestion | ZIP upload or public GitHub archive, from one Upload Repository page, or one click to import the sample repository; background jobs with status; pending jobs can be cancelled. File contents are also kept in the database, so a host that wipes its disk (such as Render's free plan) never needs the ZIP uploaded again |
 | Full analysis | One background run analyzes a repository snapshot (dependency folders such as `node_modules/` and build output excluded) and stores the results; every run is kept in the repository's history |
 | Overview | Totals across all your repositories from their latest stored runs: projects, repositories, lines of code, analyses, active jobs, language distribution, recent analyses and each repository's latest health score (lowest first) |
 | Architecture | Each full analysis also maps the architecture: components (directories) and the imports between them in an interactive diagram, dependency cycles, technologies and data stores, API routes, entry points, Dockerfiles, Docker Compose services, CI and deployment files, and observations such as a layered structure or circular dependencies. Every item links to the file and line it comes from |
@@ -78,14 +96,18 @@ Browser: React SPA (Vite dev server, http://127.0.0.1:5173)
    ▼
 FastAPI on uvicorn (http://127.0.0.1:8000)
    │  authentication → ownership → rate limit (search, analyses) → service
-   ├──► PostgreSQL 16: users, projects, repositories, files (with SHA-256),
-   │                   analysis jobs, file metrics
+   ├──► PostgreSQL 16: users, projects, repositories, files (with SHA-256) and their
+   │                   compressed contents, jobs, analysis runs and results, reports, chats
    ├──► Redis 7: arq job queue and rate-limit counters
-   │      └──► arq worker: ingestion, code metrics, maintenance (every 5 minutes)
+   │      └──► arq worker: ingestion, full analysis, code metrics, maintenance (every 5 minutes)
    ├──► DATA_DIR/repositories/<repository_id>/: extracted files, read only through
-   │                                            the verified reader
-   └──► Anthropic or Gemini API (optional): file explanations
+   │                                            the verified reader (rebuilt from the
+   │                                            database if the disk was wiped)
+   └──► Anthropic or Gemini API (optional): the AI chat and file explanations
 ```
+
+In production one container runs everything behind Caddy, which serves the built frontend,
+passes `/api` to the backend and adds the security headers: see [Deployment](#deployment).
 
 **An analysis request**
 1. The frontend sends the bearer token with every request to its own `/api/v1`.
@@ -109,14 +131,17 @@ FastAPI on uvicorn (http://127.0.0.1:8000)
 | Layer | Technologies |
 | --- | --- |
 | Backend | Python 3.12, FastAPI, SQLAlchemy (async, asyncpg), Alembic, PostgreSQL 16, Redis 7, arq, Pydantic, PyJWT, argon2-cffi, ReportLab (PDF reports) |
-| Frontend | React 18, TypeScript, Vite, Tailwind CSS, TanStack Query, React Router, Axios |
-| Analysis | Python standard library: `ast`, `tokenize` (plus `json` and `tomllib` for manifests) |
-| Testing | pytest, ruff, mypy, Vitest, Testing Library |
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS, TanStack Query, React Router, Axios, Recharts |
+| Analysis | Python standard library: `ast`, `tokenize` (plus `json` and `tomllib` for manifests); Ruff (code quality), Bandit (Python security), Lizard and Radon (complexity and maintainability); PyPI, npm and OSV.dev for dependency versions and vulnerabilities |
+| Testing | pytest, ruff, mypy, Vitest, Testing Library; GitHub Actions runs everything on each push |
+| Deployment | Docker (non-root containers), Caddy, Render (free plan) with a Neon PostgreSQL database |
 | Local infrastructure | Docker Compose for PostgreSQL and Redis (development only) |
 
 ## Security
 
-- **Passwords**: hashed with Argon2 (argon2-cffi).
+- **Passwords**: hashed with Argon2 (argon2-cffi). The rules follow NIST SP 800-63B:
+  - 8 to 128 characters (anything longer is refused without being hashed);
+  - not a commonly used password, not too simple, and not the account's email.
 - **Authentication**: JWT bearer tokens (PyJWT).
   - Signed with `SECRET_KEY` using HS256 by default.
   - The `sub` and `exp` claims are required, and tokens last 60 minutes by default.
@@ -168,6 +193,18 @@ FastAPI on uvicorn (http://127.0.0.1:8000)
   - CORS accepts exact origins only.
   - `SECRET_KEY` must be at least 32 characters, and the placeholder value is rejected in
     production.
+  - Caddy sends these headers:
+    - a strict Content-Security-Policy (scripts only from the site itself);
+    - HSTS, Permissions-Policy, Cross-Origin-Opener-Policy, `X-Frame-Options: DENY` and
+      `nosniff`.
+  - Caddy also enforces these limits:
+    - request bodies are capped at 2 MB, except repository uploads;
+    - hidden paths such as `/.env` or `/.git` get a plain 404.
+  - Both production images run as an unprivileged user, never as root.
+- **Dependency monitoring**:
+  - Dependabot proposes minor and patch updates every week.
+  - A GitHub Actions audit checks every pinned package against the public vulnerability
+    databases, on each push and every week.
 - **AI boundary**: explanations and the chat are off unless `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` is set.
   - Only the requested, verified file (at most 64 KiB) is sent, always to
     `https://api.anthropic.com` or `https://generativelanguage.googleapis.com`.
@@ -249,12 +286,12 @@ link to their lines and are capped at 500 per diagnostic, with exact counts. Fil
 
 ## Testing & Quality Engineering
 
-Results at the final development commit:
+Results at the latest commit (23 November 2026):
 
 | Check | Result |
 | --- | --- |
-| Frontend tests (Vitest, Testing Library, jsdom) | 1,380 passing in 49 files |
-| Backend tests (pytest) | 3,099 passing in 53 files; 30 skipped on Windows, where creating symlinks needs a privilege |
+| Frontend tests (Vitest, Testing Library, jsdom) | 1,486 passing in 57 files |
+| Backend tests (pytest) | 3,217 passing in 56 files on Linux; 34 skipped there are Windows-only tests (directory junctions) |
 | TypeScript typecheck and production build | Passing |
 | `ruff check` and mypy | Passing |
 | Continuous integration | GitHub Actions runs every check above on each push and pull request, on Linux with real PostgreSQL and Redis ([tests.yml](.github/workflows/tests.yml)) |
@@ -280,50 +317,85 @@ Results at the final development commit:
 
 ## Screenshots
 
+Taken from a local run in the default dark theme. "codebase-analysis" is this repository
+analyzing itself; "shop-api (sample)" is the built-in sample, whose keys and passwords are all
+fake.
+
+**Landing page**
+
+![Landing page](docs/screenshots/01-landing.png)
+
 **Sign in**, with a link to reset a forgotten password by email
 
-![Sign-in page](docs/screenshots/01-sign-in.png)
+![Sign-in page](docs/screenshots/02-sign-in.png)
 
-**Password reset request**
+**Overview**: totals across every repository, languages, recent analyses and each repository's
+health score
 
-![Forgot-password page](docs/screenshots/02-forgot-password.png)
+![Overview](docs/screenshots/03-overview.png)
 
-**Projects dashboard**
+**Upload repository**: a ZIP or a public GitHub repository, or the one-click sample
 
-![Projects dashboard](docs/screenshots/03-projects.png)
+![Upload repository](docs/screenshots/04-upload.png)
 
-**Project with its repositories**
-
-![Project page](docs/screenshots/04-project.png)
-
-**Repository dashboard**: headline numbers, a health score from five checks, code distribution,
-largest files, file sizes, dependencies and job activity (this repository analyzing itself)
+**Repository dashboard**: headline numbers, health checks, code distribution, largest files,
+file sizes, dependencies and job activity
 
 ![Repository dashboard](docs/screenshots/05-repository.png)
 
-**Code intelligence on one file**: outline, resolved imports, importers and the unused-imports
-diagnostic
+**Code intelligence on one file**: outline, imports resolved to repository files, and the
+unused-imports diagnostic
 
-![File analysis](docs/screenshots/06-file-analysis.png)
+![File code intelligence](docs/screenshots/06-file-intelligence.png)
 
-**Code metrics**
+**Health score**: six dimensions, each with its calculation and how to raise it
 
-![Code metrics](docs/screenshots/07-code-metrics.png)
+![Health score](docs/screenshots/07-health-score.png)
+
+**Security**: findings by severity and confidence, mapped to the OWASP Top 10 (the sample)
+
+![Security findings](docs/screenshots/08-security.png)
+
+**Code quality**: issues by category and severity, with the files that have the most
+
+![Code quality](docs/screenshots/09-code-quality.png)
+
+**Complexity**: cyclomatic complexity of every function and maintainability of every file
+
+![Complexity](docs/screenshots/10-complexity.png)
+
+**Dependencies**: outdated packages and known vulnerabilities from OSV.dev (the sample)
+
+![Dependencies](docs/screenshots/11-dependencies.png)
+
+**Architecture**: components in layers, the imports between them, and observations that link to
+their evidence
+
+![Architecture](docs/screenshots/12-architecture.png)
+
+**History and reports**: every analysis with its headline numbers, and the PDF reports created
+from them
+
+![History and reports](docs/screenshots/13-history.png)
 
 ## Demo
 
-The intended workflow, in about five minutes:
+Try it at https://codebase-analysis.onrender.com. The intended workflow takes about five
+minutes:
 
-**Login → Project → Repository → Ingestion → Browse → Search → Code Intelligence →
-Diagnostics → Repository Analysis → Optional AI Explanation**
+**Sign up → Import → Full analysis → Health score → Findings → Report**
 
-1. Sign in, create a project, and add a repository from a ZIP or a public GitHub URL.
-2. Start ingestion and watch the job move from pending to completed.
-3. Browse the file tree, filter it by path, and search code and symbols.
-4. Open a Python file: show its outline, go to a definition in another file, and find
-   references.
-5. Run the five diagnostics, then review code metrics, dependencies and the secret scan.
-6. If configured, explain the file with Anthropic or Gemini.
+1. Create an account. On **Upload Repository**, click **Import the sample**, or upload your
+   own ZIP or a public GitHub URL.
+2. Open the repository and run a **full analysis**. Every stage shows its progress.
+3. Open the **Health score** to see the six dimensions, how each was calculated and what would
+   raise it.
+4. Follow the links to the **Security**, **Code analysis**, **Complexity**, **Dependencies**
+   and **Architecture** pages. Every finding links to its file and line in the explorer.
+5. In the explorer, open a Python file to see its outline and imports, go to a definition, and
+   run the diagnostics.
+6. Create a **PDF report** from **History & Reports**. If an AI key is configured, ask the
+   **AI chat** about the code.
 
 <!-- Demo video: add the link to the recorded walkthrough here -->
 
@@ -490,25 +562,44 @@ All endpoints are under `/api/v1`. Repository endpoints share the prefix
   expires. Resetting a password does not end sessions that are already signed in.
 - **Navigation**: files and lines are not reflected in the URL, so they cannot be shared as
   links.
-- **Tooling**: there is no CI pipeline yet, and ESLint is not installed, so `npm run lint`
-  fails.
-- **Bundle size**: the main frontend bundle is about 739 kB, above Vite's 500 kB warning.
-- **Deployment**: single-server only. The root `docker-compose.yml` is for local development;
-  for hosting, see [DEPLOY.md](DEPLOY.md) (Railway), [DEPLOY-ORACLE.md](DEPLOY-ORACLE.md)
-  (free, on an Oracle Cloud Always Free server) or [DEPLOY-RENDER.md](DEPLOY-RENDER.md)
-  (free, no card: Render with a Neon database; it sleeps when idle, and uploaded files are kept
-  in the database and restored automatically when it wakes).
+- **Security analysis** matches known patterns, through Bandit and the app's own rules, without
+  following data through the program. It does not find path traversal, server-side request
+  forgery or open redirects. It is a review aid, never proof that a project is secure; see
+  [docs/EVALUATION.md](docs/EVALUATION.md).
+- **Tooling**: ESLint is not installed, so `npm run lint` fails. Type checking, tests and the
+  build run in CI.
+- **Deployment**: single-server only (see [Deployment](#deployment)). On Render's free plan the
+  service sleeps after 15 idle minutes; a GitHub Actions job pings it every 10 minutes to keep
+  it awake.
+
+## Deployment
+
+The live demo runs on **Render's free plan** with a **Neon** PostgreSQL database. It is
+built from [render.yaml](render.yaml) and [deploy/render/Dockerfile](deploy/render/Dockerfile):
+one container holding Caddy, the API, the worker and a private Redis.
+- Render wipes its disk when the service restarts, sleeps or redeploys. Uploaded files are also
+  kept in the database and restored automatically, so a ZIP never has to be uploaded again.
+- Every push to `main` redeploys it, and the database migrations run on start.
+
+Other ways to host it:
+- [DEPLOY-RENDER.md](DEPLOY-RENDER.md): the Render and Neon setup, step by step (free, no card).
+- [DEPLOY.md](DEPLOY.md): Railway, using the root [Dockerfile](Dockerfile).
+- [DEPLOY-ORACLE.md](DEPLOY-ORACLE.md): an Oracle Cloud Always Free server.
+
+The root `docker-compose.yml` is for local development only.
 
 ## Future Scope
 
 Planned future work, not yet implemented:
-- A CI pipeline: tests, typecheck, ruff, mypy and ESLint.
+- Data-flow (taint) analysis from request inputs: path traversal, SSRF and open redirects.
+- Optionally running Semgrep inside an analysis, as Bandit runs today. The evaluation shows the
+  two tools complement each other.
+- ESLint in CI.
 - Shareable links to a file and line.
 - A repository-wide diagnostics dashboard.
-- An import graph view.
+- A file-level import graph (the architecture diagram shows imports between directories).
 - Type-informed references, such as method references.
 - Refresh tokens.
-- Frontend bundle optimization (code splitting).
 
 ## License
 
