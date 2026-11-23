@@ -112,11 +112,28 @@ def test_every_pin_is_installed_at_that_version() -> None:
     assert mismatched == {}, f"pinned vs installed: {mismatched}"
 
 
+# Installed by uvicorn[standard] only off Windows, where constraints.txt is generated; its
+# header explains why such packages are not pinned. Anything else unpinned still fails.
+NOT_PINNED_OFF_WINDOWS = frozenset({"uvloop"})
+
+
 def test_every_installed_distribution_is_pinned() -> None:
     pins = _pins()
-    unpinned = {name: version for name, version in _installed().items() if name not in pins}
+    exempt = NOT_PINNED_OFF_WINDOWS if sys.platform != "win32" else frozenset()
+    unpinned = {
+        name: version
+        for name, version in _installed().items()
+        if name not in pins and name not in exempt
+    }
     assert unpinned == {}, f"installed but not pinned: {unpinned}"
     assert "pip" not in pins  # pip itself is deliberately excluded
+
+
+def test_the_off_windows_exemption_matches_the_constraints_header() -> None:
+    header = CONSTRAINTS.read_text(encoding="utf-8")
+    for name in NOT_PINNED_OFF_WINDOWS:
+        assert name not in _pins()
+        assert f"such as {name} (installed by uvicorn[standard] on Linux and macOS)" in header
 
 
 def test_pip_check_reports_no_conflicts() -> None:
