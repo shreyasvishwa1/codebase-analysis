@@ -216,3 +216,43 @@ def test_start_script_falls_back_when_the_data_volume_is_not_writable() -> None:
     assert 'if ! mkdir -p "$DATA_DIR" 2>/dev/null || [ ! -w "$DATA_DIR" ]; then' in script
     assert 'export DATA_DIR="$HOME/data"' in script
     assert script.index('export DATA_DIR="$HOME/data"') < script.index("alembic upgrade head")
+
+
+def test_ci_runs_every_backend_and_frontend_check_with_read_only_access() -> None:
+    workflow = _github("workflows/tests.yml")
+    assert workflow["permissions"] == {"contents": "read"}
+    assert {"push", "pull_request"} <= set(workflow[True])  # PyYAML reads "on" as True
+    jobs = workflow["jobs"]
+    backend = jobs["backend"]
+    assert {"postgres", "redis"} <= set(backend["services"])
+    assert set(backend["env"]) == {
+        "TEST_DATABASE_URL",
+        "TEST_MIGRATION_DATABASE_URL",
+        "TEST_REDIS_URL",
+    }
+    commands = {
+        name: [step.get("run", "") for step in job["steps"]] for name, job in jobs.items()
+    }
+    assert any("alembic upgrade head" in run for run in commands["backend"])
+    assert {"ruff check .", "mypy", "python -m pytest -q -p no:cacheprovider"} <= set(
+        commands["backend"]
+    )
+    assert {"npm run typecheck", "npm test", "npm run build"} <= set(commands["frontend"])
+    for job in jobs.values():
+        checkout = next(s for s in job["steps"] if s.get("uses", "").startswith("actions/checkout"))
+        assert checkout["with"]["persist-credentials"] is False
+
+
+def test_ci_test_run_selects_the_whole_suite() -> None:
+    """Nothing narrows the backend run (a -k, -m or path argument would silently skip tests)."""
+    [run] = [
+        step["run"]
+        for step in _github("workflows/tests.yml")["jobs"]["backend"]["steps"]
+        if "pytest" in step.get("run", "")
+    ]
+    assert run.split() == ["python", "-m", "pytest", "-q", "-p", "no:cacheprovider"]
+
+
+def test_readme_shows_the_ci_status() -> None:
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    assert "actions/workflows/tests.yml/badge.svg" in readme

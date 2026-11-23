@@ -1,5 +1,8 @@
 # CodeBase Analysis — Codebase Intelligence Platform
 
+[![Tests](https://github.com/shreyasvishwa1/codebase-analysis/actions/workflows/tests.yml/badge.svg)](https://github.com/shreyasvishwa1/codebase-analysis/actions/workflows/tests.yml)
+[![Security audit](https://github.com/shreyasvishwa1/codebase-analysis/actions/workflows/security-audit.yml/badge.svg)](https://github.com/shreyasvishwa1/codebase-analysis/actions/workflows/security-audit.yml)
+
 **An intelligent codebase analysis platform that helps developers understand software
 repositories through static analysis, repository intelligence and AI-assisted code
 understanding.**
@@ -254,6 +257,7 @@ Results at the final development commit:
 | Backend tests (pytest) | 3,099 passing in 53 files; 30 skipped on Windows, where creating symlinks needs a privilege |
 | TypeScript typecheck and production build | Passing |
 | `ruff check` and mypy | Passing |
+| Continuous integration | GitHub Actions runs every check above on each push and pull request, on Linux with real PostgreSQL and Redis ([tests.yml](.github/workflows/tests.yml)) |
 | Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine; 23/23 for security analysis; 21/21 for complexity analysis; 30/30 for dependency analysis; 30/30 for architecture analysis; 43/43 for the health score; 52/52 for the AI chat; 47/47 for PDF reports and history; 28/28 for settings and the account; 14/14 for the chat fixes (retries and fallback, name matching, answer formatting) |
 
 - **Isolation**: frontend tests mock the API at the axios adapter, so no backend is needed.
@@ -426,6 +430,9 @@ npm run build
 .venv/Scripts/ruff check .
 .venv/Scripts/mypy
 ```
+
+The same checks run on GitHub Actions for every push and pull request
+([.github/workflows/tests.yml](.github/workflows/tests.yml)).
 
 Analysis tests run offline. Database and API tests are skipped unless these variables are
 set:

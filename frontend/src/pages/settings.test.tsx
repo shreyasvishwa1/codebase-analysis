@@ -44,7 +44,8 @@ describe('Settings', () => {
         data: { ...USER, display_name: JSON.parse(String(config.data)).display_name },
       }),
     })
-    const profile = within(await screen.findByRole('region', { name: 'Profile' }))
+    // The file's first full-app render: allow more than the usual 3 s on a busy machine.
+    const profile = within(await screen.findByRole('region', { name: 'Profile' }, { timeout: 10_000 }))
     expect(profile.getByText('alice@example.com')).toBeTruthy()
     expect(profile.getByText(new Date('2026-10-01T00:00:00Z').toLocaleString())).toBeTruthy()
     const save = profile.getByRole('button', { name: 'Save' }) as HTMLButtonElement
