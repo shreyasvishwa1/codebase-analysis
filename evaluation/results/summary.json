@@ -1,0 +1,879 @@
+{
+  "corpus": {
+    "files": 12,
+    "vulnerable_cases": 65,
+    "safe_cases": 47
+  },
+  "semgrep": {
+    "semgrep-default": {
+      "version": "1.184.0",
+      "errors": 0,
+      "rules": [
+        "p/default"
+      ]
+    },
+    "semgrep-extended": {
+      "version": "1.184.0",
+      "errors": 0,
+      "rules": [
+        "p/default",
+        "p/python",
+        "p/flask",
+        "p/django",
+        "p/javascript",
+        "p/nodejs",
+        "p/react",
+        "p/jwt",
+        "p/secrets",
+        "p/dockerfile",
+        "p/owasp-top-ten"
+      ]
+    }
+  },
+  "tools": {
+    "codebase-analysis": {
+      "tp": 44,
+      "fp": 7,
+      "fn": 21,
+      "precision": 0.863,
+      "recall": 0.677,
+      "f1": 0.759,
+      "safe_cases_flagged": 2,
+      "safe_cases": 47
+    },
+    "bandit-only": {
+      "tp": 22,
+      "fp": 7,
+      "fn": 43,
+      "precision": 0.759,
+      "recall": 0.338,
+      "f1": 0.468,
+      "safe_cases_flagged": 2,
+      "safe_cases": 47
+    },
+    "own-rules-only": {
+      "tp": 22,
+      "fp": 0,
+      "fn": 43,
+      "precision": 1.0,
+      "recall": 0.338,
+      "f1": 0.506,
+      "safe_cases_flagged": 0,
+      "safe_cases": 47
+    },
+    "semgrep-default": {
+      "tp": 41,
+      "fp": 3,
+      "fn": 24,
+      "precision": 0.932,
+      "recall": 0.631,
+      "f1": 0.752,
+      "safe_cases_flagged": 0,
+      "safe_cases": 47
+    },
+    "semgrep-extended": {
+      "tp": 41,
+      "fp": 3,
+      "fn": 24,
+      "precision": 0.932,
+      "recall": 0.631,
+      "f1": 0.752,
+      "safe_cases_flagged": 0,
+      "safe_cases": 47
+    },
+    "codebase-analysis+semgrep": {
+      "tp": 57,
+      "fp": 8,
+      "fn": 8,
+      "precision": 0.877,
+      "recall": 0.877,
+      "f1": 0.877,
+      "safe_cases_flagged": 2,
+      "safe_cases": 47
+    }
+  },
+  "recall_by_category": {
+    "codebase-analysis": {
+      "allowed-hosts": [
+        1,
+        1
+      ],
+      "cmdi": [
+        5,
+        5
+      ],
+      "code-injection": [
+        5,
+        5
+      ],
+      "cors": [
+        2,
+        2
+      ],
+      "debug": [
+        2,
+        2
+      ],
+      "deserialization": [
+        3,
+        3
+      ],
+      "docker-remote-add": [
+        1,
+        1
+      ],
+      "docker-root": [
+        1,
+        1
+      ],
+      "docker-unpinned": [
+        1,
+        1
+      ],
+      "env-file": [
+        1,
+        1
+      ],
+      "jwt": [
+        1,
+        2
+      ],
+      "open-redirect": [
+        0,
+        3
+      ],
+      "path-traversal": [
+        0,
+        4
+      ],
+      "secret": [
+        5,
+        8
+      ],
+      "sqli": [
+        4,
+        5
+      ],
+      "ssrf": [
+        0,
+        2
+      ],
+      "temp-file": [
+        1,
+        1
+      ],
+      "template-injection": [
+        0,
+        1
+      ],
+      "tls": [
+        3,
+        3
+      ],
+      "weak-hash": [
+        2,
+        3
+      ],
+      "weak-random": [
+        1,
+        2
+      ],
+      "xss": [
+        4,
+        8
+      ],
+      "xxe": [
+        1,
+        1
+      ]
+    },
+    "bandit-only": {
+      "allowed-hosts": [
+        0,
+        1
+      ],
+      "cmdi": [
+        3,
+        5
+      ],
+      "code-injection": [
+        2,
+        5
+      ],
+      "cors": [
+        0,
+        2
+      ],
+      "debug": [
+        1,
+        2
+      ],
+      "deserialization": [
+        3,
+        3
+      ],
+      "docker-remote-add": [
+        0,
+        1
+      ],
+      "docker-root": [
+        0,
+        1
+      ],
+      "docker-unpinned": [
+        0,
+        1
+      ],
+      "env-file": [
+        0,
+        1
+      ],
+      "jwt": [
+        0,
+        2
+      ],
+      "open-redirect": [
+        0,
+        3
+      ],
+      "path-traversal": [
+        0,
+        4
+      ],
+      "secret": [
+        3,
+        8
+      ],
+      "sqli": [
+        3,
+        5
+      ],
+      "ssrf": [
+        0,
+        2
+      ],
+      "temp-file": [
+        1,
+        1
+      ],
+      "template-injection": [
+        0,
+        1
+      ],
+      "tls": [
+        2,
+        3
+      ],
+      "weak-hash": [
+        2,
+        3
+      ],
+      "weak-random": [
+        1,
+        2
+      ],
+      "xss": [
+        0,
+        8
+      ],
+      "xxe": [
+        1,
+        1
+      ]
+    },
+    "own-rules-only": {
+      "allowed-hosts": [
+        1,
+        1
+      ],
+      "cmdi": [
+        2,
+        5
+      ],
+      "code-injection": [
+        3,
+        5
+      ],
+      "cors": [
+        2,
+        2
+      ],
+      "debug": [
+        1,
+        2
+      ],
+      "deserialization": [
+        0,
+        3
+      ],
+      "docker-remote-add": [
+        1,
+        1
+      ],
+      "docker-root": [
+        1,
+        1
+      ],
+      "docker-unpinned": [
+        1,
+        1
+      ],
+      "env-file": [
+        1,
+        1
+      ],
+      "jwt": [
+        1,
+        2
+      ],
+      "open-redirect": [
+        0,
+        3
+      ],
+      "path-traversal": [
+        0,
+        4
+      ],
+      "secret": [
+        2,
+        8
+      ],
+      "sqli": [
+        1,
+        5
+      ],
+      "ssrf": [
+        0,
+        2
+      ],
+      "temp-file": [
+        0,
+        1
+      ],
+      "template-injection": [
+        0,
+        1
+      ],
+      "tls": [
+        1,
+        3
+      ],
+      "weak-hash": [
+        0,
+        3
+      ],
+      "weak-random": [
+        0,
+        2
+      ],
+      "xss": [
+        4,
+        8
+      ],
+      "xxe": [
+        0,
+        1
+      ]
+    },
+    "semgrep-default": {
+      "allowed-hosts": [
+        0,
+        1
+      ],
+      "cmdi": [
+        5,
+        5
+      ],
+      "code-injection": [
+        4,
+        5
+      ],
+      "cors": [
+        0,
+        2
+      ],
+      "debug": [
+        1,
+        2
+      ],
+      "deserialization": [
+        3,
+        3
+      ],
+      "docker-remote-add": [
+        0,
+        1
+      ],
+      "docker-root": [
+        1,
+        1
+      ],
+      "docker-unpinned": [
+        0,
+        1
+      ],
+      "env-file": [
+        0,
+        1
+      ],
+      "jwt": [
+        2,
+        2
+      ],
+      "open-redirect": [
+        3,
+        3
+      ],
+      "path-traversal": [
+        2,
+        4
+      ],
+      "secret": [
+        2,
+        8
+      ],
+      "sqli": [
+        3,
+        5
+      ],
+      "ssrf": [
+        1,
+        2
+      ],
+      "temp-file": [
+        0,
+        1
+      ],
+      "template-injection": [
+        1,
+        1
+      ],
+      "tls": [
+        3,
+        3
+      ],
+      "weak-hash": [
+        3,
+        3
+      ],
+      "weak-random": [
+        0,
+        2
+      ],
+      "xss": [
+        7,
+        8
+      ],
+      "xxe": [
+        0,
+        1
+      ]
+    },
+    "semgrep-extended": {
+      "allowed-hosts": [
+        0,
+        1
+      ],
+      "cmdi": [
+        5,
+        5
+      ],
+      "code-injection": [
+        4,
+        5
+      ],
+      "cors": [
+        0,
+        2
+      ],
+      "debug": [
+        1,
+        2
+      ],
+      "deserialization": [
+        3,
+        3
+      ],
+      "docker-remote-add": [
+        0,
+        1
+      ],
+      "docker-root": [
+        1,
+        1
+      ],
+      "docker-unpinned": [
+        0,
+        1
+      ],
+      "env-file": [
+        0,
+        1
+      ],
+      "jwt": [
+        2,
+        2
+      ],
+      "open-redirect": [
+        3,
+        3
+      ],
+      "path-traversal": [
+        2,
+        4
+      ],
+      "secret": [
+        2,
+        8
+      ],
+      "sqli": [
+        3,
+        5
+      ],
+      "ssrf": [
+        1,
+        2
+      ],
+      "temp-file": [
+        0,
+        1
+      ],
+      "template-injection": [
+        1,
+        1
+      ],
+      "tls": [
+        3,
+        3
+      ],
+      "weak-hash": [
+        3,
+        3
+      ],
+      "weak-random": [
+        0,
+        2
+      ],
+      "xss": [
+        7,
+        8
+      ],
+      "xxe": [
+        0,
+        1
+      ]
+    },
+    "codebase-analysis+semgrep": {
+      "allowed-hosts": [
+        1,
+        1
+      ],
+      "cmdi": [
+        5,
+        5
+      ],
+      "code-injection": [
+        5,
+        5
+      ],
+      "cors": [
+        2,
+        2
+      ],
+      "debug": [
+        2,
+        2
+      ],
+      "deserialization": [
+        3,
+        3
+      ],
+      "docker-remote-add": [
+        1,
+        1
+      ],
+      "docker-root": [
+        1,
+        1
+      ],
+      "docker-unpinned": [
+        1,
+        1
+      ],
+      "env-file": [
+        1,
+        1
+      ],
+      "jwt": [
+        2,
+        2
+      ],
+      "open-redirect": [
+        3,
+        3
+      ],
+      "path-traversal": [
+        2,
+        4
+      ],
+      "secret": [
+        5,
+        8
+      ],
+      "sqli": [
+        4,
+        5
+      ],
+      "ssrf": [
+        1,
+        2
+      ],
+      "temp-file": [
+        1,
+        1
+      ],
+      "template-injection": [
+        1,
+        1
+      ],
+      "tls": [
+        3,
+        3
+      ],
+      "weak-hash": [
+        3,
+        3
+      ],
+      "weak-random": [
+        1,
+        2
+      ],
+      "xss": [
+        8,
+        8
+      ],
+      "xxe": [
+        1,
+        1
+      ]
+    }
+  },
+  "missed": {
+    "codebase-analysis": [
+      "deploy/.env line 5 secret",
+      "deploy/.env line 7 secret",
+      "js/public/app.js line 41 open-redirect",
+      "js/server.js line 107 xss",
+      "js/server.js line 118 jwt",
+      "js/server.js line 143 weak-hash",
+      "js/server.js line 153 weak-random",
+      "js/server.js line 167 secret",
+      "js/server.js line 20 sqli",
+      "js/server.js line 51 xss",
+      "js/server.js line 58 xss",
+      "js/server.js line 69 path-traversal",
+      "js/server.js line 74 path-traversal",
+      "js/server.js line 84 ssrf",
+      "js/server.js line 86 xss",
+      "js/server.js line 97 open-redirect",
+      "python/views.py line 123 path-traversal",
+      "python/views.py line 130 path-traversal",
+      "python/views.py line 144 ssrf",
+      "python/views.py line 159 template-injection",
+      "python/views.py line 171 open-redirect"
+    ],
+    "bandit-only": [
+      "deploy/.env file env-file",
+      "deploy/.env line 5 secret",
+      "deploy/.env line 7 secret",
+      "docker/vulnerable/Dockerfile file docker-root",
+      "docker/vulnerable/Dockerfile line 4 docker-unpinned",
+      "docker/vulnerable/Dockerfile line 7 docker-remote-add",
+      "js/components/Comment.jsx line 9 xss",
+      "js/public/app.js line 18 xss",
+      "js/public/app.js line 24 xss",
+      "js/public/app.js line 36 code-injection",
+      "js/public/app.js line 41 open-redirect",
+      "js/public/app.js line 7 xss",
+      "js/server.js line 107 xss",
+      "js/server.js line 118 jwt",
+      "js/server.js line 131 cors",
+      "js/server.js line 143 weak-hash",
+      "js/server.js line 153 weak-random",
+      "js/server.js line 162 tls",
+      "js/server.js line 167 secret",
+      "js/server.js line 20 sqli",
+      "js/server.js line 25 sqli",
+      "js/server.js line 35 cmdi",
+      "js/server.js line 40 cmdi",
+      "js/server.js line 51 code-injection",
+      "js/server.js line 51 xss",
+      "js/server.js line 56 code-injection",
+      "js/server.js line 58 xss",
+      "js/server.js line 69 path-traversal",
+      "js/server.js line 74 path-traversal",
+      "js/server.js line 84 ssrf",
+      "js/server.js line 86 xss",
+      "js/server.js line 97 open-redirect",
+      "keys/deploy.pem line 2 secret",
+      "python/config/settings.py line 10 debug",
+      "python/config/settings.py line 12 allowed-hosts",
+      "python/config/settings.py line 14 cors",
+      "python/tasks.py line 120 secret",
+      "python/views.py line 123 path-traversal",
+      "python/views.py line 130 path-traversal",
+      "python/views.py line 144 ssrf",
+      "python/views.py line 159 template-injection",
+      "python/views.py line 171 open-redirect",
+      "python/views.py line 184 jwt"
+    ],
+    "own-rules-only": [
+      "deploy/.env line 5 secret",
+      "deploy/.env line 7 secret",
+      "js/public/app.js line 41 open-redirect",
+      "js/server.js line 107 xss",
+      "js/server.js line 118 jwt",
+      "js/server.js line 143 weak-hash",
+      "js/server.js line 153 weak-random",
+      "js/server.js line 167 secret",
+      "js/server.js line 20 sqli",
+      "js/server.js line 51 xss",
+      "js/server.js line 58 xss",
+      "js/server.js line 69 path-traversal",
+      "js/server.js line 74 path-traversal",
+      "js/server.js line 84 ssrf",
+      "js/server.js line 86 xss",
+      "js/server.js line 97 open-redirect",
+      "python/config/settings.py line 24 secret",
+      "python/config/settings.py line 8 secret",
+      "python/tasks.py line 102 tls",
+      "python/tasks.py line 116 secret",
+      "python/tasks.py line 21 deserialization",
+      "python/tasks.py line 26 deserialization",
+      "python/tasks.py line 31 deserialization",
+      "python/tasks.py line 46 weak-hash",
+      "python/tasks.py line 51 weak-hash",
+      "python/tasks.py line 67 weak-random",
+      "python/tasks.py line 82 xxe",
+      "python/tasks.py line 92 temp-file",
+      "python/views.py line 102 code-injection",
+      "python/views.py line 109 code-injection",
+      "python/views.py line 123 path-traversal",
+      "python/views.py line 130 path-traversal",
+      "python/views.py line 144 ssrf",
+      "python/views.py line 159 template-injection",
+      "python/views.py line 171 open-redirect",
+      "python/views.py line 199 tls",
+      "python/views.py line 212 debug",
+      "python/views.py line 28 sqli",
+      "python/views.py line 37 sqli",
+      "python/views.py line 46 sqli",
+      "python/views.py line 71 cmdi",
+      "python/views.py line 79 cmdi",
+      "python/views.py line 87 cmdi"
+    ],
+    "semgrep-default": [
+      "deploy/.env file env-file",
+      "deploy/.env line 5 secret",
+      "deploy/.env line 7 secret",
+      "docker/vulnerable/Dockerfile line 4 docker-unpinned",
+      "docker/vulnerable/Dockerfile line 7 docker-remote-add",
+      "js/public/app.js line 7 xss",
+      "js/server.js line 131 cors",
+      "js/server.js line 153 weak-random",
+      "js/server.js line 167 secret",
+      "js/server.js line 20 sqli",
+      "js/server.js line 25 sqli",
+      "js/server.js line 56 code-injection",
+      "js/server.js line 74 path-traversal",
+      "js/server.js line 84 ssrf",
+      "python/config/settings.py line 10 debug",
+      "python/config/settings.py line 12 allowed-hosts",
+      "python/config/settings.py line 14 cors",
+      "python/config/settings.py line 24 secret",
+      "python/config/settings.py line 8 secret",
+      "python/tasks.py line 116 secret",
+      "python/tasks.py line 67 weak-random",
+      "python/tasks.py line 82 xxe",
+      "python/tasks.py line 92 temp-file",
+      "python/views.py line 123 path-traversal"
+    ],
+    "semgrep-extended": [
+      "deploy/.env file env-file",
+      "deploy/.env line 5 secret",
+      "deploy/.env line 7 secret",
+      "docker/vulnerable/Dockerfile line 4 docker-unpinned",
+      "docker/vulnerable/Dockerfile line 7 docker-remote-add",
+      "js/public/app.js line 7 xss",
+      "js/server.js line 131 cors",
+      "js/server.js line 153 weak-random",
+      "js/server.js line 167 secret",
+      "js/server.js line 20 sqli",
+      "js/server.js line 25 sqli",
+      "js/server.js line 56 code-injection",
+      "js/server.js line 74 path-traversal",
+      "js/server.js line 84 ssrf",
+      "python/config/settings.py line 10 debug",
+      "python/config/settings.py line 12 allowed-hosts",
+      "python/config/settings.py line 14 cors",
+      "python/config/settings.py line 24 secret",
+      "python/config/settings.py line 8 secret",
+      "python/tasks.py line 116 secret",
+      "python/tasks.py line 67 weak-random",
+      "python/tasks.py line 82 xxe",
+      "python/tasks.py line 92 temp-file",
+      "python/views.py line 123 path-traversal"
+    ],
+    "codebase-analysis+semgrep": [
+      "deploy/.env line 5 secret",
+      "deploy/.env line 7 secret",
+      "js/server.js line 153 weak-random",
+      "js/server.js line 167 secret",
+      "js/server.js line 20 sqli",
+      "js/server.js line 74 path-traversal",
+      "js/server.js line 84 ssrf",
+      "python/views.py line 123 path-traversal"
+    ]
+  },
+  "false_positives": {
+    "codebase-analysis": [
+      "python/tasks.py:103 B310",
+      "python/tasks.py:110 B310",
+      "python/tasks.py:13 B405",
+      "python/tasks.py:7 B403",
+      "python/tasks.py:77 B311",
+      "python/views.py:6 B404",
+      "python/views.py:94 B603, B607"
+    ],
+    "bandit-only": [
+      "python/tasks.py:103 B310",
+      "python/tasks.py:110 B310",
+      "python/tasks.py:13 B405",
+      "python/tasks.py:7 B403",
+      "python/tasks.py:77 B311",
+      "python/views.py:6 B404",
+      "python/views.py:94 B603, B607"
+    ],
+    "own-rules-only": [],
+    "semgrep-default": [
+      "js/server.js:12 javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage",
+      "python/tasks.py:103 python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected",
+      "python/tasks.py:110 python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected"
+    ],
+    "semgrep-extended": [
+      "js/server.js:12 javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage",
+      "python/tasks.py:103 python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected",
+      "python/tasks.py:110 python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected"
+    ],
+    "codebase-analysis+semgrep": [
+      "js/server.js:12 javascript.express.security.audit.express-check-csurf-middleware-usage.express-check-csurf-middleware-usage",
+      "python/tasks.py:103 B310, python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected",
+      "python/tasks.py:110 B310, python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected",
+      "python/tasks.py:13 B405",
+      "python/tasks.py:7 B403",
+      "python/tasks.py:77 B311",
+      "python/views.py:6 B404",
+      "python/views.py:94 B603, B607"
+    ]
+  }
+}

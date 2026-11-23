@@ -258,6 +258,7 @@ Results at the final development commit:
 | TypeScript typecheck and production build | Passing |
 | `ruff check` and mypy | Passing |
 | Continuous integration | GitHub Actions runs every check above on each push and pull request, on Linux with real PostgreSQL and Redis ([tests.yml](.github/workflows/tests.yml)) |
+| Security accuracy against Semgrep | On a labelled corpus of 65 vulnerable and 47 safe cases: precision 0.863, recall 0.677, F1 0.759 (Semgrep 1.184: 0.932, 0.631, 0.752); method and limitations in [docs/EVALUATION.md](docs/EVALUATION.md) |
 | Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine; 23/23 for security analysis; 21/21 for complexity analysis; 30/30 for dependency analysis; 30/30 for architecture analysis; 43/43 for the health score; 52/52 for the AI chat; 47/47 for PDF reports and history; 28/28 for settings and the account; 14/14 for the chat fixes (retries and fallback, name matching, answer formatting) |
 
 - **Isolation**: frontend tests mock the API at the axios adapter, so no backend is needed.
