@@ -7,7 +7,7 @@
 # (file_blobs) and a repository's folder is rebuilt from it when missing: nothing has to be
 # uploaded again after the service restarts, sleeps or redeploys.
 
-FROM node:20-alpine AS frontend
+FROM node:22-alpine AS frontend
 WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund

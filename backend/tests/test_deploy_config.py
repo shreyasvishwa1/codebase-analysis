@@ -256,3 +256,17 @@ def test_ci_test_run_selects_the_whole_suite() -> None:
 def test_readme_shows_the_ci_status() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "actions/workflows/tests.yml/badge.svg" in readme
+
+
+def test_every_build_uses_the_same_supported_node_release() -> None:
+    """Both images and both workflows build the frontend with Node 22 (Node 20 is end of life)."""
+    for dockerfile in DOCKERFILES:
+        assert "FROM node:22-alpine AS frontend" in dockerfile.read_text().splitlines(), dockerfile
+    for name in ("workflows/tests.yml", "workflows/security-audit.yml"):
+        steps = [step for job in _github(name)["jobs"].values() for step in job["steps"]]
+        versions = {
+            step["with"]["node-version"]
+            for step in steps
+            if step.get("uses", "").startswith("actions/setup-node")
+        }
+        assert versions == {"22"}, name

@@ -4,7 +4,7 @@
 # Everything runs as the unprivileged user "app"; the code stays owned by root, so the running
 # app cannot change it.
 
-FROM node:20-alpine AS frontend
+FROM node:22-alpine AS frontend
 WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund

@@ -329,7 +329,7 @@ Diagnostics → Repository Analysis → Optional AI Explanation**
 
 ## Installation
 
-**Requirements**: Python 3.12, Node.js 18 or newer, and Docker (or local PostgreSQL 16 and
+**Requirements**: Python 3.12, Node.js 22 (LTS), and Docker (or local PostgreSQL 16 and
 Redis 7).
 
 From the repository root:
