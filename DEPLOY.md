@@ -19,8 +19,17 @@ In a new Railway project:
 
 ## 2. Add a volume
 
+This step is optional. Every repository's files are also kept in the database, and a missing
+folder is rebuilt from there, so the app works without a volume (the files are just unpacked
+again after each deploy).
+
 Open the app service, then *Settings → Volumes → Add volume*, with mount path **`/data`**.
-Ingested repositories are stored there.
+Ingested repositories are unpacked there.
+
+The image runs as an unprivileged user (`app`, uid 1000), never as root. Railway mounts volumes
+owned by root, so the app cannot write to one: the start script then logs
+"DATA_DIR /data is not writable" and uses the home folder instead, which is why the volume
+can be skipped.
 
 ## 3. Set the app's variables
 

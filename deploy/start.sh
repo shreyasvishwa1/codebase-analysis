@@ -9,7 +9,15 @@ case "${DATABASE_URL:-}" in
   postgres://*) export DATABASE_URL="postgresql+asyncpg://${DATABASE_URL#postgres://}" ;;
 esac
 
-mkdir -p "${DATA_DIR:-/data}"
+# The app runs unprivileged. A volume mounted at DATA_DIR may belong to root (Railway mounts
+# volumes that way); then keep the files in the home folder instead. Nothing is lost: every
+# repository's files are kept in the database and its folder is rebuilt from there on demand.
+export DATA_DIR="${DATA_DIR:-/data}"
+if ! mkdir -p "$DATA_DIR" 2>/dev/null || [ ! -w "$DATA_DIR" ]; then
+  echo "DATA_DIR $DATA_DIR is not writable by $(id -un); using $HOME/data instead." >&2
+  export DATA_DIR="$HOME/data"
+  mkdir -p "$DATA_DIR"
+fi
 cd /app/backend
 
 alembic upgrade head

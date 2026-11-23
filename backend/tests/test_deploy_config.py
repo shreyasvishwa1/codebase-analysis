@@ -181,3 +181,38 @@ def test_every_api_route_forwards_only_the_resolved_client_ip() -> None:
     assert proxies == ["reverse_proxy 127.0.0.1:8000 {"]  # one shared definition
     assert "header_up X-Forwarded-For {client_ip}" in lines
     assert lines.count("import api") == 2  # /api/* and /health
+
+
+ROOT = CADDYFILE.parents[1]
+DOCKERFILES = (ROOT / "Dockerfile", ROOT / "deploy" / "render" / "Dockerfile")
+
+
+def test_both_production_images_pass_the_apps_own_dockerfile_rules() -> None:
+    from app.analysis.security.patterns import scan_dockerfile
+
+    for dockerfile in DOCKERFILES:
+        assert scan_dockerfile(dockerfile.read_text()) == [], dockerfile
+
+
+def test_both_production_images_run_as_the_unprivileged_app_user() -> None:
+    for dockerfile in DOCKERFILES:
+        lines = dockerfile.read_text().splitlines()
+        final = max(i for i, line in enumerate(lines) if line.startswith("FROM "))
+        stage = lines[final:]
+        assert "useradd -m -u 1000 app" in "\n".join(stage), dockerfile
+        assert [line for line in stage if line.startswith("USER ")] == ["USER app"], dockerfile
+        # Caddy keeps its state under XDG folders; the app user can write to /tmp.
+        assert "XDG_DATA_HOME=/tmp/caddy-data" in dockerfile.read_text()
+
+
+def test_the_root_image_keeps_its_code_read_only_for_the_app() -> None:
+    text = (ROOT / "Dockerfile").read_text()
+    assert "--chown" not in text
+    assert "RUN mkdir -p /data && chown app /data" in text
+
+
+def test_start_script_falls_back_when_the_data_volume_is_not_writable() -> None:
+    script = (ROOT / "deploy" / "start.sh").read_text()
+    assert 'if ! mkdir -p "$DATA_DIR" 2>/dev/null || [ ! -w "$DATA_DIR" ]; then' in script
+    assert 'export DATA_DIR="$HOME/data"' in script
+    assert script.index('export DATA_DIR="$HOME/data"') < script.index("alembic upgrade head")
