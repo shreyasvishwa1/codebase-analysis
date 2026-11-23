@@ -16,8 +16,8 @@ from app.core.security import (
 from app.config import get_settings
 from app.database import get_db
 from app.models import AnalysisRun, ChatConversation, GeneratedReport, Project, Repository, User
+from app.core.passwords import MAX_PASSWORD_LENGTH, password_problem
 from app.schemas.auth import (
-    MIN_PASSWORD_LENGTH,
     AccountDeletion,
     AccountSummary,
     LoginRequest,
@@ -78,12 +78,7 @@ async def register(
     body: RegisterRequest, db: DbSession, request: Request, limiter: RateLimit
 ) -> User:
     await limiter.check_register_ip(client_ip(request))  # every attempt counts
-    password = body.password.get_secret_value()
-    if len(password) < MIN_PASSWORD_LENGTH:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Password must be at least {MIN_PASSWORD_LENGTH} characters long",
-        )
+    password = _acceptable(body.password.get_secret_value(), body.email)
 
     if await db.scalar(select(User.id).where(User.email == body.email)) is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=DUPLICATE_ACCOUNT)
@@ -110,6 +105,9 @@ async def login(
     await limiter.check_login_ip(client_ip(request))
     async with limiter.login_attempt(body.email) as attempt:
         password = body.password.get_secret_value()
+        if len(password) > MAX_PASSWORD_LENGTH:  # never hashed: no account has one this long
+            attempt.failed()
+            raise _invalid_credentials()
         user = await db.scalar(select(User).where(User.email == body.email))
         if user is None:
             verify_password(password, dummy_password_hash())  # similar timing for unknown emails
@@ -151,12 +149,7 @@ async def confirm_password_reset(
     body: PasswordResetConfirm, db: DbSession, request: Request, limiter: RateLimit
 ) -> MessageResponse:
     await limiter.hit(RESET_CONFIRM_IP, client_ip(request))
-    password = body.password.get_secret_value()
-    if len(password) < MIN_PASSWORD_LENGTH:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Password must be at least {MIN_PASSWORD_LENGTH} characters long",
-        )
+    password = _acceptable(body.password.get_secret_value())
     invalid = HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=INVALID_RESET_LINK)
     try:
         user_id, fingerprint = read_reset_token(get_settings(), body.token.get_secret_value())
@@ -167,6 +160,7 @@ async def confirm_password_reset(
         fingerprint, password_fingerprint(user.password_hash)
     ):
         raise invalid  # unknown user, or the password already changed (link used)
+    _acceptable(password, user.email)
     user.password_hash = hash_password(password)
     await db.commit()
     return MessageResponse(detail=RESET_DONE)
@@ -185,19 +179,19 @@ async def update_profile(body: ProfileUpdate, db: DbSession, user: CurrentUser) 
     return user
 
 
-def _new_password(password: str) -> str:
-    if len(password) < MIN_PASSWORD_LENGTH:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Password must be at least {MIN_PASSWORD_LENGTH} characters long",
-        )
+def _acceptable(password: str, email: str | None = None) -> str:
+    """The password if it meets the rules (app.core.passwords), else a 422 saying why. The
+    message never contains the password."""
+    problem = password_problem(password, email)
+    if problem is not None:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=problem)
     return password
 
 
 async def _check_password(limiter: RateLimit, user: User, password: str) -> None:
     """The signed-in user's password, rate limited per user (5 checks per 15 minutes)."""
     await limiter.hit(PASSWORD_CHECK_USER, str(user.id))
-    if not verify_password(password, user.password_hash):
+    if len(password) > MAX_PASSWORD_LENGTH or not verify_password(password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=WRONG_PASSWORD)
 
 
@@ -207,7 +201,7 @@ async def change_password(
 ) -> TokenResponse:
     """Change the password. Every session started before ends (their tokens carry the old
     password's fingerprint); the response holds a new token for this one."""
-    new = _new_password(body.new_password.get_secret_value())
+    new = _acceptable(body.new_password.get_secret_value(), user.email)
     await _check_password(limiter, user, body.current_password.get_secret_value())
     if verify_password(new, user.password_hash):
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=SAME_PASSWORD)
