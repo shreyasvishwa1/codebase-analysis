@@ -1,19 +1,19 @@
 fastapi==0.165.0
-uvicorn[standard]==0.29.0
+uvicorn[standard]==0.54.0
 pydantic==2.14.4
-pydantic-settings==2.1.0
-sqlalchemy[asyncio]==2.0.29
-asyncpg==0.30.0
+pydantic-settings==2.16.3
+sqlalchemy[asyncio]==2.1.9
+asyncpg==0.32.0
 python-dotenv==1.2.4
-alembic==1.13.1
+alembic==1.20.1
 python-multipart==0.0.34
-httpx==0.27.0
+httpx==0.28.1
 argon2-cffi==23.1.0
 PyJWT==2.15.1
 arq==0.28.0
-anthropic==1.11.0
+anthropic==1.17.0
 # Code-quality analysis (Python linting of uploaded repositories; static, never runs code).
-ruff==0.8.4
+ruff==0.17.6
 # Security analysis (Python security linting; static, never runs code).
 bandit==1.9.4
 # Complexity analysis (cyclomatic complexity and maintainability; static, never runs code).
