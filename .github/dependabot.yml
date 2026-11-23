@@ -1,5 +1,10 @@
 # Dependabot opens pull requests when a library has a newer or fixed version, so a newly
 # published vulnerability is noticed without anyone having to check by hand.
+#
+# Major versions of the backend and frontend libraries are not proposed: they change APIs
+# (React 19, Tailwind 4, redis 8 against arq's redis<6...) and need a deliberate, one library
+# at a time upgrade. Minor and patch versions, which carry most security fixes, still come,
+# and the Tests workflow checks each pull request before it is merged.
 version: 2
 updates:
   - package-ecosystem: pip
@@ -10,6 +15,9 @@ updates:
     groups:
       python:
         patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /frontend
@@ -19,6 +27,9 @@ updates:
     groups:
       javascript:
         patterns: ["*"]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /

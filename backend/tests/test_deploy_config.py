@@ -138,6 +138,10 @@ def test_dependabot_watches_backend_frontend_and_workflow_dependencies() -> None
     config = _github("dependabot.yml")
     watched = {(u["package-ecosystem"], u["directory"]) for u in config["updates"]}
     assert watched == {("pip", "/backend"), ("npm", "/frontend"), ("github-actions", "/")}
+    # Library major versions need a deliberate upgrade; minor and patch updates still come.
+    no_majors = [{"dependency-name": "*", "update-types": ["version-update:semver-major"]}]
+    ignored = {u["package-ecosystem"]: u.get("ignore") for u in config["updates"]}
+    assert ignored == {"pip": no_majors, "npm": no_majors, "github-actions": None}
 
 
 def test_security_audit_checks_every_pinned_package_with_read_only_access() -> None:
