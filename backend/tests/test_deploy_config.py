@@ -19,6 +19,39 @@ def _directives() -> list[str]:
     return [line.split("#", 1)[0].strip() for line in CADDYFILE.read_text().splitlines()]
 
 
+def _block(start: str) -> list[str]:
+    """The directive lines of the block opened by ``start``, up to its closing brace."""
+    lines = _directives()
+    depth, block = 0, []
+    for line in lines[lines.index(start) :]:
+        depth += line.count("{") - line.count("}")
+        block.append(line)
+        if depth == 0:
+            break
+    return block
+
+
+def test_api_request_bodies_are_capped_except_repository_uploads() -> None:
+    block = _block("handle /api/* {")
+    assert "@small not path_regexp ^/api/v1/projects/[^/]+/repositories/[^/]+/ingest$" in block
+    cap = block.index("request_body @small {")
+    assert block[cap + 1] == "max_size 2MB"
+    assert cap < block.index("import api")  # applied before the request reaches the API
+
+
+def test_hidden_paths_get_a_plain_404_except_well_known() -> None:
+    hidden = _block("@hidden {")
+    assert hidden[1:3] == ["path_regexp ^/\\.", "not path /.well-known/*"]
+    assert _block("handle @hidden {")[1] == "respond 404"
+
+
+def test_a_missing_asset_is_a_404_not_the_app_page() -> None:
+    assets = _block("handle /assets/* {")
+    assert "file_server" in assets
+    assert not any(line.startswith("try_files") for line in assets)
+    assert "try_files {path} /index.html" in _directives()  # app routes keep their fallback
+
+
 def test_caddy_resolves_the_client_from_the_right_of_the_chain() -> None:
     lines = _directives()
     assert "trusted_proxies static private_ranges 100.64.0.0/10" in lines
@@ -95,6 +128,29 @@ def test_https_is_remembered_and_device_features_are_off() -> None:
     }
     assert _header("Cross-Origin-Opener-Policy") == "same-origin"
     assert _header("X-Frame-Options") == "DENY"
+
+
+def _github(name: str) -> dict:
+    return yaml.safe_load((CADDYFILE.parents[1] / ".github" / name).read_text())
+
+
+def test_dependabot_watches_backend_frontend_and_workflow_dependencies() -> None:
+    config = _github("dependabot.yml")
+    watched = {(u["package-ecosystem"], u["directory"]) for u in config["updates"]}
+    assert watched == {("pip", "/backend"), ("npm", "/frontend"), ("github-actions", "/")}
+
+
+def test_security_audit_checks_every_pinned_package_with_read_only_access() -> None:
+    workflow = _github("workflows/security-audit.yml")
+    assert workflow["permissions"] == {"contents": "read"}
+    triggers = workflow[True]  # PyYAML reads the bare key "on" as True
+    assert {"push", "pull_request", "schedule"} <= set(triggers)
+    steps = workflow["jobs"]["audit"]["steps"]
+    commands = " ".join(step.get("run", "") for step in steps)
+    assert "pip-audit --strict --disable-pip --no-deps --requirement backend/constraints.txt" in commands
+    assert "npm audit --audit-level=high" in commands
+    checkout = next(step for step in steps if step.get("uses", "").startswith("actions/checkout"))
+    assert checkout["with"]["persist-credentials"] is False
 
 
 def _keep_awake() -> dict:

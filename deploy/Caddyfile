@@ -26,10 +26,32 @@
 	encode gzip
 
 	handle /api/* {
+		# Only repository uploads carry large bodies (the API enforces MAX_UPLOAD_SIZE_MB on
+		# them); every other request body is capped here, before it reaches the application.
+		@small not path_regexp ^/api/v1/projects/[^/]+/repositories/[^/]+/ingest$
+		request_body @small {
+			max_size 2MB
+		}
 		import api
 	}
 	handle /health {
 		import api
+	}
+
+	# Hidden files never exist on this site: /.env, /.git/... get a plain 404 rather than the
+	# app page (the standard /.well-known/ folder excepted).
+	@hidden {
+		path_regexp ^/\.
+		not path /.well-known/*
+	}
+	handle @hidden {
+		respond 404
+	}
+
+	# Built assets: a missing file is a 404, never the app page.
+	handle /assets/* {
+		root * /app/frontend/dist
+		file_server
 	}
 
 	# The single-page app: unknown paths fall back to index.html for client-side routes.
