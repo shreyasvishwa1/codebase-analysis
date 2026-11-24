@@ -6,6 +6,7 @@ import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YA
 import type { HealthDimension, HealthDimensionKey, HealthPoint, HealthReport as Report } from '../types/api'
 import { formatDateTime } from '../utils/format'
 import { CountUp } from './CountUp'
+import { HealthWhatIf } from './HealthWhatIf'
 
 export const DIMENSION_NAMES: Record<HealthDimensionKey, string> = {
   security: 'Security',
@@ -188,6 +189,14 @@ export function HealthReport({ report, projectId, repositoryId }: { report: Repo
           </p>
         </div>
       </section>
+      {scored.length > 0 && (
+        <HealthWhatIf
+          // Saved weights start the sliders; new saved weights start them again.
+          key={report.dimensions.map((d) => d.weight).join(',')}
+          dimensions={report.dimensions}
+          pageFor={(key) => ({ to: `${base}/${DIMENSION_PAGES[key].path}`, label: DIMENSION_PAGES[key].label })}
+        />
+      )}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {report.dimensions.map((dimension) => (
           <DimensionCard key={dimension.key} dimension={dimension} share={share(dimension)} base={base} />

@@ -151,6 +151,7 @@ describe('Repository health score', () => {
     expect(overall.textContent).toContain('The weighted average of 5 scored dimensions.')
     expect(overall.textContent).toContain('Not scored, so left out of the average: Dependency health.')
     expect(overall.textContent).toContain('Weights used: Security 25 · Code quality 20 · Complexity 15 · Maintainability 15 · Dependency health 15 · Architecture 10.')
+    expect(within(screen.getByRole('region', { name: 'What if' })).getByRole('status').textContent).toBe('With these weights: 60 (C)')
 
     const security = screen.getByRole('article', { name: 'Security' })
     expect(within(security).getByText('Weight 25 · 29% of this score')).toBeTruthy() // 25 / 85
@@ -204,6 +205,7 @@ describe('Repository health score', () => {
     expect(within(overall).getByRole('img').getAttribute('aria-label')).toBe('Overall health not scored')
     expect(overall.textContent).toContain('No dimension could be scored for this run')
     expect(screen.getAllByText('Not scored')).toHaveLength(6)
+    expect(screen.queryByRole('region', { name: 'What if' })).toBeNull()
   })
 
   it('waits for a second scored analysis before drawing the trend', async () => {
