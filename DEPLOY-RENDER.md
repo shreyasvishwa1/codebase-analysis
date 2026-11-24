@@ -100,3 +100,4 @@ A whole class on one Wi-Fi shares a single address, so raise the limits before t
 | A loading page for 1–2 minutes | The service was asleep; it is starting |
 | "This repository's files are no longer on the server" | It was imported before files were kept in the database; import it once more and it is kept from then on |
 | "Too many requests" during a class | Raise `REGISTER_IP_LIMIT` and `LOGIN_IP_LIMIT` (classroom mode) |
+| A deploy failed and the logs say "a newer version of the app has already migrated the database" | The failed deploy updated the database before it stopped, and Render went back to the previous version, which keeps running. Open **Manual Deploy → Deploy latest commit** to bring the app up to date (do not roll back) |

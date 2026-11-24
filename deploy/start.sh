@@ -20,7 +20,8 @@ if ! mkdir -p "$DATA_DIR" 2>/dev/null || [ ! -w "$DATA_DIR" ]; then
 fi
 cd /app/backend
 
-alembic upgrade head
+# Migrate first; a database already migrated by a newer version does not stop the start.
+bash /app/deploy/migrate.sh
 
 # Only Caddy (on this host) may set the client address through X-Forwarded-For.
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips 127.0.0.1 &

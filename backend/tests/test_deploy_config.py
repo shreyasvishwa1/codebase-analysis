@@ -5,11 +5,18 @@ X-Forwarded-For chain made uvicorn use the last proxy hop, so every visitor shar
 one set of per-IP rate limits.
 """
 
+import ast
 import base64
 import hashlib
+import os
 import re
+import shlex
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 CADDYFILE = Path(__file__).resolve().parents[2] / "deploy" / "Caddyfile"
@@ -219,7 +226,7 @@ def test_start_script_falls_back_when_the_data_volume_is_not_writable() -> None:
     script = (ROOT / "deploy" / "start.sh").read_text()
     assert 'if ! mkdir -p "$DATA_DIR" 2>/dev/null || [ ! -w "$DATA_DIR" ]; then' in script
     assert 'export DATA_DIR="$HOME/data"' in script
-    assert script.index('export DATA_DIR="$HOME/data"') < script.index("alembic upgrade head")
+    assert script.index('export DATA_DIR="$HOME/data"') < script.index("bash /app/deploy/migrate.sh")
 
 
 def test_ci_runs_every_backend_and_frontend_check_with_read_only_access() -> None:
@@ -274,3 +281,100 @@ def test_every_build_uses_the_same_supported_node_release() -> None:
             if step.get("uses", "").startswith("actions/setup-node")
         }
         assert versions == {"22"}, name
+
+
+# --- Migrations and a failed deploy --------------------------------------------------------------
+# When a deploy migrates the database and then fails, the platform falls back to the previous
+# version, whose migrations end before the database's revision. That version must still start
+# (deploy/migrate.sh), which is safe only while migrations add and never remove or rename.
+
+MIGRATE = ROOT / "deploy" / "migrate.sh"
+VERSIONS = ROOT / "backend" / "alembic" / "versions"
+FIRST_DEPLOYED = 5  # migrations before 0005 predate the first deployment
+ADDITIVE = {
+    "create_table", "create_index", "add_column", "create_foreign_key",
+    "create_check_constraint", "create_unique_constraint", "f",
+}  # fmt: skip
+
+
+def test_start_script_migrates_through_the_shared_step_before_starting() -> None:
+    script = (ROOT / "deploy" / "start.sh").read_text()
+    assert "alembic upgrade head" not in script  # only deploy/migrate.sh runs it
+    assert script.index("bash /app/deploy/migrate.sh") < script.index("uvicorn app.main:app")
+    assert "alembic upgrade head" in MIGRATE.read_text()
+
+
+def _migrations() -> list[tuple[int, Path]]:
+    return sorted((int(path.name[:4]), path) for path in VERSIONS.glob("[0-9][0-9][0-9][0-9]_*.py"))
+
+
+def _upgrade_calls(path: Path) -> list[ast.Call]:
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    upgrade = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "upgrade")
+    return [
+        node
+        for node in ast.walk(upgrade)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and isinstance(node.func.value, ast.Name)
+        and node.func.value.id == "op"
+    ]
+
+
+def test_deployed_migrations_only_add_so_the_previous_version_still_runs() -> None:
+    deployed = [(number, path) for number, path in _migrations() if number >= FIRST_DEPLOYED]
+    assert deployed and deployed[-1][0] >= 15
+    for _, path in deployed:
+        for call in _upgrade_calls(path):
+            operation = call.func.attr  # type: ignore[attr-defined]
+            assert operation in ADDITIVE, f"{path.name}: op.{operation} is not additive"
+            if operation == "add_column":
+                column = call.args[1]
+                assert isinstance(column, ast.Call)
+                keywords = {k.arg: k.value for k in column.keywords}
+                optional = isinstance(keywords.get("nullable"), ast.Constant) and keywords["nullable"].value is True
+                assert optional or "server_default" in keywords, f"{path.name}: a required column has no default"
+
+
+def test_the_additive_check_notices_a_destructive_migration(tmp_path: Path) -> None:
+    sample = tmp_path / "0099_drop.py"
+    sample.write_text("def upgrade():\n    op.drop_column('users', 'display_name')\n", encoding="utf-8")
+    assert [c.func.attr for c in _upgrade_calls(sample)] == ["drop_column"]  # type: ignore[attr-defined]
+    assert "drop_column" not in ADDITIVE
+
+
+def _run_migrate(tmp_path: Path, output: str, code: int) -> subprocess.CompletedProcess[str]:
+    """deploy/migrate.sh with a stand-in alembic that prints ``output`` and exits with ``code``."""
+    fake = tmp_path / "alembic"
+    fake.write_text(f"#!/usr/bin/env bash\nprintf '%s\\n' {shlex.quote(output)}\nexit {code}\n")
+    fake.chmod(0o755)
+    env = {**os.environ, "PATH": f"{tmp_path}{os.pathsep}{os.environ['PATH']}"}
+    return subprocess.run(["bash", str(MIGRATE)], capture_output=True, text=True, env=env, cwd=tmp_path, check=False)
+
+
+needs_bash = pytest.mark.skipif(
+    sys.platform == "win32" or shutil.which("bash") is None, reason="runs the shell script (Linux CI)"
+)
+
+
+@needs_bash
+def test_migrate_applies_the_migrations(tmp_path: Path) -> None:
+    result = _run_migrate(tmp_path, "INFO  Running upgrade 0014 -> 0015", 0)
+    assert result.returncode == 0
+    assert "Running upgrade 0014 -> 0015" in result.stdout
+    assert "WARNING" not in result.stderr
+
+
+@needs_bash
+def test_migrate_starts_anyway_when_a_newer_version_migrated_the_database(tmp_path: Path) -> None:
+    result = _run_migrate(tmp_path, "FAILED: Can't locate revision identified by '0016'", 255)
+    assert result.returncode == 0
+    assert "WARNING: a newer version of the app has already migrated the database" in result.stderr
+
+
+@needs_bash
+def test_migrate_stops_the_start_on_any_other_failure(tmp_path: Path) -> None:
+    result = _run_migrate(tmp_path, "sqlalchemy.exc.OperationalError: connection refused", 1)
+    assert result.returncode == 1
+    assert "connection refused" in result.stderr
+    assert "The database migration failed; the app is not started." in result.stderr
