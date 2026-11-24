@@ -27,6 +27,7 @@ import { BrandMark } from '../components/AuthLayout'
 import { CommandPalette, type PaletteLink } from '../components/CommandPalette'
 import { ShortcutsDialog, useGlobalShortcuts } from '../components/KeyboardShortcuts'
 import { LiveTraces } from '../components/LiveTraces'
+import { AnalysisWatchProvider, RunningAnalyses } from '../components/AnalysisWatch'
 import { PageSkeleton } from '../components/PageSkeleton'
 import { useToast } from '../components/Toaster'
 import { useAuth } from '../hooks/useAuth'
@@ -193,6 +194,7 @@ export function AppShell() {
 
   const name = user ? user.display_name ?? user.email : ''
   return (
+    <AnalysisWatchProvider>
     <div className="pcb-surface flex min-h-screen bg-slate-950">
       <LiveTraces density="low" />
       <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-slate-800 bg-slate-950/90 md:flex">
@@ -278,6 +280,7 @@ export function AppShell() {
 
         <footer className="sticky bottom-0 flex h-8 items-center gap-4 border-t border-slate-800 bg-slate-950 px-4 font-mono text-[11px] text-slate-500 md:px-8">
           <HealthIndicator />
+          <RunningAnalyses />
           <span className="hidden sm:inline">Static analysis: repository code is never run</span>
           <button type="button" onClick={() => setHelpOpen(true)} className="ml-auto hidden hover:text-slate-300 sm:inline">
             <span className="kbd">?</span> shortcuts
@@ -291,5 +294,6 @@ export function AppShell() {
       <CommandPalette open={paletteOpen} onClose={closePalette} pages={PAGES} onSignOut={logout} />
       <ShortcutsDialog open={helpOpen} onClose={closeHelp} />
     </div>
+    </AnalysisWatchProvider>
   )
 }
