@@ -45,3 +45,6 @@ Thumbs.db
 data/**
 !data/.gitkeep
 chroma_db/
+
+# Downloaded benchmark data (SecurityEval is fetched at a pinned commit, never committed)
+evaluation/.cache/

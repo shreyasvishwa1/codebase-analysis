@@ -1,7 +1,10 @@
 # Accuracy evaluation: security analysis compared with Semgrep
 
 This page measures how accurately CodeBase Analysis finds security weaknesses, compared with
-Semgrep, a widely used open-source static analyser. Every number below was produced by
+Semgrep, a widely used open-source static analyser, on two benchmarks: a labelled corpus written
+by the app's authors (precision and recall), and SecurityEval, an independent public dataset
+(detection only; see "Independent benchmark: SecurityEval"). Every corpus number below was
+produced by
 `evaluation/run_evaluation.py`: Semgrep's on 2026-11-23, CodeBase Analysis's last on
 2026-11-25. The figures for CodeBase Analysis are re-checked by the test suite on every push
 (`backend/tests/test_evaluation.py`), so they stay true as the code changes.
@@ -164,6 +167,89 @@ the app's own rules, including the data-flow checks. They are:
 **Complementary.** Both tools find 39 of the same cases. Another 21 are found only by CodeBase
 Analysis and 2 only by Semgrep. Together they reach 0.954 recall at 0.886 precision.
 
+## Independent benchmark: SecurityEval
+
+The corpus above was written by the app's authors. To measure the analysis on code nobody on
+this project wrote, it was also run on **SecurityEval** (Siddiq and Santos, 2022), a public
+dataset of 121 insecure Python samples covering 69 CWEs, written and labelled by its own
+authors from CodeQL and SonarSource examples, MITRE's CWE pages and their own code. The
+dataset was downloaded once at a pinned commit (`6f4fb70`, version 2.1) after every rule
+above was final, and no rule was changed after seeing the results.
+`evaluation/run_securityeval.py` downloads it again, checks its SHA-256 and runs every tool;
+the dataset itself is not stored in this repository.
+
+**Method.** Each sample is one file labelled with one CWE. A tool **detects** a sample when it
+reports a finding in that file whose CWE is the sample's CWE, or a parent or child of it in
+MITRE's CWE list (for example CWE-95 for a CWE-94 sample). Two groupings from the corpus
+evaluation are added: weak cryptography (CWE-326, 327, 328, 916) and untrusted XML (CWE-611,
+776, 827). The families are listed in the script and were fixed before the run. The **flagged**
+column counts samples with any finding at all, of any CWE. SecurityEval has no safe samples, so
+it measures detection only, not precision.
+
+| Tool | Detected | Rate | Exact CWE | CWEs detected | Flagged |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **CodeBase Analysis** | **37** / 121 | **0.306** | 34 | 21 | 60 |
+| Bandit only | 29 / 121 | 0.240 | 26 | 18 | 48 |
+| Own rules only | 8 / 121 | 0.066 | 8 | 4 | 14 |
+| Semgrep (default) | 27 / 121 | 0.223 | 23 | 14 | 42 |
+| Semgrep (extended) | 28 / 121 | 0.231 | 24 | 14 | 44 |
+| CodeBase Analysis + Semgrep | 42 / 121 | 0.347 | 38 | 23 | 66 |
+
+Detected samples per CWE, for the CWEs any tool detected (detected / samples):
+
+| CWE | Samples | CodeBase Analysis | Bandit only | Own rules only | Semgrep (default) |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 20 Improper input validation | 6 | 2 | 2 | 0 | 0 |
+| 22 Path traversal | 4 | 3 | 1 | 2 | 1 |
+| 78 OS command injection | 2 | 2 | 2 | 0 | 2 |
+| 79 Cross-site scripting | 3 | 0 | 0 | 0 | 3 |
+| 80 Basic XSS | 1 | 0 | 0 | 0 | 1 |
+| 89 SQL injection | 2 | 2 | 2 | 0 | 2 |
+| 94 Code injection | 3 | 2 | 2 | 0 | 2 |
+| 95 Eval injection | 1 | 1 | 1 | 0 | 1 |
+| 259 Hard-coded password | 2 | 2 | 2 | 0 | 0 |
+| 295 Certificate validation | 3 | 1 | 1 | 0 | 1 |
+| 319 Cleartext transmission | 2 | 1 | 1 | 0 | 1 |
+| 326 Inadequate key strength | 2 | 2 | 2 | 0 | 2 |
+| 327 Broken cryptography | 4 | 3 | 3 | 0 | 2 |
+| 330 Weak random | 1 | 1 | 1 | 0 | 0 |
+| 331 Insufficient entropy | 1 | 1 | 1 | 0 | 0 |
+| 347 JWT signature not verified | 3 | 1 | 0 | 1 | 0 |
+| 377 Insecure temporary file | 1 | 1 | 1 | 0 | 0 |
+| 502 Deserialization | 4 | 3 | 3 | 0 | 4 |
+| 601 Open redirect | 5 | 3 | 0 | 3 | 3 |
+| 605 Multiple binds to a port | 1 | 1 | 1 | 0 | 0 |
+| 732 Incorrect permissions | 1 | 1 | 1 | 0 | 0 |
+| 798 Hard-coded credentials | 2 | 2 | 2 | 0 | 0 |
+| 918 SSRF | 2 | 2 | 0 | 2 | 2 |
+
+No tool detects any of the other 46 CWEs (65 samples), such as missing authentication, race
+conditions, regular-expression denial of service, LDAP and XPath injection, or log injection.
+Many of them depend on intent or design and are beyond pattern and data-flow checks.
+
+**What it shows:**
+- **Most of the lead over Semgrep comes from Bandit.** Bandit alone detects 29 samples,
+  Semgrep 27. The app's own rules add 8 that Bandit misses: 7 from the new data-flow checks
+  (path traversal, open redirect, SSRF) and 1 JWT case. The own rules matter more on the
+  corpus because SecurityEval is Python only, where Bandit already covers much; the corpus
+  also tests JavaScript, configuration, Dockerfiles and `.env` files.
+- **The data-flow checks carry over.** On code they were not written for, they detect 7
+  samples, and report 6 more where the weakness is real but SecurityEval files it under
+  another CWE: request input sent to `send_file` or `open` in samples labelled CWE-99, 425,
+  434 and 641, and a redirect to request input in two CWE-20 samples. Under the rules above
+  those 6 do not count. The checks reported nothing on any other sample.
+- **What they miss:** reflected XSS in Python (request input in a `make_response` body, or
+  rendered by a Jinja2 environment without autoescaping: all 4 XSS samples, which Semgrep
+  detects), redirects made by setting a `Location` header (2 samples), and extracting archive
+  entries one by one without checking their paths (`tarfile`, 1 sample).
+- **Overlap.** Both tools detect 22 of the same samples; 15 only CodeBase Analysis (mostly
+  Bandit's hard-coded passwords, weak random, `yaml.load` and file permissions), and 5 only
+  Semgrep (the 4 XSS samples and one deserialization). Together they detect 42.
+
+Detection rates near 30% are normal for this benchmark: many of its CWEs cannot be found by
+looking for code patterns. The rates are for comparing the tools on the same samples, not a
+measure of how much of a real project's risk is found.
+
 ## Changes after the first measurement
 
 The first run showed two gaps in the app's own rules. Both were general bugs, not features
@@ -205,8 +291,10 @@ not written for.
 - **Author-built corpus.** The corpus was written by the authors of CodeBase Analysis, who
   knew its rules, and the later changes (above all the data-flow checks) were made after
   seeing it. The safe look-alikes limit this bias but cannot remove it. Only the first
-  measurement (F1 0.759 against Semgrep's 0.752) was blind; an independent benchmark is
-  stronger evidence.
+  measurement (F1 0.759 against Semgrep's 0.752) was blind. SecurityEval is the independent
+  check: detection 0.306 against Semgrep's 0.223.
+- **SecurityEval measures detection only.** It has no safe samples, so it cannot show false
+  positives, and its samples are short, single-file Python snippets.
 - **Small corpus.** 65 vulnerable and 47 safe cases: a difference of a few cases moves the
   scores by several points.
 - **Labelling choices.** The CWE groups and the seven rule overrides are judgment calls,
@@ -217,6 +305,9 @@ not written for.
 ## Future work
 
 - Data flow across functions and files (the checks stay within one function or file).
+- From SecurityEval: reflected XSS in Python (`make_response` with request input, Jinja2
+  without autoescaping), redirects through a `Location` header, and archive extraction
+  without path checks.
 - Each secret inside a committed `.env` file (the app reports the file itself, but not each
   value in it).
 - Weak random in JavaScript (`Math.random()` used for a token).
@@ -232,7 +323,11 @@ backend/.venv/bin/python evaluation/run_evaluation.py     # Linux / macOS
 backend\.venv\Scripts\python evaluation\run_evaluation.py  # Windows
 ```
 
-The script writes `evaluation/results/summary.json`, which lists every detected, missed and
+For SecurityEval, `evaluation/run_securityeval.py` (same requirements, plus a download of
+about 0.4 MB from GitHub) writes `evaluation/results/securityeval.json` and Semgrep's reports in
+`evaluation/results/securityeval-semgrep/`.
+
+The corpus script writes `evaluation/results/summary.json`, which lists every detected, missed and
 false-positive case per tool, and Semgrep's raw reports next to it. To re-score saved reports
 without running Semgrep again, add
 `--semgrep-json semgrep-default=evaluation/results/semgrep-default.json` and

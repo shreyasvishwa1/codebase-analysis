@@ -41,8 +41,9 @@ Lizard, Radon) read a private copy of the files.
 How accurate is the security analysis? On a labelled benchmark written by the authors it was
 compared with Semgrep: precision 0.896, recall 0.923 and F1 0.909, against Semgrep's 0.932,
 0.631 and 0.752. Some rules were added after that benchmark was seen, so it is not a blind
-test; the method, every measurement and the limitations are in
-[docs/EVALUATION.md](docs/EVALUATION.md).
+test. On SecurityEval, an independent public dataset of 121 insecure Python samples, it detects
+37 (0.306) against Semgrep's 27 (0.223), mostly thanks to Bandit. The method, every measurement
+and the limitations are in [docs/EVALUATION.md](docs/EVALUATION.md).
 
 ## Problem Statement
 
@@ -162,6 +163,7 @@ Results at the latest commit (23 November 2026):
 | `ruff check` and mypy | Passing |
 | Continuous integration | GitHub Actions runs every check above on each push and pull request, on Linux with real PostgreSQL and Redis ([tests.yml](.github/workflows/tests.yml)) |
 | Security accuracy against Semgrep | On an author-written corpus of 65 vulnerable and 47 safe cases: precision 0.896, recall 0.923, F1 0.909 (Semgrep 1.184: 0.932, 0.631, 0.752). Measured blind, before rules were added: 0.863, 0.677, 0.759. Method and limitations in [docs/EVALUATION.md](docs/EVALUATION.md) |
+| Security detection on SecurityEval | Independent dataset, 121 insecure Python samples, 69 CWEs: 37 detected (0.306); Bandit alone 29, Semgrep 27 (0.223), both together 42. Detection only (no safe samples) |
 | Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine; 23/23 for security analysis; 22/22 for its data-flow checks (one equivalent mutant set aside); 21/21 for complexity analysis; 30/30 for dependency analysis; 30/30 for architecture analysis; 43/43 for the health score; 52/52 for the AI chat; 47/47 for PDF reports and history; 28/28 for settings and the account; 14/14 for the chat fixes (retries and fallback, name matching, answer formatting) |
 
 - **Isolation**: frontend tests mock the API at the axios adapter, so no backend is needed.
@@ -398,6 +400,8 @@ The root `docker-compose.yml` is for local development only.
 
 Planned future work, not yet implemented:
 - Data flow across functions and files, and FastAPI parameters as request input.
+- Reflected XSS in Python responses and redirects through a `Location` header (gaps found by
+  SecurityEval).
 - Optionally running Semgrep inside an analysis, as Bandit runs today. The evaluation shows the
   two tools complement each other.
 - Shareable links to a file and line.
