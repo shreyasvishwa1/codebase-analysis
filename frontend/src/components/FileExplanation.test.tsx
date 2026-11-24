@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import type { AxiosAdapter, InternalAxiosRequestConfig } from 'axios'
 import type { ReactElement } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { ROUTER_FUTURE } from '../routerFuture'
 import { describe, expect, it } from 'vitest'
 
 import { RepositoryPage } from '../pages/RepositoryPage'
@@ -289,7 +290,7 @@ describe('Repository page integration', () => {
     })
     render(
       withClient(
-        <MemoryRouter initialEntries={[BASE]}>
+        <MemoryRouter future={ROUTER_FUTURE} initialEntries={[BASE]}>
           <Routes>
             <Route path="/projects/:projectId/repositories/:repositoryId" element={<RepositoryPage />} />
           </Routes>

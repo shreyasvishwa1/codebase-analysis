@@ -15,6 +15,7 @@ export function safeReturnPath(from: unknown): string {
   if (typeof from !== 'string' || !from.startsWith('/') || from.startsWith('//')) {
     return DEFAULT_AFTER_SIGN_IN
   }
+  // eslint-disable-next-line no-control-regex -- matching control characters is the point
   if (/[\\\u0000-\u001f\u007f]/.test(from)) return DEFAULT_AFTER_SIGN_IN
   return from
 }

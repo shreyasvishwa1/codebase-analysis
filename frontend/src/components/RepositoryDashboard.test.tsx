@@ -238,8 +238,8 @@ describe('RepositoryDashboard', () => {
     const many = Array.from({ length: 7 }, (_, i) => ({
       language: `Lang${i}`,
       file_count: 10 - i,
-      total_bytes: 10,
-      percentage: i < 5 ? 15 : 12.5,
+      total_bytes: i < 5 ? 150 : 125,
+      percentage: 0, // the chart works the shares out from the bytes of code
     }))
     renderWithProviders(
       <RepositoryDashboard
@@ -259,6 +259,28 @@ describe('RepositoryDashboard', () => {
       'Lang415.0%',
       'Other25.0%',
     ])
+  })
+
+  it('charts only files with a recognised language, so archives do not outweigh the code', async () => {
+    mockApi(routes())
+    const languages = [
+      { language: null, file_count: 19, total_bytes: 5600, percentage: 54.5 }, // ZIPs, images, licences
+      { language: 'Python', file_count: 270, total_bytes: 3000, percentage: 29.2 },
+      { language: 'TSX', file_count: 144, total_bytes: 1000, percentage: 9.7 },
+    ]
+    renderWithProviders(
+      <RepositoryDashboard
+        projectId={PROJECT.id}
+        repositoryId={REPO.id}
+        repository={REPO}
+        tree={TREE}
+        languages={{ ...LANGUAGES, total_files: 433, languages }}
+      />,
+    )
+    const panel = within(screen.getByRole('region', { name: 'Code distribution' }))
+    expect(panel.getAllByRole('listitem').map((li) => li.textContent)).toEqual(['Python75.0%', 'TSX25.0%'])
+    expect(panel.getByText('414')).toBeTruthy() // code files only
+    expect(panel.getByText(/19 files without a recognised language \(archives, images, licences\) not counted\./)).toBeTruthy()
   })
 
   it('makes exactly one request per shared query and nothing else', async () => {

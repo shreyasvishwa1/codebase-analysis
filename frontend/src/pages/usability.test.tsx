@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { QueryClientProvider } from '@tanstack/react-query'
 import type { InternalAxiosRequestConfig } from 'axios'
 import { MemoryRouter } from 'react-router-dom'
+import { ROUTER_FUTURE } from '../routerFuture'
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from '../App'
@@ -37,7 +38,7 @@ function mount(routes: Routes) {
   const requests = mockApi({ 'GET /usability/results': { status: 200, data: EMPTY_RESULTS }, ...routes })
   render(
     <QueryClientProvider client={createTestQueryClient()}>
-      <MemoryRouter>
+      <MemoryRouter future={ROUTER_FUTURE}>
         <ToastProvider>
           <UsabilityPage />
         </ToastProvider>

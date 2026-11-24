@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { ROUTER_FUTURE } from '../routerFuture'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { UploadPage } from '../pages/UploadPage'
@@ -15,7 +16,7 @@ function Location() {
 function mount() {
   render(
     <QueryClientProvider client={createTestQueryClient()}>
-      <MemoryRouter initialEntries={['/upload']}>
+      <MemoryRouter future={ROUTER_FUTURE} initialEntries={['/upload']}>
         <Routes>
           <Route path="*" element={<UploadPage />} />
         </Routes>
@@ -116,7 +117,7 @@ describe('Sample repository', () => {
   it('waits while the form above it is importing', () => {
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <MemoryRouter>
+        <MemoryRouter future={ROUTER_FUTURE}>
           <SampleImport disabled />
         </MemoryRouter>
       </QueryClientProvider>,

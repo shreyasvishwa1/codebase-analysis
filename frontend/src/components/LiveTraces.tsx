@@ -332,6 +332,7 @@ export function BoardCurrent({ traces, delayMs = 0 }: { traces: string[]; delayM
       window.removeEventListener('cba-theme-change', onTheme)
     }
     // The traces are compared by value (key), not by array identity.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- key stands for the traces' value
   }, [key, delayMs])
 
   return <canvas ref={ref} aria-hidden="true" data-testid="board-current" className="pointer-events-none absolute inset-0 h-full w-full [will-change:transform]" />

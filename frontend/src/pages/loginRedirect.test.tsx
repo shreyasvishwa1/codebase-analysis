@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { ROUTER_FUTURE } from '../routerFuture'
 import { describe, expect, it } from 'vitest'
 
 import { AuthProvider } from '../hooks/useAuth'
@@ -39,7 +40,7 @@ describe('Return path after sign-in', () => {
     }
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <MemoryRouter initialEntries={[{ pathname: '/login', state: { from: '//evil.example/phish' } }]}>
+        <MemoryRouter future={ROUTER_FUTURE} initialEntries={[{ pathname: '/login', state: { from: '//evil.example/phish' } }]}>
           <AuthProvider>
             <Routes>
               <Route path="/login" element={<LoginPage />} />

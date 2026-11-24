@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { ROUTER_FUTURE } from '../routerFuture'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import App from '../App'
@@ -94,7 +95,7 @@ function mountChat(routes: Record<string, MockResponse | ((config: { data?: unkn
   })
   render(
     <QueryClientProvider client={createTestQueryClient()}>
-      <MemoryRouter initialEntries={[entry]}>
+      <MemoryRouter future={ROUTER_FUTURE} initialEntries={[entry]}>
         <Routes>
           <Route
             path="/projects/:projectId/repositories/:repositoryId/chat"
@@ -124,7 +125,7 @@ beforeAll(() => preloadAllPages(), 120_000)
 describe('Answer text', () => {
   function renderAnswer(text: string) {
     render(
-      <MemoryRouter>
+      <MemoryRouter future={ROUTER_FUTURE}>
         <Routes>
           <Route path="/" element={<AnswerText text={text} citations={[CITATION]} explorer={REPO_URL} />} />
           <Route path="*" element={<Location />} />
@@ -345,7 +346,7 @@ describe('AI chat overview', () => {
     mockApi({ 'GET /chat': 'status' in data && !('configured' in data) ? (data as MockResponse) : { status: 200, data } })
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <MemoryRouter initialEntries={['/chat']}>
+        <MemoryRouter future={ROUTER_FUTURE} initialEntries={['/chat']}>
           <Routes>
             <Route path="/chat" element={<ChatPage />} />
             <Route path="*" element={<Location />} />

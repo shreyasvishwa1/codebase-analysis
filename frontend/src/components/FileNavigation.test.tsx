@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import type { InternalAxiosRequestConfig } from 'axios'
 import type { ReactElement } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { ROUTER_FUTURE } from '../routerFuture'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { RepositoryPage } from '../pages/RepositoryPage'
@@ -217,7 +218,7 @@ function renderPage() {
   const requests = mockApi(routes)
   render(
     <QueryClientProvider client={createTestQueryClient()}>
-      <MemoryRouter initialEntries={[BASE]}>
+      <MemoryRouter future={ROUTER_FUTURE} initialEntries={[BASE]}>
         <Routes>
           <Route path="/projects/:projectId/repositories/:repositoryId" element={<RepositoryPage />} />
         </Routes>

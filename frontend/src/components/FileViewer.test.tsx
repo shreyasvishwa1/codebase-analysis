@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import type { InternalAxiosRequestConfig } from 'axios'
 import type { ReactElement } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { ROUTER_FUTURE } from '../routerFuture'
 import { describe, expect, it, vi } from 'vitest'
 
 import { RepositoryPage } from '../pages/RepositoryPage'
@@ -245,7 +246,7 @@ function renderPage(routes: Record<string, MockResponse | ((c: InternalAxiosRequ
   })
   const ui: ReactElement = (
     <QueryClientProvider client={createTestQueryClient()}>
-      <MemoryRouter initialEntries={[`/projects/${P}/repositories/${R}`]}>
+      <MemoryRouter future={ROUTER_FUTURE} initialEntries={[`/projects/${P}/repositories/${R}`]}>
         <Routes>
           <Route path="/projects/:projectId/repositories/:repositoryId" element={<RepositoryPage />} />
         </Routes>

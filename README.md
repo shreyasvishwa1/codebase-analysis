@@ -140,150 +140,13 @@ passes `/api` to the backend and adds the security headers: see [Deployment](#de
 
 ## Security
 
-- **Passwords**: hashed with Argon2 (argon2-cffi). The rules follow NIST SP 800-63B:
-  - 8 to 128 characters (anything longer is refused without being hashed);
-  - not a commonly used password, not too simple, and not the account's email.
-- **Authentication**: JWT bearer tokens (PyJWT).
-  - Signed with `SECRET_KEY` using HS256 by default.
-  - The `sub` and `exp` claims are required, and tokens last 60 minutes by default.
-  - Every missing or invalid token gets the same 401 response.
-- **Session**: the frontend keeps the token in `sessionStorage`, so the session ends when the
-  tab closes. The token is attached only to the app's own `/api/v1` requests, and any 401
-  clears it.
-- **Password reset** (optional, off unless SMTP is configured):
-  - The reset link carries a signed token in the URL fragment, so it never reaches server logs.
-    The page removes it from the address bar as soon as it is read.
-  - Reset tokens use a key derived from `SECRET_KEY` that is separate from sign-in tokens, so
-    neither kind can stand in for the other. They expire after 30 minutes by default.
-  - Each token is bound to a fingerprint of the current password hash, so it works once and
-    stops working when the password changes.
-  - Requests get the same answer whether or not the account exists, and the email is sent
-    after the response. Requests are limited per IP and per email, confirmations per IP.
-  - Emails go out over SMTP (for example Gmail with an app password) or, when
-    `BREVO_API_KEY` is set, through Brevo's HTTPS API, which works on hosts that block SMTP.
-  - Without either, reset requests answer 503 "Password reset by email is not available".
-- **Ownership**: every endpoint that addresses a project or repository checks ownership first.
-  Another user's project or repository answers 404 ("Project not found", "Repository not
-  found"), exactly like a missing one.
-- **Rate limiting**: fixed windows in Redis, updated by atomic Lua scripts. Keys store SHA-256
-  digests, never raw user ids, emails or IPs.
-  - Search, per-file analyses, secret scans and explanations have per-user limits.
-  - Login is limited per IP and per email, registration per IP. The per-IP limits are
-    adjustable (`LOGIN_IP_LIMIT`, `REGISTER_IP_LIMIT`) for classrooms that share one address.
-  - Limited requests receive 429 with `Retry-After`.
-  - If Redis is unavailable, requests proceed without limits.
-- **Verified file reads**: every read checks that the path stays inside the repository
-  directory, refuses links and junctions, bounds the size, and compares the SHA-256 recorded at
-  ingestion. A mismatch answers 409 "Repository changed during analysis; run it again".
-- **Archive safety**: every entry is checked before anything is written.
-  - Rejected: absolute, drive, UNC or `..` paths; symbolic links; encrypted or unsupported
-    entries; and duplicate or case-colliding paths.
-  - Limited: entry count, total and per-file size, and compression ratio (zip bombs).
-  - Extraction re-checks the actual sizes and destinations.
-- **GitHub downloads**:
-  - Only `https://github.com/<owner>/<repository>` is accepted, and the download URL is built
-    on the server.
-  - Redirects are followed only to GitHub hosts, and every resolved address must be public.
-  - The download is size-limited, with no git and no credentials.
-- **No repository code execution**: nothing is run, imported or compiled to bytecode.
-  Dependency manifests are parsed, never installed.
-- **Plain-text rendering**: repository content and every server-provided string are rendered
-  as text, never as HTML. External URLs are shown as text, not links.
-- **Production exposure**:
-  - `/docs`, `/redoc` and `/openapi.json` are disabled when `ENVIRONMENT=production`.
-  - CORS accepts exact origins only.
-  - `SECRET_KEY` must be at least 32 characters, and the placeholder value is rejected in
-    production.
-  - Caddy sends these headers:
-    - a strict Content-Security-Policy (scripts only from the site itself);
-    - HSTS, Permissions-Policy, Cross-Origin-Opener-Policy, `X-Frame-Options: DENY` and
-      `nosniff`.
-  - Caddy also enforces these limits:
-    - request bodies are capped at 2 MB, except repository uploads;
-    - hidden paths such as `/.env` or `/.git` get a plain 404.
-  - Both production images run as an unprivileged user, never as root.
-- **Dependency monitoring**:
-  - Dependabot proposes minor and patch updates every week.
-  - A GitHub Actions audit checks every pinned package against the public vulnerability
-    databases, on each push and every week.
-- **AI boundary**: explanations and the chat are off unless `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` is set.
-  - Only the requested, verified file (at most 64 KiB) is sent, always to
-    `https://api.anthropic.com` or `https://generativelanguage.googleapis.com`.
-  - The Gemini key travels only in a request header, never in the URL, and redirects are
-    not followed.
-  - The prompt is fixed on the server and the model gets no tools.
-  - Nothing is stored or logged.
+- **Accounts:** Argon2 password hashes, password rules following NIST SP 800-63B, signed tokens bound to the password, rate-limited sign-in and password reset.
+- **Repositories:** every archive entry is validated before extraction, every read is checked against the SHA-256 recorded at ingestion, and repository code is never run, imported or installed.
+- **Isolation:** every request is ownership-checked; another user's project answers exactly like a missing one.
+- **Server:** strict security headers (CSP, HSTS), capped request sizes, non-root containers, API docs off in production.
+- **Supply chain:** pinned dependencies, Dependabot, and a weekly vulnerability audit of every package.
 
-## Code Intelligence
-
-Python files only, on demand. Navigation follows imports across the repository's files, within
-per-request budgets; results report any truncation.
-
-| Feature | What it does | Scope |
-| --- | --- | --- |
-| Outline | Classes, functions and methods, each linked to its line | File |
-| Imports / importers | Imports resolved to repository files; files that import this one | Cross-file |
-| Go to definition | Resolves the selected name through Python's scope rules and imports | Cross-file |
-| Find references | Uses of a function or class, each confirmed by resolving it; methods and nested classes are not supported | Cross-file |
-| Name occurrences | Every occurrence of the same binding, not just the same spelling | File |
-| Call hierarchy | Callers and callees; dynamic calls are counted, not guessed | Cross-file |
-| Type hierarchy | Direct bases and direct subclasses | Cross-file |
-| Method overrides | Methods this method directly overrides, and direct overrides of it | Cross-file |
-
-There is no type inference: attribute uses such as `self.method()` or `obj.attr` are reported
-as unsupported, never guessed.
-
-Search:
-- **Code search**: literal and case-insensitive; stops at 5,000 files, 64 MiB or 200 matches.
-- **Symbol search**: exact, case-sensitive Python names, up to 200 results.
-
-## Static Diagnostics
-
-Each diagnostic analyzes one Python file and reports only what the syntax proves. Results
-link to their lines and are capped at 500 per diagnostic, with exact counts. Files above
-256 KiB are not parsed.
-
-| Diagnostic | Reports | Deliberately conservative |
-| --- | --- | --- |
-| Unused imports | Import bindings whose name nothing in the file reads | Possible package or stub re-exports, dynamic access and string annotations are counted, not listed |
-| Unbound names | Names read with no statically known binding | Not a runtime `NameError` detector |
-| Unused variables | Assignments to function locals that nothing reads | Not a data-flow analysis |
-| Redefined names | `def`, `async def` and `class` statements replaced by a later one of the same name before anything reads them | Decorated definitions, classes with bases, and dynamic scopes are counted only |
-| Unreachable code | Statements after `return`, `raise`, `break` or `continue`, after an `if` whose every branch leaves, or after `while True:` without a `break` | Leaving through `try`, `with` or `match`, and calls that never return, are not inferred |
-
-## Repository Analysis
-
-- **Code metrics**: per-file line and blank-line counts. They are computed by a background job
-  ("Analyze code") and stored for each snapshot.
-- **Dependencies**: declared dependencies from up to 50 manifests (5,000 dependencies):
-  - `package.json`;
-  - `pyproject.toml` (the PEP 621 `[project]` table);
-  - `requirements*.txt`.
-
-  Nothing is resolved, installed or fetched.
-- **Secret scan**: seven fixed rules covering AWS access key IDs; GitHub, Slack, Stripe live,
-  Google API and Anthropic API keys; and private keys.
-  - Findings carry the path, line and rule, never the matched text.
-  - It stops at 5,000 files, 64 MiB or 500 findings.
-- **Language statistics**: files and bytes per language.
-
-## AI File Explanation
-
-- Optional. Without a provider key, the endpoint answers 503 "AI explanations are not
-  configured".
-- Two providers:
-  - **Anthropic** (paid): `ANTHROPIC_API_KEY`, model `LLM_MODEL` (default `claude-opus-5-5`),
-    through the Messages API.
-  - **Google Gemini** (free tier available): `GEMINI_API_KEY`, model `GEMINI_MODEL` (default
-    `gemini-3.8-flash`), through `generateContent`. On the free tier, Google may use the content
-    to improve its products, so use it only for code you are willing to share.
-  - `LLM_PROVIDER` (`anthropic` or `gemini`) picks one. When it is unset, Anthropic is used if
-    its key is set, otherwise Gemini.
-- Sends the verified content of one file (at most 64 KiB) with a fixed server-side prompt and
-  no tools. Only a complete answer is shown: blocked, safety-stopped or truncated responses are
-  reported as errors.
-- Limited to 20 explanations per user per hour. Review the provider's data-retention and
-  privacy terms before enabling it.
+The details are in [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Testing & Quality Engineering
 
@@ -417,48 +280,7 @@ From the repository root:
 
 ## Environment Variables
 
-The backend reads `backend/.env`; real environment variables override it. Every variable
-below exists in the code.
-
-| Variable | Status | Default | Purpose |
-| --- | --- | --- | --- |
-| `SECRET_KEY` | Required | — | Signs JWTs; at least 32 characters; the placeholder is rejected in production |
-| `DATABASE_URL` | Required | — | Must use `postgresql+asyncpg://` (the built-in default is not usable) |
-| `ENVIRONMENT` | Optional | `development` | `development`, `test` or `production`; production disables `/docs`, `/redoc` and `/openapi.json` |
-| `REDIS_URL` | Optional | `redis://localhost:6379/0` | Job queue and rate limits |
-| `CORS_ORIGINS` | Optional | `http://localhost:5173,http://127.0.0.1:5173` | Exact allowed origins; `*` is rejected |
-| `DATA_DIR` | Optional | `<repository>/data` | Storage for repositories and uploads |
-| `JWT_ALGORITHM` | Optional | `HS256` | `HS256`, `HS384` or `HS512` |
-| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | Optional | `60` | Token lifetime |
-| `MAX_UPLOAD_SIZE_MB` | Optional | `100` | Upload size limit |
-| `MAX_ARCHIVE_FILE_COUNT` | Optional | `10000` | Entries per archive |
-| `MAX_EXTRACTED_SIZE_MB` | Optional | `500` | Total extracted size |
-| `MAX_EXTRACTED_FILE_SIZE_MB` | Optional | `25` | Per-file extracted size (at most `MAX_EXTRACTED_SIZE_MB`) |
-| `MAX_COMPRESSION_RATIO` | Optional | `100` | Per-entry compression ratio (zip-bomb guard) |
-| `LLM_PROVIDER` | Optional | empty | `anthropic` or `gemini`; empty chooses by which key is set (Anthropic first) |
-| `ANTHROPIC_API_KEY` | Optional | empty | Enables AI file explanations and the AI chat with Anthropic; empty keeps them disabled |
-| `LLM_MODEL` | Optional | `claude-opus-5-5` | Claude model for explanations |
-| `GEMINI_API_KEY` | Optional | empty | Enables AI file explanations and the AI chat with Google Gemini (free tier available) |
-| `GEMINI_MODEL` | Optional | `gemini-3.8-flash` | Gemini model for explanations and the chat |
-| `GEMINI_FALLBACK_MODEL` | Optional | `gemini-3.5-flash-lite` | Asked once when `GEMINI_MODEL` stays overloaded after two retries or times out; empty turns the fallback off |
-| `SMTP_HOST` | Optional | empty | Mail server for password-reset emails, such as `smtp.gmail.com`; password reset stays off until `SMTP_HOST`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` and `APP_BASE_URL` are all set |
-| `SMTP_PORT` | Optional | `587` | Mail server port; the connection is upgraded with STARTTLS |
-| `SMTP_USERNAME`, `SMTP_PASSWORD` | Optional | empty | Mail server login; for Gmail, the address and a Google app password (not the account password) |
-| `SMTP_FROM` | Optional | empty | Sender address of reset emails |
-| `APP_BASE_URL` | Optional | empty | Public origin of the frontend, such as `http://127.0.0.1:5173`; reset links point to `<APP_BASE_URL>/reset-password` |
-| `CLIENT_IP_HEADER` | Optional (deployments) | `X-Forwarded-For` | Header the bundled Caddy reads the visitor's address from; `Cf-Connecting-Ip` behind Cloudflare (set in `render.yaml`) |
-| `REGISTER_IP_LIMIT` | Optional | `5` | Sign-ups per hour from one network address; raise it for a class sharing one Wi-Fi |
-| `LOGIN_IP_LIMIT` | Optional | `10` | Login attempts per minute from one network address; raise it the same way |
-| `DEPENDENCY_LOOKUPS` | Optional | `true` | Dependency analysis looks up latest versions on PyPI and npm and vulnerabilities on OSV.dev (sending package names and versions); `false` lists declarations only |
-| `BREVO_API_KEY` | Optional | empty | Sends reset emails through Brevo's HTTPS API instead of SMTP (for hosts that block SMTP, such as Render's free plan) |
-| `EMAIL_FROM` | Optional | `SMTP_FROM` | Sender address of reset emails for either transport |
-| `PASSWORD_RESET_TOKEN_MINUTES` | Optional | `30` | Reset link lifetime (5 to 1,440 minutes) |
-| `DEBUG` | Optional, development only | `false` | Logs SQL statements, including bound parameter values; keep it off outside local development |
-| `APP_NAME`, `APP_VERSION` | Optional | `CodeBase Analysis`, `1.0.0` | Shown in the API title and health responses |
-| `API_PREFIX` | Optional | `/api` | API mount prefix; the frontend expects `/api/v1`, so keep the default |
-| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | Development only (Docker Compose) | — | Required by `docker-compose.yml`; read from the repository-root `.env` or the shell |
-| `POSTGRES_PORT` | Development only (Docker Compose) | `5432` | Local PostgreSQL port |
-| `TEST_DATABASE_URL`, `TEST_MIGRATION_DATABASE_URL`, `TEST_REDIS_URL` | Tests only | — | See [Testing](#testing) |
+Two are required: `SECRET_KEY` (at least 32 characters) and `DATABASE_URL` (a `postgresql+asyncpg://` URL). Everything else is optional: Redis, upload limits, the AI provider keys (`ANTHROPIC_API_KEY` or `GEMINI_API_KEY`), password-reset email and rate limits. The full list, with defaults, is in [docs/CONFIGURATION.md](docs/CONFIGURATION.md).
 
 ## Running the Backend
 
@@ -518,37 +340,19 @@ set:
 
 ## API Overview
 
-All endpoints are under `/api/v1`. Repository endpoints share the prefix
-`/projects/{project_id}/repositories/{repository_id}`, written `…` below.
-- Per-file endpoints take `?path=<file path>`.
-- Go to definition and name occurrences also take `line` and `column`.
-- Find references and the three hierarchy endpoints also take `line`.
+All endpoints are under `/api/v1` and need a bearer token, except sign-up, sign-in, password reset and the health checks. The full list of endpoints is in [docs/API.md](docs/API.md).
 
-| Area | Endpoints |
+## Documentation
+
+| Document | What it covers |
 | --- | --- |
-| Health | `GET /health`, `GET /api/health`, `GET /api/v1/health` |
-| Auth | `POST /auth/register`, `POST /auth/login`, `GET /auth/me`, `POST /auth/password-reset/request`, `POST /auth/password-reset/confirm` |
-| Account | `PATCH /auth/me` (display name), `POST /auth/change-password` (ends other sessions; returns a new token), `DELETE /auth/me` (deletes the account and its data; needs the password), `GET /auth/me/summary` |
-| Projects | `GET /projects`, `POST /projects`, `GET`/`PATCH`/`DELETE /projects/{project_id}` |
-| Repositories | `GET`/`POST /projects/{project_id}/repositories`, `GET`/`PATCH`/`DELETE …` |
-| Ingestion and jobs | `POST …/ingest`, `GET …/jobs`, `GET …/jobs/{job_id}`, `POST …/jobs/{job_id}/cancel` |
-| Files | `GET …/tree`, `GET …/languages`, `GET …/files/content` |
-| Search | `POST …/search` (code), `POST …/symbols/search` |
-| Code intelligence | `GET …/files/outline`, `…/files/imports`, `…/files/importers`, `…/files/definition`, `…/files/references`, `…/files/occurrences`, `…/files/call-hierarchy`, `…/files/type-hierarchy`, `…/files/method-overrides` |
-| Diagnostics | `GET …/files/unused-imports`, `…/files/unbound-names`, `…/files/unused-variables`, `…/files/replaced-definitions`, `…/files/unreachable-code` |
-| Repository analysis | `GET`/`POST …/analysis/code-metrics`, `GET …/analysis/dependencies`, `GET …/analysis/secrets` |
-| Full analysis | `POST …/analysis-runs` (start), `GET …/analysis-runs` (latest job and history), `GET …/analysis-runs/{run_id}` |
-| Overview | `GET /dashboard` |
-| Reports and history | `POST …/analysis-runs/{run_id}/reports` (create a PDF report), `GET /reports` (the user's reports, optionally `?repository_id=`), `GET /reports/{id}/download`, `DELETE /reports/{id}`, `GET /analysis-history` (runs with headline numbers; `?repository_id=`, `?limit=`) |
-| AI chat | `GET`/`POST …/chat/conversations` (list; start with a first question), `GET`/`DELETE …/chat/conversations/{id}`, `POST …/chat/conversations/{id}/messages` (a follow-up question), `GET /chat` (repositories ready to chat and recent conversations), `GET /chat/status` |
-| Health score | `GET …/analysis-runs/{run_id}/health` (the run's score, dimensions and weights), `GET …/health-history` (scores per run, oldest first), `GET /health-score` (each repository's latest score), `GET`/`PUT`/`DELETE /health-score/weights` (the user's weights; `DELETE` restores the defaults) |
-| Architecture | `GET …/analysis-runs/{run_id}/architecture` (the run's architecture document), `GET /architecture` (each repository's latest summary) |
-| Dependencies | `GET …/analysis-runs/{run_id}/dependencies` (filters: `ecosystem`, `scope`, `update`, `vulnerable`, `conflict`, `q`; `sort`; paged), `GET /dependency-analysis` (each repository's latest results) |
-| Complexity | `GET …/analysis-runs/{run_id}/complexity/files` (filters: `rank`, `maintainability`, `q`; `sort`; paged), `GET …/complexity/functions` (filters: `rank`, `path`, `q`; paged), `GET /complexity` (each repository's latest results) |
-| Security | `GET …/analysis-runs/{run_id}/security-findings` (filters: `severity`, `confidence`, `owasp`, `path`, `q`; paged), `GET /security` (each repository's latest results) |
-| Code analysis | `GET …/analysis-runs/{run_id}/issues` (filters: `severity`, `category`, `path`, `q`; paged), `GET /code-quality` (each repository's latest results) |
-| AI | `POST …/files/explain` |
-| Usability survey | `GET`/`PUT /usability/me` (the account's own answers; `PUT` replaces them), `GET /usability/results` (every response, summarized anonymously), `GET /usability/results.csv` (the anonymous answers) |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Modules, database, analysis pipeline, health score formulas, AI chat |
+| [docs/FEATURES.md](docs/FEATURES.md) | Each code-intelligence feature, diagnostic and repository analysis, and its limits |
+| [docs/EVALUATION.md](docs/EVALUATION.md) | Accuracy of the security analysis against Semgrep |
+| [docs/SECURITY.md](docs/SECURITY.md) | Accounts, sessions, archive safety, rate limits, production settings |
+| [docs/API.md](docs/API.md) | Every REST endpoint |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every environment variable |
+| [DEPLOY-RENDER.md](DEPLOY-RENDER.md) | Hosting on Render and Neon (free), step by step |
 
 ## Limitations
 
@@ -568,8 +372,6 @@ All endpoints are under `/api/v1`. Repository endpoints share the prefix
   following data through the program. It does not find path traversal, server-side request
   forgery or open redirects. It is a review aid, never proof that a project is secure; see
   [docs/EVALUATION.md](docs/EVALUATION.md).
-- **Tooling**: ESLint is not installed, so `npm run lint` fails. Type checking, tests and the
-  build run in CI.
 - **Deployment**: single-server only (see [Deployment](#deployment)). On Render's free plan the
   service sleeps after 15 idle minutes; a GitHub Actions job pings it every 10 minutes to keep
   it awake.
@@ -596,7 +398,6 @@ Planned future work, not yet implemented:
 - Data-flow (taint) analysis from request inputs: path traversal, SSRF and open redirects.
 - Optionally running Semgrep inside an analysis, as Bandit runs today. The evaluation shows the
   two tools complement each other.
-- ESLint in CI.
 - Shareable links to a file and line.
 - A repository-wide diagnostics dashboard.
 - A file-level import graph (the architecture diagram shows imports between directories).

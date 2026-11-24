@@ -2,6 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { useState } from 'react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { ROUTER_FUTURE } from '../routerFuture'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { mockApi, PROJECT, ZIP_REPOSITORY, type MockResponse } from '../test/mockApi'
@@ -176,7 +177,7 @@ function Trigger({ input }: { input: ToastInput }) {
 
 function renderToasts(input: ToastInput) {
   return render(
-    <MemoryRouter>
+    <MemoryRouter future={ROUTER_FUTURE}>
       <ToastProvider>
         <Trigger input={input} />
         <Routes>
@@ -250,7 +251,7 @@ describe('toasts', () => {
       )
     }
     render(
-      <MemoryRouter>
+      <MemoryRouter future={ROUTER_FUTURE}>
         <ToastProvider>
           <Many />
         </ToastProvider>
@@ -303,7 +304,7 @@ const run: AnalysisRun = {
 function panel() {
   render(
     <QueryClientProvider client={createTestQueryClient()}>
-      <MemoryRouter>
+      <MemoryRouter future={ROUTER_FUTURE}>
         <ToastProvider>
           <AnalysisRunsPanel projectId={P} repositoryId={R} repository={READY} pollIntervalMs={20} />
         </ToastProvider>
@@ -370,7 +371,7 @@ describe('full analysis panel, live', () => {
 
 function ShortcutHost({ initial = '/overview' }: { initial?: string }) {
   return (
-    <MemoryRouter initialEntries={[initial]}>
+    <MemoryRouter future={ROUTER_FUTURE} initialEntries={[initial]}>
       <Keys />
       <Routes>
         <Route path="*" element={<Where />} />
@@ -497,7 +498,7 @@ describe('shortcuts in the app', () => {
     document.documentElement.setAttribute('data-theme', 'dark')
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <MemoryRouter initialEntries={['/overview']}>
+        <MemoryRouter future={ROUTER_FUTURE} initialEntries={['/overview']}>
           <AuthProvider>
             <ToastProvider>
               <App />

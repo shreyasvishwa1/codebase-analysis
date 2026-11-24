@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { ROUTER_FUTURE } from '../routerFuture'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import App from '../App'
@@ -121,7 +122,7 @@ function mountRepositoryPage(routes: Record<string, MockResponse>) {
   const requests = mockApi({ [`GET ${REPO_URL}`]: { status: 200, data: READY }, ...routes })
   render(
     <QueryClientProvider client={createTestQueryClient()}>
-      <MemoryRouter initialEntries={[`${REPO_URL}/architecture`]}>
+      <MemoryRouter future={ROUTER_FUTURE} initialEntries={[`${REPO_URL}/architecture`]}>
         <Routes>
           <Route path="/projects/:projectId/repositories/:repositoryId/architecture" element={<RepositoryArchitecturePage />} />
           <Route path="*" element={<Location />} />
@@ -452,7 +453,7 @@ describe('Architecture overview', () => {
   function mountOverview() {
     render(
       <QueryClientProvider client={createTestQueryClient()}>
-        <MemoryRouter initialEntries={['/architecture']}>
+        <MemoryRouter future={ROUTER_FUTURE} initialEntries={['/architecture']}>
           <Routes>
             <Route path="/architecture" element={<ArchitecturePage />} />
             <Route path="*" element={<Location />} />

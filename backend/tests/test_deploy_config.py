@@ -248,7 +248,7 @@ def test_ci_runs_every_backend_and_frontend_check_with_read_only_access() -> Non
     assert {"ruff check .", "mypy", "python -m pytest -q -p no:cacheprovider"} <= set(
         commands["backend"]
     )
-    assert {"npm run typecheck", "npm test", "npm run build"} <= set(commands["frontend"])
+    assert {"npm run lint", "npm run typecheck", "npm test", "npm run build"} <= set(commands["frontend"])
     for job in jobs.values():
         checkout = next(s for s in job["steps"] if s.get("uses", "").startswith("actions/checkout"))
         assert checkout["with"]["persist-credentials"] is False

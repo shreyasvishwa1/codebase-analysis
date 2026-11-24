@@ -241,19 +241,28 @@ interface Slice {
   color: string
 }
 
+/** Files with a recognised language only: archives, images and other files without one would
+ * otherwise outweigh the code (a single ZIP can be larger than every source file together). */
+export function codeLanguages(languages: LanguageStatistic[]): LanguageStatistic[] {
+  return languages.filter((row) => row.language !== null)
+}
+
 function languageSlices(languages: LanguageStatistic[]): Slice[] {
-  const top = languages.slice(0, SERIES.length)
-  const rest = languages.slice(SERIES.length)
+  const code = codeLanguages(languages)
+  const total = code.reduce((sum, row) => sum + row.total_bytes, 0)
+  const share = (bytes: number) => (total ? (bytes * 100) / total : 0)
+  const top = code.slice(0, SERIES.length)
+  const rest = code.slice(SERIES.length)
   const slices = top.map((row, index) => ({
     name: languageLabel(row.language),
-    share: row.percentage,
+    share: share(row.total_bytes),
     files: row.file_count,
     color: SERIES[index],
   }))
   if (rest.length > 0) {
     slices.push({
       name: 'Other',
-      share: rest.reduce((sum, row) => sum + row.percentage, 0),
+      share: share(rest.reduce((sum, row) => sum + row.total_bytes, 0)),
       files: rest.reduce((sum, row) => sum + row.file_count, 0),
       color: OTHER,
     })
@@ -263,10 +272,17 @@ function languageSlices(languages: LanguageStatistic[]): Slice[] {
 
 function DistributionPanel({ languages, totalFiles }: { languages: LanguageStatistic[]; totalFiles: number }) {
   const slices = languageSlices(languages)
+  const codeFiles = codeLanguages(languages).reduce((sum, row) => sum + row.file_count, 0)
+  const otherFiles = totalFiles - codeFiles
   return (
     <section className={PANEL} aria-label="Code distribution">
       <h3 className={PANEL_TITLE}>Code distribution</h3>
-      <p className={PANEL_NOTE}>Share of the repository's bytes by language.</p>
+      <p className={PANEL_NOTE}>
+        Share of the code&apos;s bytes by language.
+        {otherFiles > 0
+          ? ` ${number(otherFiles)} ${otherFiles === 1 ? 'file' : 'files'} without a recognised language (archives, images, licences) not counted.`
+          : ''}
+      </p>
       {slices.length === 0 ? (
         <p className="mt-6 text-sm text-slate-400">Ingest the repository to see its languages.</p>
       ) : (
@@ -297,8 +313,8 @@ function DistributionPanel({ languages, totalFiles }: { languages: LanguageStati
               </PieChart>
             </ResponsiveContainer>
             <span className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-extrabold tabular-nums text-slate-50">{number(totalFiles)}</span>
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">files total</span>
+              <span className="text-2xl font-extrabold tabular-nums text-slate-50">{number(codeFiles)}</span>
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">code files</span>
             </span>
           </div>
           <ul className="w-full space-y-1.5 text-sm">

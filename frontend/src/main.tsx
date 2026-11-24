@@ -2,6 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
+import { ROUTER_FUTURE } from './routerFuture'
 
 import App from './App'
 import { ToastProvider } from './components/Toaster'
@@ -18,7 +19,7 @@ installSmoothWheel()
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <BrowserRouter future={ROUTER_FUTURE}>
         <AuthProvider>
           <ToastProvider>
             <App />

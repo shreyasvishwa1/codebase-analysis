@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { ROUTER_FUTURE } from '../routerFuture'
 import { describe, expect, it, vi } from 'vitest'
 
 import { queryKeys } from '../hooks/queryKeys'
@@ -20,7 +21,7 @@ function renderRepository(repository: Repository, storage: RepositoryStorage['fi
   })
   render(
     <QueryClientProvider client={createTestQueryClient()}>
-      <MemoryRouter initialEntries={[base]}>
+      <MemoryRouter future={ROUTER_FUTURE} initialEntries={[base]}>
         <Routes>
           <Route path="/projects/:projectId/repositories/:repositoryId" element={<RepositoryPage />} />
         </Routes>

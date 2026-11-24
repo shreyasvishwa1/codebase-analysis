@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { MemoryRouter } from 'react-router-dom'
+import { ROUTER_FUTURE } from '../routerFuture'
 
 import { AuthProvider } from '../hooks/useAuth'
 
@@ -16,7 +17,7 @@ export function renderWithProviders(ui: ReactElement, { route = '/' }: { route?:
   const queryClient = createTestQueryClient()
   const result = render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[route]}>
+      <MemoryRouter future={ROUTER_FUTURE} initialEntries={[route]}>
         <AuthProvider>{ui}</AuthProvider>
       </MemoryRouter>
     </QueryClientProvider>,

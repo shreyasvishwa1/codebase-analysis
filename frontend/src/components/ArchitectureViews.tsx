@@ -147,6 +147,7 @@ function useBoxes(container: RefObject<HTMLElement>, deps: unknown[]) {
     observer.observe(root)
     return () => observer.disconnect()
     // Re-measured whenever the caller's inputs change (what is highlighted, the filters).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the caller's inputs are the dependencies
   }, deps)
   return { boxes, register }
 }
