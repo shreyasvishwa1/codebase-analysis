@@ -43,6 +43,7 @@ from app.api.v1.routes import (
     secret_scan,
     security,
     symbol_search,
+    usability,
 )
 
 api_router = APIRouter(prefix="/v1")
@@ -80,6 +81,7 @@ api_router.include_router(code_outline.router)
 api_router.include_router(code_imports.router)
 api_router.include_router(code_importers.router)
 api_router.include_router(symbol_search.router)
+api_router.include_router(usability.router)
 api_router.include_router(code_definition.router)
 api_router.include_router(code_references.router)
 api_router.include_router(code_call_hierarchy.router)

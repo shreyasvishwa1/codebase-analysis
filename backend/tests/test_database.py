@@ -33,10 +33,11 @@ TABLES = {
     "chat_messages",
     "generated_reports",
     "file_blobs",
+    "usability_responses",
 }
 
 
-def test_metadata_registers_exactly_the_eighteen_tables() -> None:
+def test_metadata_registers_exactly_the_nineteen_tables() -> None:
     assert set(Base.metadata.tables) == TABLES
 
 
@@ -95,6 +96,7 @@ def test_foreign_keys_cascade_on_delete() -> None:
         ("generated_reports", "project_id"): ("projects", "CASCADE"),
         ("generated_reports", "repository_id"): ("repositories", "CASCADE"),
         ("generated_reports", "run_id"): ("analysis_runs", "CASCADE"),
+        ("usability_responses", "user_id"): ("users", "CASCADE"),
     }
 
 
@@ -210,7 +212,7 @@ def test_libpq_style_options_are_translated_for_asyncpg(
     assert "sslmode" not in kwargs and "channel_binding" not in kwargs
 
 
-def test_alembic_single_head_and_offline_sql_covers_the_eighteen_tables() -> None:
+def test_alembic_single_head_and_offline_sql_covers_the_nineteen_tables() -> None:
     # Offline mode loads alembic/env.py and the app metadata without connecting.
     result = subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head", "--sql"],
@@ -230,7 +232,7 @@ def test_alembic_single_head_and_offline_sql_covers_the_eighteen_tables() -> Non
         text=True,
         check=True,
     )
-    assert heads.stdout.split() == ["0014", "(head)"]
+    assert heads.stdout.split() == ["0015", "(head)"]
 
 
 @pytest.mark.skipif(
@@ -245,6 +247,6 @@ async def test_migrated_database_connectivity() -> None:
             names = await conn.run_sync(lambda c: set(inspect(c).get_table_names()))
             assert names == TABLES | {"alembic_version"}
             version = (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar()
-            assert version == "0014"
+            assert version == "0015"
     finally:
         await engine.dispose()

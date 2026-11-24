@@ -37,6 +37,7 @@ export default function App() {
           <Route path="/chat" element={<Pages.ChatPage />} />
           <Route path="/history" element={<Pages.HistoryPage />} />
           <Route path="/settings" element={<Pages.SettingsPage />} />
+          <Route path="/rate" element={<Pages.UsabilityPage />} />
           <Route path="/projects" element={<Pages.ProjectsPage />} />
           <Route path="/projects/:projectId" element={<Pages.ProjectPage />} />
           <Route path={REPOSITORY} element={<Pages.RepositoryPage />} />

@@ -12,6 +12,7 @@ import { getHealthOverview } from '../services/healthScore'
 import { listProjects } from '../services/projects'
 import { getAnalysisHistory } from '../services/reports'
 import { getSecurityOverview } from '../services/security'
+import { getMyUsability, getUsabilityResults } from '../services/usability'
 import { PATH_PAGES, preloadPage } from '../routes/pages'
 import { HISTORY_PAGE } from './history'
 
@@ -36,6 +37,10 @@ export const PAGE_DATA: Record<string, Prefetch[]> = {
   '/health-score': [{ queryKey: queryKeys.healthOverview, queryFn: getHealthOverview }],
   '/chat': [{ queryKey: queryKeys.chatOverview, queryFn: getChatOverview }],
   '/settings': [{ queryKey: queryKeys.accountSummary, queryFn: getAccountSummary }],
+  '/rate': [
+    { queryKey: queryKeys.usabilityMine, queryFn: getMyUsability },
+    { queryKey: queryKeys.usabilityResults, queryFn: getUsabilityResults },
+  ],
   '/history': [
     { queryKey: queryKeys.analysisHistory(null, HISTORY_PAGE), queryFn: () => getAnalysisHistory(null, HISTORY_PAGE) },
   ],

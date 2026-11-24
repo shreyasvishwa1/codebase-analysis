@@ -1,4 +1,5 @@
 import {
+  ClipboardCheck,
   FileSearch,
   FolderGit2,
   Gauge,
@@ -74,7 +75,13 @@ const SECTIONS: { title: string; links: PaletteLink[] }[] = [
       { to: '/history', label: 'History & Reports', icon: History },
     ],
   },
-  { title: 'Account', links: [{ to: '/settings', label: 'Settings', icon: Settings }] },
+  {
+    title: 'Account',
+    links: [
+      { to: '/settings', label: 'Settings', icon: Settings },
+      { to: '/rate', label: 'Rate this app', icon: ClipboardCheck },
+    ],
+  },
 ]
 const PAGES = SECTIONS.flatMap((section) => section.links)
 

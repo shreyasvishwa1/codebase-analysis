@@ -1656,3 +1656,39 @@ export interface AccountSummary {
   conversations: number
   latest_analysis_at: string | null
 }
+
+// --- Usability questionnaire (System Usability Scale) ------------------------------------------
+
+/** The questionnaire and the signed-in account's own answers, if it has answered. */
+export interface UsabilityMine {
+  statements: string[]
+  /** ten answers from 1 (strongly disagree) to 5 (strongly agree), or null */
+  answers: number[] | null
+  /** 0-100 */
+  score: number | null
+  grade: string | null
+  updated_at: string | null
+}
+
+export interface UsabilityItem {
+  number: number
+  statement: string
+  /** agreeing is good (odd statements); for the others, disagreeing is */
+  positive: boolean
+  mean: number | null
+}
+
+/** Every account's answers, anonymously. */
+export interface UsabilityResults {
+  responses: number
+  mean: number | null
+  grade: string | null
+  median: number | null
+  standard_deviation: number | null
+  lowest: number | null
+  highest: number | null
+  average_benchmark: number
+  items: UsabilityItem[]
+  /** responses per grade group: A, B, C, D, F */
+  grades: Record<string, number>
+}

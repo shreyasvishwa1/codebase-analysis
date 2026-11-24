@@ -22,6 +22,7 @@ from app.models.generated_report import GeneratedReport
 from app.models.project import Project
 from app.models.repository import Repository
 from app.models.security_finding import SecurityFinding
+from app.models.usability_response import UsabilityResponse
 from app.models.user import User
 
 __all__ = [
@@ -47,5 +48,6 @@ __all__ = [
     "RepositorySourceType",
     "RepositoryStatus",
     "SecurityFinding",
+    "UsabilityResponse",
     "User",
 ]

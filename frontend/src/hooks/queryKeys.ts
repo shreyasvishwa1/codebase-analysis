@@ -58,6 +58,9 @@ export const queryKeys = {
   healthWeights: ['health-score', 'weights'] as const,
   chatStatus: ['chat', 'status'] as const,
   accountSummary: ['account', 'summary'] as const,
+  // Every usability key contains 'usability', so saving answers refreshes the results too.
+  usabilityMine: ['usability', 'me'] as const,
+  usabilityResults: ['usability', 'results'] as const,
   chatOverview: ['chat'] as const,
   reports: (repositoryId: string | null) => ['reports', repositoryId ?? 'all'] as const,
   analysisHistory: (repositoryId: string | null, limit: number) =>

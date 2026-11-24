@@ -19,6 +19,7 @@ const LOADERS = {
   ChatPage: () => import('../pages/ChatPage'),
   HistoryPage: () => import('../pages/HistoryPage'),
   SettingsPage: () => import('../pages/SettingsPage'),
+  UsabilityPage: () => import('../pages/UsabilityPage'),
   ProjectsPage: () => import('../pages/ProjectsPage'),
   ProjectPage: () => import('../pages/ProjectPage'),
   RepositoryPage: () => import('../pages/RepositoryPage'),
@@ -64,6 +65,7 @@ export const PATH_PAGES: Record<string, PageName> = {
   '/chat': 'ChatPage',
   '/history': 'HistoryPage',
   '/settings': 'SettingsPage',
+  '/rate': 'UsabilityPage',
 }
 
 /** Fetch one page's file now. Failures are ignored; opening the page retries the load. */
