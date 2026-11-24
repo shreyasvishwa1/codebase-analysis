@@ -219,6 +219,40 @@ RULES: dict[str, SecurityRule] = {
         "If this is a real credential, rotate it and load it from the environment or a "
         "secrets manager.",
     ),
+    # Data flow from request input (app.analysis.security.dataflow), Python and JavaScript.
+    "path-traversal": SecurityRule(
+        "Path built from request input", "high", "potential", "A01", 22,
+        "A file path that includes request input can point outside the intended folder "
+        "(../../etc/passwd), letting an attacker read or delete files (path traversal).",
+        "Keep only the file name (secure_filename or os.path.basename; path.basename in Node), "
+        "serve from a fixed folder (send_from_directory, res.sendFile with root), or look the "
+        "file up by an id.",
+    ),
+    "ssrf": SecurityRule(
+        "Outgoing request to a URL from request input", "high", "potential", "A10", 918,
+        "When request input decides the address the server connects to, an attacker can make it "
+        "reach internal services or cloud metadata (server-side request forgery).",
+        "Allow only known hosts (an allow-list), never pass a URL from the request straight "
+        "through, and block private and link-local addresses.",
+    ),
+    "open-redirect": SecurityRule(
+        "Redirect to a URL from request input", "medium", "potential", "A01", 601,
+        "Redirecting to an address taken from the request lets an attacker send users from a "
+        "trusted link to a phishing site (open redirect).",
+        "Redirect only to known paths (url_for, a fixed list) or to relative paths on this site.",
+    ),
+    "template-injection": SecurityRule(
+        "Template built from request input", "high", "potential", "A03", 1336,
+        "Rendering a template whose source includes request input lets an attacker run template "
+        "code on the server (server-side template injection), and inject HTML.",
+        "Keep templates fixed (render_template with a file) and pass request input as a variable.",
+    ),
+    "reflected-xss": SecurityRule(
+        "Request input sent back unescaped", "medium", "potential", "A03", 79,
+        "Sending request input back in the response renders it as HTML, so a crafted link can run "
+        "script in the visitor's browser (reflected cross-site scripting).",
+        "Return JSON (res.json), or escape the value before writing it into HTML.",
+    ),
     # JavaScript / TypeScript.
     "js-eval": SecurityRule(
         "eval() call", "high", "confirmed", "A03", 95,

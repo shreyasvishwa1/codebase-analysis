@@ -32,12 +32,12 @@
   },
   "tools": {
     "codebase-analysis": {
-      "tp": 46,
+      "tp": 60,
       "fp": 7,
-      "fn": 19,
-      "precision": 0.868,
-      "recall": 0.708,
-      "f1": 0.78,
+      "fn": 5,
+      "precision": 0.896,
+      "recall": 0.923,
+      "f1": 0.909,
       "safe_cases_flagged": 2,
       "safe_cases": 47
     },
@@ -52,12 +52,12 @@
       "safe_cases": 47
     },
     "own-rules-only": {
-      "tp": 24,
+      "tp": 38,
       "fp": 0,
-      "fn": 41,
+      "fn": 27,
       "precision": 1.0,
-      "recall": 0.369,
-      "f1": 0.539,
+      "recall": 0.585,
+      "f1": 0.738,
       "safe_cases_flagged": 0,
       "safe_cases": 47
     },
@@ -82,12 +82,12 @@
       "safe_cases": 47
     },
     "codebase-analysis+semgrep": {
-      "tp": 59,
+      "tp": 62,
       "fp": 8,
-      "fn": 6,
-      "precision": 0.881,
-      "recall": 0.908,
-      "f1": 0.894,
+      "fn": 3,
+      "precision": 0.886,
+      "recall": 0.954,
+      "f1": 0.919,
       "safe_cases_flagged": 2,
       "safe_cases": 47
     }
@@ -139,11 +139,11 @@
         2
       ],
       "open-redirect": [
-        0,
+        3,
         3
       ],
       "path-traversal": [
-        0,
+        4,
         4
       ],
       "secret": [
@@ -155,7 +155,7 @@
         5
       ],
       "ssrf": [
-        0,
+        2,
         2
       ],
       "temp-file": [
@@ -163,7 +163,7 @@
         1
       ],
       "template-injection": [
-        0,
+        1,
         1
       ],
       "tls": [
@@ -179,7 +179,7 @@
         2
       ],
       "xss": [
-        4,
+        8,
         8
       ],
       "xxe": [
@@ -327,11 +327,11 @@
         2
       ],
       "open-redirect": [
-        0,
+        3,
         3
       ],
       "path-traversal": [
-        0,
+        4,
         4
       ],
       "secret": [
@@ -343,7 +343,7 @@
         5
       ],
       "ssrf": [
-        0,
+        2,
         2
       ],
       "temp-file": [
@@ -351,7 +351,7 @@
         1
       ],
       "template-injection": [
-        0,
+        1,
         1
       ],
       "tls": [
@@ -367,7 +367,7 @@
         2
       ],
       "xss": [
-        4,
+        8,
         8
       ],
       "xxe": [
@@ -613,7 +613,7 @@
         3
       ],
       "path-traversal": [
-        2,
+        4,
         4
       ],
       "secret": [
@@ -625,7 +625,7 @@
         5
       ],
       "ssrf": [
-        1,
+        2,
         2
       ],
       "temp-file": [
@@ -662,23 +662,9 @@
     "codebase-analysis": [
       "deploy/.env line 5 secret",
       "deploy/.env line 7 secret",
-      "js/public/app.js line 41 open-redirect",
-      "js/server.js line 107 xss",
       "js/server.js line 118 jwt",
       "js/server.js line 143 weak-hash",
-      "js/server.js line 153 weak-random",
-      "js/server.js line 51 xss",
-      "js/server.js line 58 xss",
-      "js/server.js line 69 path-traversal",
-      "js/server.js line 74 path-traversal",
-      "js/server.js line 84 ssrf",
-      "js/server.js line 86 xss",
-      "js/server.js line 97 open-redirect",
-      "python/views.py line 123 path-traversal",
-      "python/views.py line 130 path-traversal",
-      "python/views.py line 144 ssrf",
-      "python/views.py line 159 template-injection",
-      "python/views.py line 171 open-redirect"
+      "js/server.js line 153 weak-random"
     ],
     "bandit-only": [
       "deploy/.env file env-file",
@@ -728,18 +714,9 @@
     "own-rules-only": [
       "deploy/.env line 5 secret",
       "deploy/.env line 7 secret",
-      "js/public/app.js line 41 open-redirect",
-      "js/server.js line 107 xss",
       "js/server.js line 118 jwt",
       "js/server.js line 143 weak-hash",
       "js/server.js line 153 weak-random",
-      "js/server.js line 51 xss",
-      "js/server.js line 58 xss",
-      "js/server.js line 69 path-traversal",
-      "js/server.js line 74 path-traversal",
-      "js/server.js line 84 ssrf",
-      "js/server.js line 86 xss",
-      "js/server.js line 97 open-redirect",
       "python/config/settings.py line 24 secret",
       "python/config/settings.py line 8 secret",
       "python/tasks.py line 102 tls",
@@ -754,11 +731,6 @@
       "python/tasks.py line 92 temp-file",
       "python/views.py line 102 code-injection",
       "python/views.py line 109 code-injection",
-      "python/views.py line 123 path-traversal",
-      "python/views.py line 130 path-traversal",
-      "python/views.py line 144 ssrf",
-      "python/views.py line 159 template-injection",
-      "python/views.py line 171 open-redirect",
       "python/views.py line 199 tls",
       "python/views.py line 212 debug",
       "python/views.py line 28 sqli",
@@ -823,10 +795,7 @@
     "codebase-analysis+semgrep": [
       "deploy/.env line 5 secret",
       "deploy/.env line 7 secret",
-      "js/server.js line 153 weak-random",
-      "js/server.js line 74 path-traversal",
-      "js/server.js line 84 ssrf",
-      "python/views.py line 123 path-traversal"
+      "js/server.js line 153 weak-random"
     ]
   },
   "false_positives": {

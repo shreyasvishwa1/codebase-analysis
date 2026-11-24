@@ -21,7 +21,8 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from app.analysis.exclusions import excluded_directory
-from app.analysis.security import patterns
+from app.analysis import python_ast
+from app.analysis.security import dataflow, patterns
 from app.analysis.security.bandit_runner import read_report, run_bandit
 from app.analysis.security.rules import (
     BANDIT_DEFAULT_RECOMMENDATION,
@@ -162,6 +163,16 @@ class SecurityAnalyzer:
         if _is_python(file.language, PurePosixPath(file.path).suffix.lstrip(".")):
             self._python += 1
             self._copy.add(file.path, text)
+            try:
+                tree = python_ast.parse(text)
+            except (SyntaxError, ValueError, RecursionError, MemoryError):
+                tree = None  # Bandit and Ruff report the syntax error
+            if tree is not None:
+                for match in dataflow.scan_python(tree):
+                    self._own(file.path, match)
+        elif file.language in patterns.JS_LANGUAGES:
+            for match in dataflow.scan_javascript(text):
+                self._own(file.path, match)
 
     # --- results --------------------------------------------------------------------------
 
