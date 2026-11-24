@@ -153,13 +153,13 @@ The details are in [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Testing & Quality Engineering
 
-Results at the latest commit (23 November 2026):
+Results at the latest commit (25 November 2026):
 
 | Check | Result |
 | --- | --- |
-| Frontend tests (Vitest, Testing Library, jsdom) | 1,486 passing in 57 files |
-| Backend tests (pytest) | 3,217 passing in 56 files on Linux; 34 skipped there are Windows-only tests (directory junctions) |
-| TypeScript typecheck and production build | Passing |
+| Frontend tests (Vitest, Testing Library, jsdom) | 1,495 passing in 58 files |
+| Backend tests (pytest) | 3,910 passing in 61 files on Linux; of the 37 skipped there, 34 are Windows-only tests (directory junctions) and 3 need the SecurityEval download |
+| TypeScript typecheck, ESLint and production build | Passing |
 | `ruff check` and mypy | Passing |
 | Continuous integration | GitHub Actions runs every check above on each push and pull request, on Linux with real PostgreSQL and Redis ([tests.yml](.github/workflows/tests.yml)) |
 | Security accuracy against Semgrep | On an author-written corpus of 65 vulnerable and 47 safe cases: precision 0.896, recall 0.923, F1 0.909 (Semgrep 1.184: 0.932, 0.631, 0.752). Measured blind, before rules were added: 0.863, 0.677, 0.759. Method and limitations in [docs/EVALUATION.md](docs/EVALUATION.md) |
