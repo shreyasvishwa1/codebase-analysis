@@ -159,6 +159,20 @@ FastAPI (uvicorn)  ── auth, ownership, rate limits, validation
   `your-password` or `${TOKEN}` are ignored); committed `.env` files (templates such as
   `.env.example` are not); Dockerfiles without an unprivileged `USER`, with an unpinned base
   image, or with `ADD <url>`. Code rules skip comment lines; patterns are linear.
+- **Data flow** (`app/analysis/security/dataflow.py`): request input followed to dangerous
+  calls. In Python, on the shared syntax tree, one function at a time: Flask and Django
+  request attributes (`request.args`, `.form`, `.json`, `.GET`, `.POST`, ...) through
+  assignments, string building, loops, tuples, augmented and walrus assignments into
+  `open`/`send_file`/`os.remove`/`shutil.*` (path traversal, CWE-22), `requests`/`httpx`/
+  `urlopen` (SSRF, CWE-918), `redirect` (open redirect, CWE-601) and
+  `render_template_string`/`from_string` (template injection, CWE-1336). Statements are
+  read in order, so reassigning a variable or passing it through a sanitizer
+  (`secure_filename`, `os.path.basename`, `int`, `url_for`, `escape`) clears it. In
+  JavaScript, one file at a time: Express `req.query`/`params`/`body`/`headers`/`cookies`
+  through declarations and destructuring into `res.sendFile`/`fs.*`, `axios`/`fetch`/
+  `http(s).get`, `res.redirect` and `res.send`/`write`/`end` (reflected XSS, CWE-79); in the
+  browser, the page's own address written to `window.location`. Values passed into other
+  functions are not followed; findings are "potential".
 - **Classification** (`app/analysis/security/rules.py`): severity critical/high/medium/low
   (critical is reserved for committed credentials in a known format and private keys);
   confidence **confirmed** (the insecure code or file is definitely present, including Bandit

@@ -38,9 +38,11 @@ Analyzed code is never executed, imported or installed. Python is parsed with th
 standard-library `ast` and `tokenize` modules, and the external analyzers (Ruff, Bandit,
 Lizard, Radon) read a private copy of the files.
 
-How accurate is the security analysis? On a labelled benchmark it was compared with Semgrep:
-precision 0.868, recall 0.708 and F1 0.780, against Semgrep's 0.932, 0.631 and 0.752. The
-method and the limitations are in [docs/EVALUATION.md](docs/EVALUATION.md).
+How accurate is the security analysis? On a labelled benchmark written by the authors it was
+compared with Semgrep: precision 0.896, recall 0.923 and F1 0.909, against Semgrep's 0.932,
+0.631 and 0.752. Some rules were added after that benchmark was seen, so it is not a blind
+test; the method, every measurement and the limitations are in
+[docs/EVALUATION.md](docs/EVALUATION.md).
 
 ## Problem Statement
 
@@ -74,7 +76,7 @@ guesses.
 | Health Score | One score from 0 to 100 (grade A-F) per analysis: a weighted average of security, code quality, complexity, maintainability, dependency health and architecture. Each dimension shows its inputs, the calculation with the actual numbers and what would raise it. The weights are yours to change, and a trend shows the score across runs. Formulas: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#6-code-health-score-phase-7) |
 | Dependencies | Each full analysis also checks dependency health: every package declared in `package.json`, `pyproject.toml` and `requirements*.txt` (runtime and development), the version it allows, the latest release on PyPI or npm (major, minor or patch behind), known vulnerabilities from OSV.dev with CVE ids, CVSS scores and the fixed version, and packages declared with conflicting versions. Vulnerable versions also appear on the Security page (OWASP A06). Package names and versions are sent to PyPI, npm and OSV.dev; `DEPENDENCY_LOOKUPS=false` turns that off |
 | Complexity | Each full analysis also measures complexity: the cyclomatic complexity of every function (Lizard, about twenty languages) rated Low, Medium or High, the maintainability index of every file (Radon for Python; the same formula estimated for other languages), functions, classes, lines of code and duplication. The most complex functions open in the explorer at their line; files can be sorted by complexity, maintainability or size |
-| Security | Each full analysis also checks security: committed secrets and `.env` files, injection risks (SQL and shell commands built from strings, `eval`), XSS sinks, disabled TLS verification, insecure JWT and CORS settings, debug settings and Dockerfiles that run as root, plus Bandit for Python. Findings are rated Critical, High, Medium or Low, marked confirmed or potential, and mapped to the OWASP Top 10 with a CWE; each explains the risk and the fix. Secret values are never shown, and the page never calls a project secure |
+| Security | Each full analysis also checks security: committed secrets and `.env` files, injection risks (SQL and shell commands built from strings, `eval`), XSS sinks, request input that reaches a file path, an outgoing request, a redirect, a template or an HTML response (path traversal, SSRF, open redirect, template injection, reflected XSS), disabled TLS verification, insecure JWT and CORS settings, debug settings and Dockerfiles that run as root, plus Bandit for Python. Findings are rated Critical, High, Medium or Low, marked confirmed or potential, and mapped to the OWASP Top 10 with a CWE; each explains the risk and the fix. Secret values are never shown, and the page never calls a project secure |
 | Code analysis | Each full analysis also finds code-quality issues: bug risks, syntax errors, unused and unreachable code, duplicate blocks (every language), naming, missing docstrings, formatting, TODO/FIXME markers and very long files. Python is checked with Ruff on a private copy, so repository code is never run. Each issue shows its file, line, category, severity, why it matters and a suggested fix, and links to the line in the explorer. Issues can be filtered by severity, category, file and text |
 | Dashboard | Per-repository overview: files, lines of code, languages, dependencies and secret findings; a health score from five checks; code distribution, largest files, file sizes, dependencies by ecosystem and job activity |
 | Browsing and search | File tree with a path filter, language statistics, plain-text file viewer, literal code search, exact Python symbol search |
@@ -159,8 +161,8 @@ Results at the latest commit (23 November 2026):
 | TypeScript typecheck and production build | Passing |
 | `ruff check` and mypy | Passing |
 | Continuous integration | GitHub Actions runs every check above on each push and pull request, on Linux with real PostgreSQL and Redis ([tests.yml](.github/workflows/tests.yml)) |
-| Security accuracy against Semgrep | On a labelled corpus of 65 vulnerable and 47 safe cases: precision 0.868, recall 0.708, F1 0.780 (Semgrep 1.184: 0.932, 0.631, 0.752); method and limitations in [docs/EVALUATION.md](docs/EVALUATION.md) |
-| Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine; 23/23 for security analysis; 21/21 for complexity analysis; 30/30 for dependency analysis; 30/30 for architecture analysis; 43/43 for the health score; 52/52 for the AI chat; 47/47 for PDF reports and history; 28/28 for settings and the account; 14/14 for the chat fixes (retries and fallback, name matching, answer formatting) |
+| Security accuracy against Semgrep | On an author-written corpus of 65 vulnerable and 47 safe cases: precision 0.896, recall 0.923, F1 0.909 (Semgrep 1.184: 0.932, 0.631, 0.752). Measured blind, before rules were added: 0.863, 0.677, 0.759. Method and limitations in [docs/EVALUATION.md](docs/EVALUATION.md) |
+| Mutation testing | 287/287 mutants caught in the final development phase; 17/17 for the code-quality engine; 23/23 for security analysis; 22/22 for its data-flow checks (one equivalent mutant set aside); 21/21 for complexity analysis; 30/30 for dependency analysis; 30/30 for architecture analysis; 43/43 for the health score; 52/52 for the AI chat; 47/47 for PDF reports and history; 28/28 for settings and the account; 14/14 for the chat fixes (retries and fallback, name matching, answer formatting) |
 
 - **Isolation**: frontend tests mock the API at the axios adapter, so no backend is needed.
   Backend database and API tests run against a throwaway, already-migrated PostgreSQL database
@@ -368,10 +370,10 @@ All endpoints are under `/api/v1` and need a bearer token, except sign-up, sign-
   expires. Resetting a password does not end sessions that are already signed in.
 - **Navigation**: files and lines are not reflected in the URL, so they cannot be shared as
   links.
-- **Security analysis** matches known patterns, through Bandit and the app's own rules, without
-  following data through the program. It does not find path traversal, server-side request
-  forgery or open redirects. It is a review aid, never proof that a project is secure; see
-  [docs/EVALUATION.md](docs/EVALUATION.md).
+- **Security analysis** matches known patterns, through Bandit and the app's own rules, and
+  follows request input only within one Python function or one JavaScript file: a value
+  passed to another function, or a FastAPI parameter, is not followed. It is a review aid,
+  never proof that a project is secure; see [docs/EVALUATION.md](docs/EVALUATION.md).
 - **Deployment**: single-server only (see [Deployment](#deployment)). On Render's free plan the
   service sleeps after 15 idle minutes; a GitHub Actions job pings it every 10 minutes to keep
   it awake.
@@ -395,7 +397,7 @@ The root `docker-compose.yml` is for local development only.
 ## Future Scope
 
 Planned future work, not yet implemented:
-- Data-flow (taint) analysis from request inputs: path traversal, SSRF and open redirects.
+- Data flow across functions and files, and FastAPI parameters as request input.
 - Optionally running Semgrep inside an analysis, as Bandit runs today. The evaluation shows the
   two tools complement each other.
 - Shareable links to a file and line.
