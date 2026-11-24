@@ -118,7 +118,16 @@ export function formatElapsed(seconds: number): string {
  * are read, the dependencies chip during the OSV.dev lookups, the health chip while the
  * results are saved, and the outputs once it is done. Driven by the job's real progress.
  */
-export function LiveAnalysisBoard({ job, onHide }: { job: AnalysisJob; onHide?: () => void }) {
+export function LiveAnalysisBoard({
+  job,
+  previousSeconds = null,
+  onHide,
+}: {
+  job: AnalysisJob
+  /** how long the repository's previous full analysis took, shown while this one runs */
+  previousSeconds?: number | null
+  onHide?: () => void
+}) {
   const stage = analysisStage(job)
   const states = chipStates(stage)
   const [title, subtitle] = centerText(stage)
@@ -136,6 +145,7 @@ export function LiveAnalysisBoard({ job, onHide }: { job: AnalysisJob; onHide?: 
         <h3 className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-300">Live analysis</h3>
         <span className="font-mono text-[11px] text-slate-500">
           {job.progress}% overall{elapsed !== null && ` · ${formatElapsed(elapsed)}`}
+          {running && previousSeconds !== null && ` · last run took ${formatElapsed(previousSeconds)}`}
         </span>
         {!running && onHide && (
           <button

@@ -1,18 +1,22 @@
 import { History, Loader2, Play } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { queryKeys } from '../hooks/queryKeys'
 import { useAnalysisRuns, useStartAnalysisRun } from '../hooks/useAnalysisRuns'
 import { getErrorMessage } from '../services/client'
+import { getHealthHistory } from '../services/healthScore'
+import { listJobs } from '../services/jobs'
 import type { AnalysisRun, Repository } from '../types/api'
 import { formatBytes, formatDateTime } from '../utils/format'
 import { isJobActive } from '../utils/jobs'
+import { analysisTitle, healthChange, lastRunSeconds, runChanges, summarizeChanges } from '../utils/runChanges'
 import { ErrorMessage } from './ErrorMessage'
 import { languageLabel } from './LanguageStats'
 import { LiveAnalysisBoard } from './LiveAnalysisBoard'
 import { useToast } from './Toaster'
 
+const APP_TITLE = 'CodeBase Analysis'
 const number = (value: number) => value.toLocaleString('en-US')
 const count = (value: number, noun: string) => `${number(value)} ${noun}${value === 1 ? '' : 's'}`
 
@@ -95,26 +99,85 @@ export function AnalysisRunsPanel({
   const active = isJobActive(job ?? undefined)
   const history = runs.data?.runs ?? []
   const selected = history.find((run) => run.id === selectedId) ?? history[0]
+  // While a run is going, how long the previous one took (same key as useJobs: shared cache).
+  const jobs = useQuery({
+    queryKey: queryKeys.jobs(projectId, repositoryId),
+    queryFn: () => listJobs(projectId, repositoryId),
+    enabled: active,
+  })
+  const previousSeconds = lastRunSeconds(jobs.data ?? [])
 
-  // When a run finishes, the dashboard totals change too, and a toast says how it ended.
+  // When a run finishes, the dashboard totals change too, and a toast says how it ended and
+  // what changed since the previous run.
   const wasActive = useRef(false)
+  const latestHistory = useRef(history)
+  latestHistory.current = history
   useEffect(() => {
     if (active) setWatching(true)
     if (wasActive.current && !active) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.dashboard, exact: true })
       setSelectedId(null) // show the new latest run
       if (job?.status === 'completed') {
-        toast({
-          title: 'Analysis complete',
-          description: `${repository.name} was analyzed. Its health score and findings are ready.`,
-          action: { label: 'See the health score', to: `/projects/${projectId}/repositories/${repositoryId}/health` },
-        })
+        const [latest, previous] = latestHistory.current
+        const changes = latest ? runChanges(latest, previous) : []
+        const notify = (health: ReturnType<typeof healthChange>) => {
+          const summary = summarizeChanges([health, ...changes].filter((change) => change !== null))
+          toast({
+            title: 'Analysis complete',
+            description: `${repository.name} was analyzed. ${summary || 'Its health score and findings are ready.'}`,
+            action: { label: 'See the health score', to: `/projects/${projectId}/repositories/${repositoryId}/health` },
+          })
+        }
+        if (previous) {
+          // The new run's score; the toast says nothing about health if it cannot be read.
+          queryClient
+            .fetchQuery({
+              queryKey: queryKeys.healthHistory(projectId, repositoryId),
+              queryFn: () => getHealthHistory(projectId, repositoryId),
+              staleTime: 0,
+            })
+            .then((data) => notify(healthChange(data.points)), () => notify(null))
+        } else {
+          notify(null)
+        }
       } else if (job?.status === 'failed') {
         toast({ title: 'Analysis failed', description: job.error_message ?? undefined, tone: 'error' })
       }
     }
     wasActive.current = active
   }, [active, job?.status, job?.error_message, queryClient, toast, repository.name, projectId, repositoryId])
+
+  // The browser tab shows the progress, so a run can be followed from another tab. A run that
+  // finishes while the tab is hidden leaves "Analysis done" there until the tab is seen.
+  const wasRunningTitle = useRef(false)
+  useEffect(() => {
+    if (!job || !active) return
+    wasRunningTitle.current = true
+    document.title = `${analysisTitle(job, repository.name)} — ${APP_TITLE}`
+  }, [job, active, repository.name])
+  useEffect(() => {
+    if (active) return
+    if (!wasRunningTitle.current) return
+    wasRunningTitle.current = false
+    if (!document.hidden) {
+      document.title = APP_TITLE
+      return
+    }
+    document.title = `${job?.status === 'failed' ? 'Analysis failed' : 'Analysis done'} — ${APP_TITLE}`
+    const seen = () => {
+      if (document.hidden) return
+      document.title = APP_TITLE
+      document.removeEventListener('visibilitychange', seen)
+    }
+    document.addEventListener('visibilitychange', seen)
+    return () => document.removeEventListener('visibilitychange', seen)
+  }, [active, job?.status])
+  useEffect(
+    () => () => {
+      if (wasRunningTitle.current) document.title = APP_TITLE
+    },
+    [],
+  )
 
   async function onRun() {
     setError(null)
@@ -162,7 +225,9 @@ export function AnalysisRunsPanel({
           Analysis {job?.status === 'pending' ? 'queued' : 'in progress'}…
         </p>
       )}
-      {job && (active || watching) && <LiveAnalysisBoard job={job} onHide={() => setWatching(false)} />}
+      {job && (active || watching) && (
+        <LiveAnalysisBoard job={job} previousSeconds={previousSeconds} onHide={() => setWatching(false)} />
+      )}
       {job?.status === 'failed' && job.error_message && (
         <ErrorMessage message={`The last analysis failed: ${job.error_message}`} />
       )}

@@ -367,6 +367,98 @@ describe('full analysis panel, live', () => {
   })
 })
 
+describe('full analysis panel, what changed', () => {
+  const JOBS_URL = `/projects/${P}/repositories/${R}/jobs`
+  const HEALTH_URL = `/projects/${P}/repositories/${R}/health-history`
+  const summaryRun = (id: string, findings: number, critical: number, issues: number): AnalysisRun => ({
+    ...run,
+    id,
+    security: { findings, by_severity: { critical, high: 1, medium: 0, low: 0 } } as unknown as AnalysisRun['security'],
+    quality: { issues } as unknown as AnalysisRun['quality'],
+  })
+  const previous = summaryRun('run-0', 5, 2, 7)
+  const latest = summaryRun('run-1', 3, 2, 7)
+  const previousJob = job('completed', 100, {
+    id: 'job-0',
+    started_at: '2026-11-16T10:00:00Z',
+    completed_at: '2026-11-16T10:00:35Z',
+  })
+
+  function serve(health: MockResponse) {
+    let state: { job: AnalysisJob | null; runs: AnalysisRun[] } = { job: previousJob, runs: [previous] }
+    let polls = 0
+    const requests = mockApi({
+      [`GET ${RUNS_URL}`]: () => {
+        if (state.job?.status === 'processing') {
+          polls += 1
+          if (polls >= 3) state = { job: job('completed', 100), runs: [latest, previous] }
+        }
+        return { status: 200, data: state } as MockResponse
+      },
+      [`POST ${RUNS_URL}`]: () => {
+        state = { job: job('processing', 30, { started_at: '2026-11-17T10:00:00Z' }), runs: [previous] }
+        return { status: 202, data: { job_id: 'job-1', repository_id: R, status: 'pending' } }
+      },
+      [`GET ${JOBS_URL}`]: { status: 200, data: [job('processing', 30), previousJob] },
+      [`GET ${HEALTH_URL}`]: health,
+    })
+    return requests
+  }
+
+  afterEach(() => {
+    document.title = 'CodeBase Analysis'
+  })
+
+  it('says what changed since the previous run, how long that run took, and shows progress in the tab title', async () => {
+    serve({
+      status: 200,
+      data: { points: [{ run_id: 'run-0', created_at: '', overall: 50, grade: 'D', scores: {} }, { run_id: 'run-1', created_at: '', overall: 61, grade: 'C', scores: {} }] },
+    })
+    panel()
+    fireEvent.click(await screen.findByRole('button', { name: 'Run full analysis' }))
+    const board = await screen.findByRole('region', { name: 'Live analysis' })
+    await waitFor(() => expect(board.textContent).toContain('last run took 35s'))
+    expect(document.title).toBe(`30% · Analyzing ${READY.name} — CodeBase Analysis`)
+    const toast = await within(screen.getByRole('region', { name: 'Notifications' })).findByText('Analysis complete')
+    expect(toast.closest('li')?.textContent).toContain(
+      `${READY.name} was analyzed. Health score 50 → 61 · Security findings 5 → 3. Unchanged: critical and high 3 · code issues 7.`,
+    )
+    expect(document.title).toBe('CodeBase Analysis')
+    expect(board.textContent).not.toContain('last run took') // only while running
+  })
+
+  it('leaves the health score out when it cannot be read', async () => {
+    serve({ status: 500, data: { detail: 'down' } })
+    panel()
+    fireEvent.click(await screen.findByRole('button', { name: 'Run full analysis' }))
+    const toast = await within(screen.getByRole('region', { name: 'Notifications' })).findByText('Analysis complete')
+    expect(toast.closest('li')?.textContent).toContain(`${READY.name} was analyzed. Security findings 5 → 3. Unchanged:`)
+    expect(toast.closest('li')?.textContent).not.toContain('Health score')
+  })
+
+  it('keeps "Analysis done" in a hidden tab until it is seen', async () => {
+    serve({ status: 500, data: { detail: 'down' } })
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true)
+    try {
+      panel()
+      fireEvent.click(await screen.findByRole('button', { name: 'Run full analysis' }))
+      await within(screen.getByRole('region', { name: 'Notifications' })).findByText('Analysis complete')
+      expect(document.title).toBe('Analysis done — CodeBase Analysis')
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange')) // still hidden
+      })
+      expect(document.title).toBe('Analysis done — CodeBase Analysis')
+      hidden.mockReturnValue(false)
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'))
+      })
+      expect(document.title).toBe('CodeBase Analysis')
+    } finally {
+      hidden.mockRestore()
+    }
+  })
+})
+
 // --- Shortcuts -------------------------------------------------------------------------------
 
 function ShortcutHost({ initial = '/overview' }: { initial?: string }) {
