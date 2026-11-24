@@ -324,6 +324,30 @@ html {
   }
 }
 
+/* Chart bars grow from their start when they first appear (the reduced-motion rule below
+   shortens every animation to nothing). */
+.bar-grow {
+  transform-origin: left center;
+  animation: bar-grow 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* A score ring fills from empty to its value; --ring-c is the circle's circumference. */
+.ring-fill {
+  animation: ring-fill 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes ring-fill {
+  from {
+    stroke-dasharray: 0 var(--ring-c);
+  }
+}
+
 @keyframes trace-draw {
   from {
     transform: scaleX(0);

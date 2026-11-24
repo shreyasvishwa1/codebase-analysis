@@ -5,6 +5,7 @@ import { ErrorMessage } from '../components/ErrorMessage'
 import { useArchitectureOverview } from '../hooks/useArchitecture'
 import { getErrorMessage } from '../services/client'
 import { formatDateTime } from '../utils/format'
+import { CountUp } from '../components/CountUp'
 
 const number = (value: number) => value.toLocaleString('en-US')
 
@@ -67,15 +68,15 @@ export function ArchitecturePage() {
                 <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
                   <div>
                     <dt className="text-xs text-slate-400">Components</dt>
-                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(summary.components)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50"><CountUp>{number(summary.components)}</CountUp></dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400">API routes</dt>
-                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(summary.routes)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50"><CountUp>{number(summary.routes)}</CountUp></dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400">Cycles</dt>
-                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(summary.cycles)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50"><CountUp>{number(summary.cycles)}</CountUp></dd>
                   </div>
                 </dl>
                 {summary.technologies.length > 0 && (

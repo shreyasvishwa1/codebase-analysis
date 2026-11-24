@@ -14,6 +14,7 @@ import type {
   SecuritySummary,
 } from '../types/api'
 import { ErrorMessage } from './ErrorMessage'
+import { CountUp } from './CountUp'
 
 export const SECURITY_SEVERITIES: SecuritySeverity[] = ['critical', 'high', 'medium', 'low']
 export const SECURITY_SEVERITY_LABELS: Record<SecuritySeverity, string> = {
@@ -124,7 +125,7 @@ function Summary({ summary, onSeverity, onConfidence }: {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <div className={CARD}>
           <p className="text-xs text-slate-400">Findings</p>
-          <p className="text-2xl font-extrabold tabular-nums text-slate-50">{number(summary.findings)}</p>
+          <p className="text-2xl font-extrabold tabular-nums text-slate-50"><CountUp>{number(summary.findings)}</CountUp></p>
           <p className="text-xs text-slate-500">{count(summary.files_scanned, 'file')} scanned</p>
         </div>
         {SECURITY_SEVERITIES.map((severity) => (
@@ -136,7 +137,7 @@ function Summary({ summary, onSeverity, onConfidence }: {
             className={`${CARD} text-left hover:border-slate-600`}
           >
             <SecuritySeverityBadge severity={severity} />
-            <p className="mt-1 text-2xl font-extrabold tabular-nums text-slate-50">{number(summary.by_severity[severity])}</p>
+            <p className="mt-1 text-2xl font-extrabold tabular-nums text-slate-50"><CountUp>{number(summary.by_severity[severity])}</CountUp></p>
           </button>
         ))}
       </div>
@@ -180,7 +181,7 @@ function OwaspBreakdown({ summary, onOwasp }: { summary: SecuritySummary; onOwas
                 </span>
                 <span className="mt-1 block h-2 rounded-full bg-slate-800">
                   <span
-                    className="block h-2 rounded-full bg-rose-500"
+                    className="bar-grow block h-2 rounded-full bg-rose-500"
                     style={{ width: `${Math.max(3, (value / max) * 100)}%` }}
                   />
                 </span>

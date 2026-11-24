@@ -429,7 +429,7 @@ function NeighbourCard({
           <span className={`shrink-0 font-mono text-[11px] ${neighbour.mutual ? 'text-red-300' : 'text-indigo-300'}`}>{neighbour.imports}</span>
         </span>
         <span aria-hidden="true" className="h-1 w-full overflow-hidden rounded-full bg-slate-800">
-          <span className={`block h-1 rounded-full ${neighbour.mutual ? 'bg-red-400' : 'bg-indigo-400'}`} style={{ width: `${Math.max(8, (neighbour.imports / max) * 100)}%` }} />
+          <span className={`bar-grow block h-1 rounded-full ${neighbour.mutual ? 'bg-red-400' : 'bg-indigo-400'}`} style={{ width: `${Math.max(8, (neighbour.imports / max) * 100)}%` }} />
         </span>
         <span className="text-[10px] text-slate-500">
           {component ? ROLE_LABELS[component.role] : 'Component'}

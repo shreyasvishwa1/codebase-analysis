@@ -14,6 +14,7 @@ import type {
   MaintainabilityLevel,
 } from '../types/api'
 import { ErrorMessage } from './ErrorMessage'
+import { CountUp } from './CountUp'
 
 export const RANKS: ComplexityRank[] = ['low', 'medium', 'high']
 export const RANK_LABELS: Record<ComplexityRank, string> = { low: 'Low', medium: 'Medium', high: 'High' }
@@ -129,7 +130,7 @@ function Summary({ summary, duplication }: { summary: ComplexitySummary; duplica
         {stats.map(([label, value, caption]) => (
           <div key={label} className={CARD}>
             <dt className="text-xs text-slate-400">{label}</dt>
-            <dd className="text-2xl font-extrabold tabular-nums text-slate-50">{value}</dd>
+            <dd className="text-2xl font-extrabold tabular-nums text-slate-50"><CountUp>{value}</CountUp></dd>
             <dd className="truncate text-xs text-slate-500">{caption}</dd>
           </div>
         ))}
@@ -167,7 +168,7 @@ function Distribution({ summary, onRank }: { summary: ComplexitySummary; onRank:
                 </span>
                 <span className="mt-1 block h-2 rounded-full bg-slate-800">
                   <span
-                    className={`block h-2 rounded-full ${RANK_BARS[rank]}`}
+                    className={`bar-grow block h-2 rounded-full ${RANK_BARS[rank]}`}
                     style={{ width: `${value === 0 ? 0 : Math.max(2, (value / total) * 100)}%` }}
                   />
                 </span>
@@ -195,7 +196,7 @@ function MaintainabilityPanel({ summary, onLevel }: { summary: ComplexitySummary
             className="rounded-lg border border-slate-800 p-3 text-left hover:border-slate-600"
           >
             <span className="block text-xs text-slate-400">{LEVEL_LABELS[level]}</span>
-            <span className="block text-xl font-bold tabular-nums text-slate-50">{number(summary.files_by_maintainability[level])}</span>
+            <span className="block text-xl font-bold tabular-nums text-slate-50"><CountUp>{number(summary.files_by_maintainability[level])}</CountUp></span>
           </button>
         ))}
       </div>

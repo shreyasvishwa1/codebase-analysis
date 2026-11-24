@@ -11,7 +11,7 @@ import {
   XCircle,
   type LucideIcon,
 } from 'lucide-react'
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts'
 
 import { queryKeys } from '../hooks/queryKeys'
@@ -32,6 +32,7 @@ import type {
 import { formatBytes } from '../utils/format'
 import { largestFiles } from './CodeMetricsPanel'
 import { languageLabel } from './LanguageStats'
+import { CountUp } from './CountUp'
 
 /** Categorical order (validated on the dark surface); "Other" is always the neutral last slot. */
 const SERIES = ['rgb(var(--indigo-500))', 'rgb(var(--slate-400))', 'rgb(var(--emerald-500))', 'rgb(var(--sky-500))', 'rgb(var(--rose-500))']
@@ -140,7 +141,8 @@ function ScoreRing({ score, color }: { score: number; color: string }) {
         strokeWidth="9"
         strokeLinecap="round"
         strokeDasharray={`${(score / 100) * circumference} ${circumference}`}
-        className="transition-all duration-700"
+        className="ring-fill transition-all duration-700"
+        style={{ '--ring-c': circumference } as CSSProperties}
       />
     </svg>
   )
@@ -173,7 +175,7 @@ function HealthPanel({ checks }: { checks: HealthCheck[] }) {
           <ScoreRing score={score ?? 0} color={tone?.ring ?? 'rgb(var(--slate-600))'} />
           <span className="absolute inset-0 flex flex-col items-center justify-center">
             <span className="text-2xl font-extrabold tabular-nums text-slate-50">
-              {score === null ? '—' : `${score}%`}
+              <CountUp>{score === null ? '—' : `${score}%`}</CountUp>
             </span>
           </span>
         </div>
@@ -227,7 +229,7 @@ function KpiTile({
       </span>
       <div className="min-w-0">
         <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{label}</p>
-        <p className="text-2xl font-extrabold tabular-nums text-slate-50">{value}</p>
+        <p className="text-2xl font-extrabold tabular-nums text-slate-50"><CountUp>{value}</CountUp></p>
         <p className="truncate text-xs text-slate-400">{caption}</p>
       </div>
     </div>
@@ -313,7 +315,7 @@ function DistributionPanel({ languages, totalFiles }: { languages: LanguageStati
               </PieChart>
             </ResponsiveContainer>
             <span className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-extrabold tabular-nums text-slate-50">{number(codeFiles)}</span>
+              <span className="text-2xl font-extrabold tabular-nums text-slate-50"><CountUp>{number(codeFiles)}</CountUp></span>
               <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">code files</span>
             </span>
           </div>
@@ -364,7 +366,7 @@ function LargestFilesPanel({
                 </span>
                 <span className="mt-1 block h-2 rounded-full bg-slate-800">
                   <span
-                    className={`block h-2 rounded-full ${long ? 'bg-rose-500' : 'bg-gradient-to-r from-indigo-500 to-cyan-400'}`}
+                    className={`bar-grow block h-2 rounded-full ${long ? 'bg-rose-500' : 'bg-gradient-to-r from-indigo-500 to-cyan-400'}`}
                     style={{ width: `${Math.max(3, (lines / max) * 100)}%` }}
                   />
                 </span>
@@ -470,7 +472,7 @@ function DependencyPanel({ inventory }: { inventory: DependencyInventory | undef
                   <span className="tabular-nums text-slate-400">{number(total)} declared</span>
                 </span>
                 <span
-                  className="mt-1 flex h-3 gap-0.5 overflow-hidden rounded-full bg-slate-800"
+                  className="bar-grow mt-1 flex h-3 gap-0.5 overflow-hidden rounded-full bg-slate-800"
                   style={{ width: `${total === 0 ? 100 : Math.max(6, (total / max) * 100)}%` }}
                 >
                   {SCOPES.map((scope) =>
@@ -527,7 +529,7 @@ function ActivityPanel({ projectId, repositoryId }: { projectId: string; reposit
         {stats.map((stat) => (
           <div key={stat.label} className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
             <dt className="text-xs text-slate-400">{stat.label}</dt>
-            <dd className="text-xl font-bold tabular-nums text-slate-50">{stat.value}</dd>
+            <dd className="text-xl font-bold tabular-nums text-slate-50"><CountUp>{stat.value}</CountUp></dd>
           </div>
         ))}
       </dl>

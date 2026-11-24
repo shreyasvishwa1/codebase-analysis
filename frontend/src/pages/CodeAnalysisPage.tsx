@@ -6,6 +6,7 @@ import { ErrorMessage } from '../components/ErrorMessage'
 import { useQualityOverview } from '../hooks/useCodeQuality'
 import { getErrorMessage } from '../services/client'
 import { formatDateTime } from '../utils/format'
+import { CountUp } from '../components/CountUp'
 
 const number = (value: number) => value.toLocaleString('en-US')
 
@@ -65,15 +66,15 @@ export function CodeAnalysisPage() {
               <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
                 <div>
                   <dt className="text-xs text-slate-400">Issues</dt>
-                  <dd className="text-xl font-bold tabular-nums text-slate-50">{number(entry.quality.issues)}</dd>
+                  <dd className="text-xl font-bold tabular-nums text-slate-50"><CountUp>{number(entry.quality.issues)}</CountUp></dd>
                 </div>
                 <div>
                   <dt className="text-xs text-slate-400">Duplication</dt>
-                  <dd className="text-xl font-bold tabular-nums text-slate-50">{entry.quality.duplication.percent.toFixed(1)}%</dd>
+                  <dd className="text-xl font-bold tabular-nums text-slate-50"><CountUp>{`${entry.quality.duplication.percent.toFixed(1)}%`}</CountUp></dd>
                 </div>
                 <div>
                   <dt className="text-xs text-slate-400">Files analyzed</dt>
-                  <dd className="text-xl font-bold tabular-nums text-slate-50">{number(entry.analyzed_file_count)}</dd>
+                  <dd className="text-xl font-bold tabular-nums text-slate-50"><CountUp>{number(entry.analyzed_file_count)}</CountUp></dd>
                 </div>
               </dl>
               <p className="mt-3 flex flex-wrap gap-2" aria-label="Issues by severity">

@@ -6,6 +6,7 @@ import { ErrorMessage } from '../components/ErrorMessage'
 import { useComplexityOverview } from '../hooks/useComplexity'
 import { getErrorMessage } from '../services/client'
 import { formatDateTime } from '../utils/format'
+import { CountUp } from '../components/CountUp'
 
 const number = (value: number) => value.toLocaleString('en-US')
 
@@ -68,7 +69,7 @@ export function ComplexityPage() {
                 <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
                   <div>
                     <dt className="text-xs text-slate-400">Average complexity</dt>
-                    <dd className="text-xl font-bold tabular-nums text-slate-50">{summary.average_cyclomatic.toFixed(2)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50"><CountUp>{summary.average_cyclomatic.toFixed(2)}</CountUp></dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400">Maintainability</dt>
@@ -81,7 +82,7 @@ export function ComplexityPage() {
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400">Functions</dt>
-                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(summary.functions)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50"><CountUp>{number(summary.functions)}</CountUp></dd>
                   </div>
                 </dl>
                 <p className="mt-3 flex flex-wrap gap-2" aria-label="Functions by complexity">

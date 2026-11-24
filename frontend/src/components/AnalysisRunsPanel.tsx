@@ -15,6 +15,7 @@ import { ErrorMessage } from './ErrorMessage'
 import { languageLabel } from './LanguageStats'
 import { LiveAnalysisBoard } from './LiveAnalysisBoard'
 import { useToast } from './Toaster'
+import { CountUp } from './CountUp'
 
 const APP_TITLE = 'CodeBase Analysis'
 const number = (value: number) => value.toLocaleString('en-US')
@@ -40,7 +41,7 @@ function RunSummary({ run }: { run: AnalysisRun }) {
         {stats.map(([label, value]) => (
           <div key={label} className="rounded-xl border border-slate-800 bg-slate-950/40 p-3">
             <dt className="text-xs text-slate-400">{label}</dt>
-            <dd className="text-xl font-bold tabular-nums text-slate-50">{value}</dd>
+            <dd className="text-xl font-bold tabular-nums text-slate-50"><CountUp>{value}</CountUp></dd>
           </div>
         ))}
       </dl>
@@ -56,7 +57,7 @@ function RunSummary({ run }: { run: AnalysisRun }) {
               </span>
               <span className="mt-1 block h-2 rounded-full bg-slate-800">
                 <span
-                  className="block h-2 rounded-full bg-indigo-500"
+                  className="bar-grow block h-2 rounded-full bg-indigo-500"
                   style={{ width: `${Math.max(3, (entry.code_lines / maxLines) * 100)}%` }}
                 />
               </span>

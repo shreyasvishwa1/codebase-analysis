@@ -9,6 +9,7 @@ import { getErrorMessage } from '../services/client'
 import { downloadUsabilityCsv, getMyUsability, getUsabilityResults, saveMyUsability } from '../services/usability'
 import type { UsabilityMine, UsabilityResults } from '../types/api'
 import { saveFile } from '../utils/download'
+import { CountUp } from '../components/CountUp'
 
 export const SCALE = [1, 2, 3, 4, 5] as const
 export const SCALE_LABELS: Record<number, string> = {
@@ -143,7 +144,7 @@ function Stat({ label, value, note }: { label: string; value: string; note?: str
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
       <p className="text-xs uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-50">{value}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-50"><CountUp>{value}</CountUp></p>
       {note ? <p className="mt-0.5 text-xs text-slate-400">{note}</p> : null}
     </div>
   )
@@ -186,7 +187,7 @@ function ResultsView({ results }: { results: UsabilityResults }) {
               <li key={letter} className="flex items-center gap-3 text-sm">
                 <span className="w-6 font-semibold text-slate-200">{letter}</span>
                 <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-800">
-                  <span className="block h-full rounded-full bg-indigo-500" style={{ width: `${(100 * count) / results.responses}%` }} />
+                  <span className="bar-grow block h-full rounded-full bg-indigo-500" style={{ width: `${(100 * count) / results.responses}%` }} />
                 </span>
                 <span className="w-8 text-right tabular-nums text-slate-300">{count}</span>
               </li>

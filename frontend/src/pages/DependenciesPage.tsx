@@ -6,6 +6,7 @@ import { ErrorMessage } from '../components/ErrorMessage'
 import { useDependencyOverview } from '../hooks/useDependencyAnalysis'
 import { getErrorMessage } from '../services/client'
 import { formatDateTime } from '../utils/format'
+import { CountUp } from '../components/CountUp'
 
 const number = (value: number) => value.toLocaleString('en-US')
 
@@ -68,15 +69,15 @@ export function DependenciesPage() {
                 <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
                   <div>
                     <dt className="text-xs text-slate-400">Dependencies</dt>
-                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(summary.dependencies)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50"><CountUp>{number(summary.dependencies)}</CountUp></dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400">Vulnerable</dt>
-                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(summary.vulnerable_dependencies)}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50"><CountUp>{number(summary.vulnerable_dependencies)}</CountUp></dd>
                   </div>
                   <div>
                     <dt className="text-xs text-slate-400">Outdated</dt>
-                    <dd className="text-xl font-bold tabular-nums text-slate-50">{number(outdatedCount(summary))}</dd>
+                    <dd className="text-xl font-bold tabular-nums text-slate-50"><CountUp>{number(outdatedCount(summary))}</CountUp></dd>
                   </div>
                 </dl>
                 <p className="mt-3 flex flex-wrap gap-2" aria-label="Vulnerabilities by severity">

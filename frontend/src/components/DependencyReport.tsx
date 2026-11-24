@@ -18,6 +18,7 @@ import type {
 } from '../types/api'
 import { formatDateTime } from '../utils/format'
 import { ErrorMessage } from './ErrorMessage'
+import { CountUp } from './CountUp'
 
 export const VULNERABILITY_SEVERITIES: VulnerabilitySeverity[] = ['critical', 'high', 'medium', 'low', 'unknown']
 const SEVERITY_LABELS: Record<VulnerabilitySeverity, string> = {
@@ -123,13 +124,13 @@ function Summary({ summary, update }: { summary: DependencyAnalysisSummary; upda
           filter ? (
             <button key={label} type="button" onClick={() => update(filter)} aria-label={`Show ${label.toLowerCase()} dependencies`} className={`${CARD} text-left hover:border-slate-600`}>
               <span className="block text-xs text-slate-400">{label}</span>
-              <span className="block text-2xl font-extrabold tabular-nums text-slate-50">{number(value)}</span>
+              <span className="block text-2xl font-extrabold tabular-nums text-slate-50"><CountUp>{number(value)}</CountUp></span>
               <span className="block truncate text-xs text-slate-500">{caption}</span>
             </button>
           ) : (
             <div key={label} className={CARD}>
               <p className="text-xs text-slate-400">{label}</p>
-              <p className="text-2xl font-extrabold tabular-nums text-slate-50">{number(value)}</p>
+              <p className="text-2xl font-extrabold tabular-nums text-slate-50"><CountUp>{number(value)}</CountUp></p>
               <p className="truncate text-xs text-slate-500">{caption}</p>
             </div>
           ),
@@ -168,7 +169,7 @@ function Breakdowns({ summary, update }: { summary: DependencyAnalysisSummary; u
                   <span className="tabular-nums text-slate-400">{number(summary.updates[level])}</span>
                 </span>
                 <span className="mt-1 block h-1.5 rounded-full bg-slate-800">
-                  <span className="block h-1.5 rounded-full bg-indigo-400/80" style={{ width: `${(summary.updates[level] / total) * 100}%` }} />
+                  <span className="bar-grow block h-1.5 rounded-full bg-indigo-400/80" style={{ width: `${(summary.updates[level] / total) * 100}%` }} />
                 </span>
               </button>
             </li>

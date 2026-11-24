@@ -10,6 +10,7 @@ import { useHealthOverview } from '../hooks/useHealthScore'
 import { getErrorMessage } from '../services/client'
 import type { DashboardSummary, LanguageBreakdown } from '../types/api'
 import { formatDateTime } from '../utils/format'
+import { CountUp } from '../components/CountUp'
 
 const SERIES = ['rgb(var(--indigo-500))', 'rgb(var(--slate-400))', 'rgb(var(--emerald-500))', 'rgb(var(--sky-500))', 'rgb(var(--rose-500))']
 const OTHER = 'rgb(var(--slate-600))'
@@ -30,7 +31,7 @@ function Kpi({ icon: Icon, accent, label, value, caption }: {
       </span>
       <div className="min-w-0">
         <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{label}</p>
-        <p className="text-2xl font-extrabold tabular-nums text-slate-50">{value}</p>
+        <p className="text-2xl font-extrabold tabular-nums text-slate-50"><CountUp>{value}</CountUp></p>
         <p className="truncate text-xs text-slate-400">{caption}</p>
       </div>
     </div>
@@ -108,7 +109,7 @@ function HealthPanel() {
         </div>
         {average !== null && (
           <p className="text-right text-xs text-slate-400">
-            Average <span className={`block text-2xl font-bold tabular-nums ${scoreTone(average).text}`}>{average}</span>
+            Average <span className={`block text-2xl font-bold tabular-nums ${scoreTone(average).text}`}><CountUp>{String(average)}</CountUp></span>
           </p>
         )}
       </div>

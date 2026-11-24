@@ -1,9 +1,11 @@
+import type { CSSProperties } from 'react'
 import { ArrowUpRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 
 import type { HealthDimension, HealthDimensionKey, HealthPoint, HealthReport as Report } from '../types/api'
 import { formatDateTime } from '../utils/format'
+import { CountUp } from './CountUp'
 
 export const DIMENSION_NAMES: Record<HealthDimensionKey, string> = {
   security: 'Security',
@@ -61,10 +63,12 @@ export function ScoreGauge({ score, grade, size = 132 }: { score: number | null;
           strokeLinecap="round"
           strokeDasharray={`${(CIRCUMFERENCE * score) / 100} ${CIRCUMFERENCE}`}
           transform="rotate(-90 60 60)"
+          className="ring-fill"
+          style={{ '--ring-c': CIRCUMFERENCE } as CSSProperties}
         />
       )}
       <text x="60" y="58" textAnchor="middle" className="fill-slate-50 font-mono text-[28px] font-semibold">
-        {score ?? '—'}
+        <CountUp plain>{score === null ? '—' : String(score)}</CountUp>
       </text>
       <text x="60" y="80" textAnchor="middle" className="fill-slate-400 text-[11px]">
         {grade ? `grade ${grade}` : 'not scored'}
@@ -114,11 +118,11 @@ function DimensionCard({
           </p>
         </div>
         <p className={`text-2xl font-extrabold tabular-nums ${tone.text}`}>
-          {dimension.score === null ? <span className="text-sm font-medium">Not scored</span> : dimension.score}
+          {dimension.score === null ? <span className="text-sm font-medium">Not scored</span> : <CountUp>{String(dimension.score)}</CountUp>}
         </p>
       </div>
       <div className="mt-3 h-1.5 rounded-full bg-slate-800" aria-hidden="true">
-        <div className={`h-1.5 rounded-full ${tone.bar}`} style={{ width: `${dimension.score ?? 0}%` }} />
+        <div className={`bar-grow h-1.5 rounded-full ${tone.bar}`} style={{ width: `${dimension.score ?? 0}%` }} />
       </div>
       <p className="mt-3 text-sm text-slate-300">{dimension.explanation}</p>
       {dimension.improvements.length > 0 && (

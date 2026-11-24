@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import type { ArchitectureDocument, ComponentRole, EvidenceItem } from '../types/api'
 import { ROLE_LABELS, type Selection } from './ArchitectureDiagram'
 import { FocusMap, LayerLanes } from './ArchitectureViews'
+import { CountUp } from './CountUp'
 
 const CATEGORY_LABELS: Record<string, string> = {
   backend: 'Backend',
@@ -212,7 +213,7 @@ export function ArchitectureReport({ document, projectId, repositoryId }: {
         {stats.map(([label, value]) => (
           <div key={label} className={CARD}>
             <dt className="text-xs text-slate-400">{label}</dt>
-            <dd className="text-2xl font-extrabold tabular-nums text-slate-50">{value}</dd>
+            <dd className="text-2xl font-extrabold tabular-nums text-slate-50"><CountUp>{value}</CountUp></dd>
           </div>
         ))}
       </dl>
