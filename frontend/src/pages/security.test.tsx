@@ -229,6 +229,7 @@ describe('Repository security', () => {
       path: 'web/app.py',
       line: 12,
       rule_id: 'path-traversal',
+      cwe: 22,
       title: 'Path built from request input',
       flow: [
         { line: 10, label: 'request.args' },
@@ -243,9 +244,17 @@ describe('Repository security', () => {
         status: 200,
         data: page([flow, finding({ id: 'f-short', title: 'One step', flow: [{ line: 3, label: 'request.args' }] }), BANDIT]),
       },
+      [`GET ${REPO_URL}/files/content`]: {
+        status: 200,
+        data: { path: 'web/app.py', language: 'Python', size_bytes: 1, content: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'name = x', 'folder = y', 'return send_file(folder)'].join('\n') + '\n', reason: null },
+      },
     })
     const findings = within(await screen.findByRole('region', { name: 'Findings' }))
     fireEvent.click(await findings.findByRole('button', { name: /Path built from request input/ }))
+    const code = await findings.findByRole('figure', { name: 'Code at web/app.py, line 12' })
+    expect(code.querySelector('[data-flagged]')?.textContent).toBe('12return send_file(folder)')
+    // The lines the path passes through are marked too (12 is also the finding's own line).
+    expect([...code.querySelectorAll('[data-on-path]')].map((row) => row.firstElementChild?.textContent)).toEqual(['10', '11', '12'])
     const path = findings.getByRole('list', { name: 'Data flow' })
     const steps = within(path).getAllByRole('link')
     expect(steps.map((link) => link.textContent)).toEqual([
@@ -260,6 +269,8 @@ describe('Repository security', () => {
     expect(path.querySelectorAll('.flow-arrow')).toHaveLength(3)
     // Findings without a path, or with a single step, show none.
     fireEvent.click(findings.getByRole('button', { name: /One step/ }))
+    // That finding is about a key (CWE-798): its code stays hidden.
+    expect(findings.getByText('The code is not shown for findings about secrets, so the value stays hidden.')).toBeTruthy()
     fireEvent.click(findings.getByRole('button', { name: /SQL built from strings/ }))
     expect(findings.getAllByRole('list', { name: 'Data flow' })).toHaveLength(1)
     fireEvent.click(steps[2])

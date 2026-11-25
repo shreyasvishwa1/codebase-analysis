@@ -15,6 +15,7 @@ import type {
 } from '../types/api'
 import { ErrorMessage } from './ErrorMessage'
 import { CountUp } from './CountUp'
+import { CodeExcerpt } from './CodeExcerpt'
 
 export const SECURITY_SEVERITIES: SecuritySeverity[] = ['critical', 'high', 'medium', 'low']
 export const SECURITY_SEVERITY_LABELS: Record<SecuritySeverity, string> = {
@@ -260,7 +261,17 @@ function FlowPath({ finding, explorer }: { finding: SecurityFinding; explorer: s
   )
 }
 
-function FindingRow({ finding, explorer }: { finding: SecurityFinding; explorer: string }) {
+function FindingRow({
+  finding,
+  explorer,
+  projectId,
+  repositoryId,
+}: {
+  finding: SecurityFinding
+  explorer: string
+  projectId: string
+  repositoryId: string
+}) {
   const [open, setOpen] = useState(false)
   const lines = finding.end_line > finding.line ? `${finding.line}–${finding.end_line}` : String(finding.line)
   // Links only to Bandit's documentation and OSV.dev advisories; CWE links are built here.
@@ -293,6 +304,15 @@ function FindingRow({ finding, explorer }: { finding: SecurityFinding; explorer:
       </button>
       {open && (
         <div className="ml-6 mt-2 space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-sm">
+          <CodeExcerpt
+            projectId={projectId}
+            repositoryId={repositoryId}
+            path={finding.path}
+            line={finding.line}
+            endLine={finding.end_line}
+            cwe={finding.cwe}
+            pathLines={(finding.flow ?? []).map((step) => step.line)}
+          />
           <FlowPath finding={finding} explorer={explorer} />
           <p className="text-slate-300">
             <span className="font-semibold text-slate-200">Why it matters: </span>
@@ -441,7 +461,7 @@ function FindingList({ projectId, repositoryId, runId, filters, setFilters }: {
           </p>
           <ul className="divide-y divide-slate-800">
             {findings.data.items.map((finding) => (
-              <FindingRow key={finding.id} finding={finding} explorer={explorer} />
+              <FindingRow key={finding.id} finding={finding} explorer={explorer} projectId={projectId} repositoryId={repositoryId} />
             ))}
           </ul>
           {pages > 1 && (
