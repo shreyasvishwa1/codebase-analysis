@@ -196,6 +196,20 @@ describe('Repository chat', () => {
     expect(screen.getByTestId('location').textContent).toBe(`${REPO_URL} app/auth.py:4`)
   })
 
+  it('suggests questions about what the analysis found', async () => {
+    mountChat({
+      [`GET ${RUNS_URL}`]: {
+        status: 200,
+        data: {
+          job: null,
+          runs: [run({ complexity: { top_functions: [{ name: 'process_order', path: 'shop/orders.py', line: 3, cyclomatic: 31, nloc: 80, rank: 'high' }] } as unknown as AnalysisRun['complexity'] })],
+        },
+      },
+    })
+    const suggestions = within(await screen.findByLabelText('Suggested questions'))
+    expect(await suggestions.findByRole('button', { name: 'Why is process_order in orders.py so complex, and how could it be simpler?' })).toBeTruthy()
+  })
+
   it('asks a suggested question', async () => {
     const requests = mountChat({ [`POST ${CHAT_URL}/stream`]: streamed(CONVERSATION) })
     const suggestions = within(await screen.findByLabelText('Suggested questions'))

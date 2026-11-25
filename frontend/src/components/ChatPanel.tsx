@@ -13,16 +13,13 @@ import {
 } from '../hooks/useChat'
 import { getErrorMessage } from '../services/client'
 import type { ChatCitation, ChatTurn } from '../types/api'
+import { chatSuggestions, GENERAL_SUGGESTIONS } from '../utils/chatSuggestions'
 import { formatDateTime } from '../utils/format'
 import { ErrorMessage } from './ErrorMessage'
 
 export const MAX_QUESTION_CHARS = 2000
-export const SUGGESTIONS = [
-  'What does this project do, and how is it structured?',
-  'What are the most serious security findings, and how do I fix them?',
-  'Which functions are the most complex, and why?',
-  'How is authentication handled?',
-]
+/** The questions suggested when the analysis has nothing more specific to point at. */
+export const SUGGESTIONS = GENERAL_SUGGESTIONS
 
 // Citations ([1], or lists such as [1, 3]), `code` and **bold**.
 const TOKEN = /(\[\d{1,2}(?:\s*,\s*\d{1,2})*\]|`[^`\n]+`|\*\*[^*\n]+\*\*)/
@@ -387,7 +384,7 @@ function Thread({
             </p>
           )}
           <div className="mt-4 flex flex-wrap gap-2" aria-label="Suggested questions">
-            {SUGGESTIONS.map((suggestion) => (
+            {chatSuggestions(indexed).map((suggestion) => (
               <button
                 key={suggestion}
                 type="button"
