@@ -223,6 +223,43 @@ function TopFiles({ summary, onPath }: { summary: SecuritySummary; onPath: (path
   )
 }
 
+/** How request input reached the finding's line: each step opens the file at its line. */
+function FlowPath({ finding, explorer }: { finding: SecurityFinding; explorer: string }) {
+  const steps = finding.flow ?? []
+  if (steps.length < 2) return null
+  const last = steps.length - 1
+  return (
+    <div>
+      <p className="font-semibold text-slate-200">How the input gets here</p>
+      <ol aria-label="Data flow" className="mt-1.5 flex flex-wrap items-center gap-y-1.5 font-mono text-xs">
+        {steps.map((step, index) => (
+          <li key={`${step.line}-${step.label}-${index}`} className="flex items-center">
+            <Link
+              to={explorer}
+              state={{ openFile: { path: finding.path, line: step.line } }}
+              className={`rounded-md border px-2 py-0.5 hover:underline ${
+                index === 0
+                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-200'
+                  : index === last
+                    ? 'border-rose-500/40 bg-rose-500/10 text-rose-200'
+                    : 'border-slate-700 bg-slate-900 text-slate-200'
+              }`}
+            >
+              <span className="sr-only">{index === 0 ? 'Comes in as ' : index === last ? 'Reaches ' : 'Then '}</span>
+              {step.label} <span className="text-slate-500">line {step.line}</span>
+            </Link>
+            {index < last && (
+              <span aria-hidden="true" className="flow-arrow px-1.5 text-slate-500">
+                →
+              </span>
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
+  )
+}
+
 function FindingRow({ finding, explorer }: { finding: SecurityFinding; explorer: string }) {
   const [open, setOpen] = useState(false)
   const lines = finding.end_line > finding.line ? `${finding.line}–${finding.end_line}` : String(finding.line)
@@ -256,6 +293,7 @@ function FindingRow({ finding, explorer }: { finding: SecurityFinding; explorer:
       </button>
       {open && (
         <div className="ml-6 mt-2 space-y-2 rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-sm">
+          <FlowPath finding={finding} explorer={explorer} />
           <p className="text-slate-300">
             <span className="font-semibold text-slate-200">Why it matters: </span>
             {finding.explanation}

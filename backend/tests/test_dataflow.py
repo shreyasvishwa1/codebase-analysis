@@ -308,3 +308,130 @@ def test_each_data_flow_rule_has_its_weakness_and_category() -> None:
     for rule_id, (cwe, owasp, severity) in expected.items():
         rule = RULES[rule_id]
         assert (rule.cwe, rule.owasp, rule.severity, rule.confidence) == (cwe, owasp, severity, "potential")
+
+
+# --- Paths -------------------------------------------------------------------------------------------
+
+
+def py_flows(source: str) -> list[tuple[str, tuple[tuple[int, str], ...]]]:
+    tree = ast.parse(textwrap.dedent(source))
+    return [(m.rule_id, m.flow) for m in dataflow.scan_python(tree)]
+
+
+def js_flows(source: str) -> list[tuple[str, tuple[tuple[int, str], ...]]]:
+    return [(m.rule_id, m.flow) for m in dataflow.scan_javascript(textwrap.dedent(source))]
+
+
+def test_a_python_finding_records_the_path_from_the_source_to_the_call() -> None:
+    assert py_flows(
+        """
+        def download():
+            name = request.args.get("name", "").strip()
+            folder = "/srv/" + name
+            for part in folder.split("/"):
+                target = os.path.join(folder, part)
+            return send_file(target)
+        """
+    ) == [
+        (
+            "path-traversal",
+            ((3, "request.args"), (3, "name"), (4, "folder"), (6, "target"), (7, "send_file()")),
+        )
+    ]
+
+
+def test_a_direct_source_reassignments_loops_augmented_and_walrus_steps() -> None:
+    assert py_flows(
+        """
+        def view():
+            redirect(request.form["next"])
+            url = request.json["a"]
+            url = request.values["b"]
+            requests.get(url, timeout=5)
+            path = "/srv/"
+            path += request.cookies["c"]
+            open(path)
+            for item in request.files:
+                os.remove(item)
+            if (body := request.get_data()):
+                render_template_string(body)
+            result = process(
+                (page := request.args["p"]),
+            )
+            open(page)
+        """
+    ) == [
+        ("open-redirect", ((3, "request.form"), (3, "redirect()"))),
+        ("ssrf", ((5, "request.values"), (5, "url"), (6, "requests.get()"))),
+        ("path-traversal", ((8, "request.cookies"), (8, "path"), (9, "open()"))),
+        ("path-traversal", ((10, "request.files"), (10, "item"), (11, "os.remove()"))),
+        ("template-injection", ((12, "request.get_data()"), (12, "body"), (13, "render_template_string()"))),
+        ("path-traversal", ((15, "request.args"), (15, "page"), (17, "open()"))),  # the walrus's own line
+    ]
+
+
+def test_the_first_tainted_part_of_an_expression_is_followed() -> None:
+    assert py_flows(
+        """
+        def view():
+            a = request.args["a"]
+            b = request.form["b"]
+            open(CONFIG + b + a)
+            open(f"{ROOT}/{a}")
+            open(a if FLAG else b)
+            open({"k": b}["k"])
+            open(b or a)
+            open(*[a])
+            open(clean(x=b))
+            t: str = a
+            open(t)
+        """
+    ) == [
+        ("path-traversal", ((4, "request.form"), (4, "b"), (5, "open()"))),
+        ("path-traversal", ((3, "request.args"), (3, "a"), (6, "open()"))),
+        ("path-traversal", ((3, "request.args"), (3, "a"), (7, "open()"))),
+        ("path-traversal", ((4, "request.form"), (4, "b"), (8, "open()"))),
+        ("path-traversal", ((4, "request.form"), (4, "b"), (9, "open()"))),
+        ("path-traversal", ((3, "request.args"), (3, "a"), (10, "open()"))),
+        ("path-traversal", ((4, "request.form"), (4, "b"), (11, "open()"))),
+        ("path-traversal", ((3, "request.args"), (3, "a"), (12, "t"), (13, "open()"))),
+    ]
+
+
+def test_a_long_path_keeps_its_source_and_its_latest_steps() -> None:
+    names = [f"v{i}" for i in range(12)]
+    lines = ["def view():", "    v0 = request.args['x']"]
+    lines += [f"    {names[i]} = {names[i - 1]}" for i in range(1, 12)]
+    lines.append("    open(v11)")
+    [(rule, flow)] = py_flows("\n".join(lines) + "\n")
+    assert len(flow) == dataflow.MAX_STEPS
+    assert flow[0] == (2, "request.args")
+    assert flow[1:] == ((8, "v6"), (9, "v7"), (10, "v8"), (11, "v9"), (12, "v10"), (13, "v11"), (14, "open()"))
+
+
+def test_a_javascript_finding_records_its_path() -> None:
+    assert js_flows(
+        """
+        app.get('/f', (req, res) => {
+          const { name } = req.query;
+          let full = path.join(ROOT, name);
+          res.sendFile(full);
+          res.redirect(req.body.next);
+        });
+        const target = location.hash.slice(1);
+        location.assign(target);
+        """
+    ) == [
+        ("path-traversal", ((3, "req.query"), (3, "name"), (4, "full"), (5, "res.sendFile()"))),
+        ("open-redirect", ((6, "req.body"), (6, "res.redirect()"))),
+        ("open-redirect", ((8, "location.hash"), (8, "target"), (9, "window.location()"))),
+    ]
+
+
+def test_line_rule_matches_have_no_path(tmp_path: Path) -> None:
+    analyzer = SecurityAnalyzer(tmp_path)
+    text = "app.get('/f', (req, res) => {\n  res.sendFile(req.query.name);\n  eval(code);\n});\n"
+    analyzer.add(SnapshotFile(path="s.js", language="JavaScript", size_bytes=len(text), status="text", text=text))
+    flows = {f.rule_id: f.flow for f in analyzer.result().findings}
+    assert flows["path-traversal"] == ((2, "req.query"), (2, "res.sendFile()"))
+    assert all(flow is None for rule, flow in flows.items() if rule != "path-traversal")

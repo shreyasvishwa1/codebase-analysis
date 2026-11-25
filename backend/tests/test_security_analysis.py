@@ -608,8 +608,9 @@ async def test_run_stores_security_summary_and_findings(
     )
     assert set(first) == {
         "id", "path", "line", "end_line", "tool", "rule_id", "title", "owasp", "cwe",
-        "severity", "confidence", "message", "explanation", "recommendation", "doc_url",
+        "severity", "confidence", "message", "explanation", "recommendation", "doc_url", "flow",
     }  # fmt: skip
+    assert first["flow"] is None  # only data-flow findings have a path
     assert not any(i["path"].startswith("node_modules/") for i in page["items"])
     # Most severe first; within a severity, confirmed before potential.
     ranks = [
@@ -759,3 +760,32 @@ async def test_findings_are_removed_with_their_repository(
     )
     assert await db_session.scalar(count) == 0
     assert (await client.get(_repo_url(alice), headers=alice.headers)).status_code == 404
+
+
+@requires_db
+async def test_a_data_flow_finding_is_served_with_its_path(
+    client: httpx.AsyncClient,
+    alice: Owner,
+    monkeypatch: pytest.MonkeyPatch,
+    db_session: AsyncSession,
+) -> None:
+    view = (
+        "from flask import request\n"
+        "\n"
+        "def download():\n"
+        "    name = request.args['name']\n"
+        "    target = '/srv/' + name\n"
+        "    return open(target).read()\n"
+    )
+    run = await _analyzed_run(client, alice, monkeypatch, db_session, {**FILES, "web/views.py": view.encode()})
+    page = await _get_findings(client, alice, run["id"], page_size=200)
+    flows = [i for i in page["items"] if i["rule_id"] == "path-traversal"]
+    assert [(i["path"], i["line"]) for i in flows] == [("web/views.py", 6)]
+    assert flows[0]["flow"] == [
+        {"line": 4, "label": "request.args"},
+        {"line": 4, "label": "name"},
+        {"line": 5, "label": "target"},
+        {"line": 6, "label": "open()"},
+    ]
+    stored = await db_session.scalar(select(SecurityFinding.flow).where(SecurityFinding.rule_id == "path-traversal"))
+    assert stored == [[4, "request.args"], [4, "name"], [5, "target"], [6, "open()"]]

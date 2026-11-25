@@ -70,6 +70,8 @@ class Finding:
     explanation: str
     recommendation: str
     doc_url: str | None
+    #: data-flow findings: the value's path as [line, label] steps; None for other findings
+    flow: tuple[tuple[int, str], ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -143,6 +145,7 @@ class SecurityAnalyzer:
                 explanation=rule.explanation,
                 recommendation=rule.recommendation,
                 doc_url=None,
+                flow=match.flow or None,
             )
         )
 

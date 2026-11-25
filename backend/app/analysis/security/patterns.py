@@ -35,6 +35,8 @@ class Match:
     rule_id: str
     line: int
     message: str
+    #: for data-flow findings, the value's path as (line, label) steps; empty otherwise
+    flow: tuple[tuple[int, str], ...] = ()
 
 
 @dataclass(frozen=True)

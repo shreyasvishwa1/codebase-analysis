@@ -1,6 +1,7 @@
 import uuid
 
 from sqlalchemy import CheckConstraint, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.analysis.security.rules import CONFIDENCES, OWASP_KEYS, SEVERITIES
@@ -47,3 +48,6 @@ class SecurityFinding(UUIDPrimaryKeyMixin, Base):
     explanation: Mapped[str] = mapped_column(Text, nullable=False)
     recommendation: Mapped[str] = mapped_column(Text, nullable=False)
     doc_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Data-flow findings: the value's path, [[line, label], ...] (labels are names from the
+    # code, never values). NULL for other findings and for runs stored before migration 0016.
+    flow: Mapped[list[list[int | str]] | None] = mapped_column(JSONB, nullable=True)

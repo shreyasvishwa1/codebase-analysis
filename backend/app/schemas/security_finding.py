@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 SecuritySeverity = Literal["critical", "high", "medium", "low"]
 Confidence = Literal["confirmed", "potential"]
@@ -88,6 +88,29 @@ class SecurityFindingResponse(BaseModel):
     explanation: str
     recommendation: str
     doc_url: str | None
+    flow: list["FlowStep"] | None = None
+
+    @field_validator("flow", mode="before")
+    @classmethod
+    def _steps(cls, value: object) -> object:
+        # Stored as [[line, label], ...]; served as [{"line": ..., "label": ...}, ...].
+        if isinstance(value, (list, tuple)):
+            return [
+                {"line": step[0], "label": step[1]} if isinstance(step, (list, tuple)) else step
+                for step in value
+            ]
+        return value
+
+
+class FlowStep(BaseModel):
+    """One step of a data-flow finding's path: where request input came in, a variable it
+    passed through, or the call it reached."""
+
+    line: int
+    label: str
+
+
+SecurityFindingResponse.model_rebuild()
 
 
 class SecurityFindingListResponse(BaseModel):

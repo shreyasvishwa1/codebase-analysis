@@ -23,6 +23,10 @@ Limits, stated rather than guessed: Python is followed within one function and J
 within one file; values passed into other functions, stored in attributes or containers, or
 read back from a database are not followed; FastAPI's typed parameters are not sources; a
 JavaScript call is read on its own line. Findings are "potential": a person confirms them.
+
+Each finding carries its path: where the input came in, each variable it passed through and
+the call it reached, as (line, label) steps, for example ``(4, "request.args")``,
+``(4, "name")``, ``(7, "open()")``. Labels are names from the code, never values.
 """
 
 import ast
@@ -30,6 +34,18 @@ import re
 from collections.abc import Iterable, Iterator
 
 from app.analysis.security.patterns import Match
+
+Step = tuple[int, str]
+"""One step of a value's path: the line, and the source, variable or call there."""
+Flow = tuple[Step, ...]
+
+#: A path keeps its first step (where the input came in) and the latest ones.
+MAX_STEPS = 8
+
+
+def _extend(flow: Flow, step: Step) -> Flow:
+    longer = (*flow, step)
+    return longer if len(longer) <= MAX_STEPS else (longer[0], *longer[-(MAX_STEPS - 1) :])
 
 # --- Python -------------------------------------------------------------------------------------
 
@@ -100,45 +116,49 @@ def _is_source(node: ast.expr) -> bool:
     )
 
 
-def _tainted(node: ast.expr | None, names: set[str]) -> bool:
-    """Whether the value of ``node`` can carry request input, given the tainted variables."""
+def _origin(node: ast.expr | None, names: dict[str, Flow]) -> Flow | None:
+    """The path by which the value of ``node`` carries request input, or None if it cannot.
+
+    ``names`` maps each tainted variable to the path that brought input into it."""
     if node is None:
-        return False
+        return None
     if isinstance(node, ast.Name):
-        return node.id in names
+        return names.get(node.id)
     if isinstance(node, ast.Attribute):
-        return _is_source(node) or _tainted(node.value, names)
+        if _is_source(node):
+            return ((node.lineno, f"request.{node.attr}"),)
+        return _origin(node.value, names)
     if isinstance(node, ast.Subscript):
-        return _tainted(node.value, names)
+        return _origin(node.value, names)
     if isinstance(node, ast.Call):
         if _final_name(node.func) in _SANITIZERS:
-            return False
+            return None
         if _is_source(node.func):  # request.get_json()
-            return True
-        if isinstance(node.func, ast.Attribute) and _tainted(node.func.value, names):
-            return True  # a method of a tainted value: t.strip(), request.args.get("x")
-        return any(_tainted(a, names) for a in node.args) or any(
-            _tainted(k.value, names) for k in node.keywords
-        )
+            return ((node.lineno, f"request.{node.func.attr}()"),)  # type: ignore[attr-defined]
+        if isinstance(node.func, ast.Attribute):
+            found = _origin(node.func.value, names)  # a method of a tainted value: t.strip()
+            if found is not None:
+                return found
+        return _first([*node.args, *(k.value for k in node.keywords)], names)
     if isinstance(node, ast.BinOp):
-        return _tainted(node.left, names) or _tainted(node.right, names)
+        return _first([node.left, node.right], names)
     if isinstance(node, ast.JoinedStr):
-        return any(_tainted(v, names) for v in node.values)
-    if isinstance(node, ast.FormattedValue):
-        return _tainted(node.value, names)
+        return _first(node.values, names)
+    if isinstance(node, (ast.FormattedValue, ast.Starred, ast.Await, ast.NamedExpr)):
+        return _origin(node.value, names)
     if isinstance(node, ast.BoolOp):
-        return any(_tainted(v, names) for v in node.values)
+        return _first(node.values, names)
     if isinstance(node, ast.IfExp):
-        return _tainted(node.body, names) or _tainted(node.orelse, names)
+        return _first([node.body, node.orelse], names)
     if isinstance(node, (ast.List, ast.Tuple, ast.Set)):
-        return any(_tainted(e, names) for e in node.elts)
+        return _first(node.elts, names)
     if isinstance(node, ast.Dict):
-        return any(_tainted(v, names) for v in node.values)
-    if isinstance(node, (ast.Starred, ast.Await)):
-        return _tainted(node.value, names)
-    if isinstance(node, ast.NamedExpr):
-        return _tainted(node.value, names)
-    return False  # constants, comparisons, lambdas ...
+        return _first([v for v in node.values if v is not None], names)
+    return None  # constants, comparisons, lambdas ...
+
+
+def _first(nodes: Iterable[ast.expr], names: dict[str, Flow]) -> Flow | None:
+    return next((flow for flow in (_origin(n, names) for n in nodes) if flow is not None), None)
 
 
 def _argument(call: ast.Call, position: int, keywords: Iterable[str]) -> ast.expr | None:
@@ -193,7 +213,15 @@ def _targets(node: ast.expr) -> Iterator[str]:
 _BLOCKS = ("body", "orelse", "finalbody", "handlers", "cases")
 
 
-def _walk_function(statements: list[ast.stmt], names: set[str], found: dict[tuple[str, int], Match]) -> None:
+def _bind(names: dict[str, Flow], name: str, flow: Flow | None, line: int) -> None:
+    """``name`` now holds the value: tainted with ``flow`` plus this step, or clean."""
+    if flow is None:
+        names.pop(name, None)
+    else:
+        names[name] = _extend(flow, (line, name))
+
+
+def _walk_function(statements: list[ast.stmt], names: dict[str, Flow], found: dict[tuple[str, int], Match]) -> None:
     for statement in statements:
         if isinstance(statement, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             continue  # analyzed on its own
@@ -208,25 +236,38 @@ def _walk_function(statements: list[ast.stmt], names: set[str], found: dict[tupl
         for part in header:
             for call in _calls(part) if not isinstance(part, ast.Call) else [part, *_calls(part)]:
                 sink = _sink(call)
-                if sink is not None and _tainted(sink[2], names):
+                flow = _origin(sink[2], names) if sink is not None else None
+                if sink is not None and flow is not None:
                     rule, name, _ = sink
-                    found.setdefault((rule, call.lineno), Match(rule, call.lineno, _MESSAGES[rule].format(sink=name)))
+                    step = (call.lineno, f"{name}()")
+                    message = _MESSAGES[rule].format(sink=name)
+                    found.setdefault((rule, call.lineno), Match(rule, call.lineno, message, _extend(flow, step)))
         # How the statement changes which variables are tainted.
+        line = statement.lineno
         if isinstance(statement, ast.Assign):
-            tainted = _tainted(statement.value, names)
+            flow = _origin(statement.value, names)
             for target in statement.targets:
                 for name in _targets(target):
-                    (names.add if tainted else names.discard)(name)
+                    _bind(names, name, flow, line)
         elif isinstance(statement, ast.AnnAssign) and statement.value is not None:
+            flow = _origin(statement.value, names)
             for name in _targets(statement.target):
-                (names.add if _tainted(statement.value, names) else names.discard)(name)
-        elif isinstance(statement, ast.AugAssign) and _tainted(statement.value, names):
-            names.update(_targets(statement.target))
-        elif isinstance(statement, (ast.For, ast.AsyncFor)) and _tainted(statement.iter, names):
-            names.update(_targets(statement.target))
+                _bind(names, name, flow, line)
+        elif isinstance(statement, ast.AugAssign):
+            flow = _origin(statement.value, names)
+            if flow is not None:
+                for name in _targets(statement.target):
+                    _bind(names, name, flow, line)
+        elif isinstance(statement, (ast.For, ast.AsyncFor)):
+            flow = _origin(statement.iter, names)
+            if flow is not None:
+                for name in _targets(statement.target):
+                    _bind(names, name, flow, line)
         for node in ast.walk(statement):  # walrus assignments anywhere in the statement
-            if isinstance(node, ast.NamedExpr) and _tainted(node.value, names):
-                names.add(node.target.id)
+            if isinstance(node, ast.NamedExpr):
+                flow = _origin(node.value, names)
+                if flow is not None:
+                    _bind(names, node.target.id, flow, node.lineno)
         for block in _BLOCKS:
             for child in getattr(statement, block, None) or []:
                 inner = child.body if isinstance(child, (ast.ExceptHandler, ast.match_case)) else [child]
@@ -236,10 +277,10 @@ def _walk_function(statements: list[ast.stmt], names: set[str], found: dict[tupl
 def scan_python(tree: ast.Module) -> list[Match]:
     """Data-flow findings of one parsed Python module, in line order."""
     found: dict[tuple[str, int], Match] = {}
-    _walk_function(tree.body, set(), found)  # module-level code
+    _walk_function(tree.body, {}, found)  # module-level code
     for node in ast.walk(tree):
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            _walk_function(node.body, set(), found)
+            _walk_function(node.body, {}, found)
     return sorted(found.values(), key=lambda m: (m.line, m.rule_id))
 
 
@@ -290,8 +331,12 @@ def _call_arguments(line: str, start: int) -> str:
     return line[start : end - 1]
 
 
-def _mentions(text: str, names: set[str]) -> bool:
-    return any(re.search(rf"(?<![\w$.]){re.escape(name)}\b", text) for name in names)
+def _mention(text: str, names: dict[str, Flow]) -> Flow | None:
+    """The path of the first tainted variable ``text`` uses (not a property of that name)."""
+    for name, flow in names.items():
+        if re.search(rf"(?<![\w$.]){re.escape(name)}\b", text):
+            return flow
+    return None
 
 
 def _without(pattern: re.Pattern[str], text: str) -> str:
@@ -303,18 +348,19 @@ def _without(pattern: re.Pattern[str], text: str) -> str:
 
 def scan_javascript(text: str) -> list[Match]:
     """Data-flow findings of one JavaScript or TypeScript file, in line order."""
-    tainted: set[str] = set()  # server-side request input
-    browser: set[str] = set()  # values read from the page's address (new URLSearchParams(location.search) too)
+    tainted: dict[str, Flow] = {}  # server-side request input
+    browser: dict[str, Flow] = {}  # values read from the page's address (new URLSearchParams(location.search) too)
     found: dict[tuple[str, int], Match] = {}
 
-    def server_tainted(value: str) -> bool:
-        return bool(_JS_SOURCE.search(value)) or _mentions(value, tainted)
+    def origin(value: str, number: int, source: re.Pattern[str], names: dict[str, Flow]) -> Flow | None:
+        direct = source.search(value)
+        if direct:
+            return ((number, direct.group(0)),)
+        return _mention(value, names)
 
-    def browser_tainted(value: str) -> bool:
-        return bool(_JS_BROWSER_SOURCE.search(value)) or _mentions(value, browser)
-
-    def report(rule: str, number: int, sink: str) -> None:
-        found.setdefault((rule, number), Match(rule, number, _MESSAGES[rule].format(sink=sink)))
+    def report(rule: str, number: int, sink: str, flow: Flow) -> None:
+        message = _MESSAGES[rule].format(sink=sink)
+        found.setdefault((rule, number), Match(rule, number, message, _extend(flow, (number, f"{sink}()"))))
 
     for number, raw in enumerate(text.split("\n"), start=1):
         line = raw.rstrip("\r")
@@ -331,23 +377,26 @@ def scan_javascript(text: str) -> list[Match]:
                 arguments = _call_arguments(line, match.end())
                 if sanitizer is not None:
                     arguments = _without(sanitizer, arguments)
-                if server_tainted(arguments):
-                    report(rule, number, match.group(0).rstrip("( "))
+                flow = origin(arguments, number, _JS_SOURCE, tainted)
+                if flow is not None:
+                    report(rule, number, match.group(0).rstrip("( "), flow)
         location = _JS_LOCATION_SINK.search(line)
         if location:
             target = location.group(1) if location.group(1) else _call_arguments(line, location.end())
-            if browser_tainted(target):
-                report("open-redirect", number, "window.location")
+            flow = origin(target, number, _JS_BROWSER_SOURCE, browser)
+            if flow is not None:
+                report("open-redirect", number, "window.location", flow)
         # Which variables now carry input.
         declaration = _JS_DECLARATION.match(line)
         assignment = None if declaration else _JS_ASSIGNMENT.match(line)
         if declaration or assignment:
             bound = _declared_names(declaration.group(1)) if declaration else [assignment.group(1)]  # type: ignore[union-attr]
             value = (declaration or assignment).group(2)  # type: ignore[union-attr]
+            flows = {
+                "server": origin(value, number, _JS_SOURCE, tainted),
+                "browser": origin(value, number, _JS_BROWSER_SOURCE, browser),
+            }
             for name in bound:
-                for kind, flag in (
-                    (tainted, server_tainted(value)),
-                    (browser, browser_tainted(value)),
-                ):
-                    (kind.add if flag else kind.discard)(name)
+                for kind, flow in ((tainted, flows["server"]), (browser, flows["browser"])):
+                    _bind(kind, name, flow, number)
     return sorted(found.values(), key=lambda m: (m.line, m.rule_id))

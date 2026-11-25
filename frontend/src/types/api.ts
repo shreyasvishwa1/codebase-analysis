@@ -1122,6 +1122,15 @@ export interface SecurityFinding {
   explanation: string
   recommendation: string
   doc_url: string | null
+  /** data-flow findings: where request input came in, the variables it passed through and the
+   * call it reached; null for other findings and for older runs */
+  flow?: FlowStep[] | null
+}
+
+export interface FlowStep {
+  line: number
+  /** a name from the code (request.args, a variable, open()), never a value */
+  label: string
 }
 
 export interface SecurityFindingList {

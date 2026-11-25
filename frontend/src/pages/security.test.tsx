@@ -113,7 +113,13 @@ const page = (items: SecurityFinding[], total = items.length, pageNumber = 1): S
 const last = <T,>(items: T[]): T | undefined => items[items.length - 1]
 
 function Location() {
-  return <output data-testid="location">{useLocation().pathname}</output>
+  const location = useLocation()
+  return (
+    <>
+      <output data-testid="location">{location.pathname}</output>
+      <output data-testid="location-state">{JSON.stringify(location.state ?? null)}</output>
+    </>
+  )
 }
 
 type Route_ = MockResponse | ((c: InternalAxiosRequestConfig) => MockResponse)
@@ -215,6 +221,50 @@ describe('Repository security', () => {
 
     fireEvent.click(findings.getByRole('link', { name: 'Open in explorer at line 19' }))
     expect(screen.getByTestId('location').textContent).toBe(REPO_URL)
+  })
+
+  it('shows how request input reaches a data-flow finding, each step opening its line', async () => {
+    const flow = finding({
+      id: 'f-flow',
+      path: 'web/app.py',
+      line: 12,
+      rule_id: 'path-traversal',
+      title: 'Path built from request input',
+      flow: [
+        { line: 10, label: 'request.args' },
+        { line: 10, label: 'name' },
+        { line: 11, label: 'folder' },
+        { line: 12, label: 'send_file()' },
+      ],
+    })
+    mountRepositoryPage({
+      [`GET ${RUNS_URL}`]: { status: 200, data: { job: null, runs: [run()] } },
+      [`GET ${RUNS_URL}/run-1/security-findings`]: {
+        status: 200,
+        data: page([flow, finding({ id: 'f-short', title: 'One step', flow: [{ line: 3, label: 'request.args' }] }), BANDIT]),
+      },
+    })
+    const findings = within(await screen.findByRole('region', { name: 'Findings' }))
+    fireEvent.click(await findings.findByRole('button', { name: /Path built from request input/ }))
+    const path = findings.getByRole('list', { name: 'Data flow' })
+    const steps = within(path).getAllByRole('link')
+    expect(steps.map((link) => link.textContent)).toEqual([
+      'Comes in as request.args line 10',
+      'Then name line 10',
+      'Then folder line 11',
+      'Reaches send_file() line 12',
+    ])
+    expect(steps[0].className).toContain('text-amber-200')
+    expect(steps[3].className).toContain('text-rose-200')
+    expect(steps[1].className).toContain('text-slate-200')
+    expect(path.querySelectorAll('.flow-arrow')).toHaveLength(3)
+    // Findings without a path, or with a single step, show none.
+    fireEvent.click(findings.getByRole('button', { name: /One step/ }))
+    fireEvent.click(findings.getByRole('button', { name: /SQL built from strings/ }))
+    expect(findings.getAllByRole('list', { name: 'Data flow' })).toHaveLength(1)
+    fireEvent.click(steps[2])
+    expect(screen.getByTestId('location').textContent).toBe(REPO_URL)
+    expect(JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')).toEqual({ openFile: { path: 'web/app.py', line: 11 } })
   })
 
   it('filters by severity, confidence, OWASP category, file and text, and pages', async () => {

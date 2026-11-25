@@ -172,7 +172,10 @@ FastAPI (uvicorn)  ── auth, ownership, rate limits, validation
   through declarations and destructuring into `res.sendFile`/`fs.*`, `axios`/`fetch`/
   `http(s).get`, `res.redirect` and `res.send`/`write`/`end` (reflected XSS, CWE-79); in the
   browser, the page's own address written to `window.location`. Values passed into other
-  functions are not followed; findings are "potential".
+  functions are not followed; findings are "potential". Each finding stores its path
+  (`security_findings.flow`, migration 0016): where the input came in, each variable it passed
+  through and the call it reached, as `[line, label]` steps. Labels are names from the code,
+  never values; the Security page shows the path with each step opening its line.
 - **Classification** (`app/analysis/security/rules.py`): severity critical/high/medium/low
   (critical is reserved for committed credentials in a known format and private keys);
   confidence **confirmed** (the insecure code or file is definitely present, including Bandit
