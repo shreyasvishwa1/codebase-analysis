@@ -228,10 +228,17 @@ describe('Repository architecture', () => {
       'backend/app/services->backend/app/models',
       'backend/tests->backend/app/services',
     ])
+    // Each import curve carries the moving dashes that show its direction, drawn the same way.
+    for (const edge of lanes.querySelectorAll('[data-edge]')) {
+      const [line, flow] = [...edge.querySelectorAll('path')]
+      expect(flow.getAttribute('class')).toContain('import-flow')
+      expect(flow.getAttribute('d')).toBe(line.getAttribute('d'))
+    }
     expect(within(lanes).getByRole('button', { name: 'frontend/src: User interface, 2 files' }).getAttribute('data-dimmed')).toBe('true')
     expect(within(lanes).getByRole('button', { name: 'backend/tests: Tests, 2 files' }).getAttribute('data-dimmed')).toBe('false')
     fireEvent.mouseEnter(within(lanes).getByRole('button', { name: 'PostgreSQL data store' }))
     expect([...lanes.querySelectorAll('[data-edge]')].map((edge) => edge.getAttribute('data-edge'))).toEqual(['backend/app/models->store:PostgreSQL'])
+    expect(lanes.querySelector('.import-flow')).toBeNull() // a data store is used, not imported
     fireEvent.mouseLeave(within(lanes).getByRole('group', { name: 'Tests lane' }).parentElement!)
     expect(lanes.querySelectorAll('[data-edge]')).toHaveLength(0)
 

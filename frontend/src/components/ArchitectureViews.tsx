@@ -177,6 +177,10 @@ function Curves({
             strokeLinecap="round"
             opacity={0.85}
           />
+          {/* Light moving from the importer to what it imports: the direction of the imports. */}
+          {!curve.store && (
+            <path d={curve.d} fill="none" className="import-flow stroke-slate-50/70" strokeWidth={1.5} strokeDasharray="3 9" strokeLinecap="round" />
+          )}
           {labels && !curve.store && (
             <g transform={`translate(${curve.label.x} ${curve.label.y})`}>
               <rect x={-12} y={-8} width={24} height={16} rx={8} className="fill-slate-950 stroke-slate-700" />

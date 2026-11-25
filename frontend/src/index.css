@@ -353,6 +353,17 @@ html {
   }
 }
 
+/* Dashes running along an import curve, from the importer to what it imports. */
+.import-flow {
+  animation: import-flow 0.9s linear infinite;
+}
+
+@keyframes import-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
 /* A trend line draws itself from its first run to the latest (pathLength is 1). */
 .spark-draw {
   stroke-dasharray: 1;
@@ -397,6 +408,9 @@ html {
   }
   .tilt {
     transform: none;
+  }
+  .import-flow {
+    display: none;
   }
   .boot-trace {
     stroke-dashoffset: 0;
