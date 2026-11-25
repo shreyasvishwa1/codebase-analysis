@@ -193,6 +193,10 @@ describe('Overview', () => {
     expect(link.getAttribute('href')).toBe(`${REPO_URL}/analysis`)
     expect(link.textContent).toContain('backend')
     expect(link.textContent).toContain('4,321 lines')
+    // When it ran, relative to now, with the exact time on hover.
+    const when = link.querySelector('time')
+    expect(when?.getAttribute('dateTime')).toBe('2026-11-17T10:00:00Z')
+    expect(when?.getAttribute('title')).toBe(new Date('2026-11-17T10:00:00Z').toLocaleString())
   })
 
   it('invites a new user to upload a repository', async () => {

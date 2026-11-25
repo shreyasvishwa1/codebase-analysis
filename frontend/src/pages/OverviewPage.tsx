@@ -9,8 +9,8 @@ import { useDashboard } from '../hooks/useAnalysisRuns'
 import { useHealthOverview } from '../hooks/useHealthScore'
 import { getErrorMessage } from '../services/client'
 import type { DashboardSummary, LanguageBreakdown } from '../types/api'
-import { formatDateTime } from '../utils/format'
 import { CountUp } from '../components/CountUp'
+import { RelativeTime } from '../components/RelativeTime'
 
 const SERIES = ['rgb(var(--indigo-500))', 'rgb(var(--slate-400))', 'rgb(var(--emerald-500))', 'rgb(var(--sky-500))', 'rgb(var(--rose-500))']
 const OTHER = 'rgb(var(--slate-600))'
@@ -166,7 +166,7 @@ function RecentPanel({ data }: { data: DashboardSummary }) {
                 <span className="min-w-0">
                   <span className="block truncate font-medium text-slate-100">{run.repository_name}</span>
                   <span className="block truncate text-xs text-slate-400">
-                    {run.project_name} · {formatDateTime(run.created_at)}
+                    {run.project_name} · <RelativeTime iso={run.created_at} />
                   </span>
                 </span>
                 <span className="shrink-0 text-right text-xs tabular-nums text-slate-400">
