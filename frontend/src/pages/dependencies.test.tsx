@@ -325,7 +325,14 @@ describe('Repository dependencies', () => {
     const list = within(await screen.findByRole('region', { name: 'Dependencies' }))
     fireEvent.change(list.getByLabelText('Ecosystem'), { target: { value: 'npm' } })
     await waitFor(() => expect(last(seen)).toMatchObject({ ecosystem: 'npm' }))
+    const trend = await screen.findByRole('region', { name: 'Since the previous run' })
+    expect(trend.textContent).toContain('Vulnerable dependencies')
+    expect(trend.textContent).toContain('Known vulnerabilities')
+    expect(trend.textContent).toMatch(/than the previous run|No change from the previous run/)
     fireEvent.change(screen.getByLabelText('Run'), { target: { value: 'run-0' } })
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'Since the previous run' }).textContent).toContain('First run with this measure'),
+    )
     expect(await screen.findByText('olderpkg')).toBeTruthy()
     expect(last(seen)).toEqual({ page: 1, page_size: 25, sort: 'risk' })
   })

@@ -278,7 +278,14 @@ describe('Repository code analysis', () => {
     const issues = within(await screen.findByRole('region', { name: 'Issues' }))
     fireEvent.change(issues.getByLabelText('Severity'), { target: { value: 'low' } })
     await waitFor(() => expect(last(seen)).toMatchObject({ severity: 'low' }))
+    const trend = await screen.findByRole('region', { name: 'Since the previous run' })
+    expect(trend.textContent).toContain('Code issues')
+    expect(trend.textContent).toContain('Duplication')
+    expect(trend.textContent).toMatch(/than the previous run|No change from the previous run/)
     fireEvent.change(screen.getByLabelText('Run'), { target: { value: 'run-0' } })
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'Since the previous run' }).textContent).toContain('First run with this measure'),
+    )
     expect(await screen.findByText('Older issue')).toBeTruthy()
     expect(last(seen)).toEqual({ page: 1, page_size: 50 })
     expect(screen.getByText('Issues found').nextElementSibling?.textContent).toBe('3')

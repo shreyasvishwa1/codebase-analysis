@@ -265,7 +265,14 @@ describe('Repository security', () => {
     const findings = within(await screen.findByRole('region', { name: 'Findings' }))
     fireEvent.change(findings.getByLabelText('Severity'), { target: { value: 'low' } })
     await waitFor(() => expect(last(seen)).toMatchObject({ severity: 'low' }))
+    const trend = await screen.findByRole('region', { name: 'Since the previous run' })
+    expect(trend.textContent).toContain('Security findings')
+    expect(trend.textContent).toContain('Critical and high')
+    expect(trend.textContent).toMatch(/than the previous run|No change from the previous run/)
     fireEvent.change(screen.getByLabelText('Run'), { target: { value: 'run-0' } })
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'Since the previous run' }).textContent).toContain('First run with this measure'),
+    )
     expect(await screen.findByText('Older finding')).toBeTruthy()
     expect(last(seen)).toEqual({ page: 1, page_size: 50 })
     expect(screen.getByText('Findings').nextElementSibling?.textContent).toBe('4')

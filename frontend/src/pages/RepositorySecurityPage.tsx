@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 
 import { ErrorMessage } from '../components/ErrorMessage'
 import { RepositorySectionShell } from '../components/RepositorySectionShell'
+import { RunTrend } from '../components/RunTrend'
 import { SecurityReport } from '../components/SecurityReport'
 import { useAnalysisRuns } from '../hooks/useAnalysisRuns'
 import { getErrorMessage } from '../services/client'
@@ -68,6 +69,17 @@ function Security({ projectId, repositoryId }: { projectId: string; repositoryId
       {run?.security && (
         <>
           <p className="text-xs text-slate-500">Analyzed {formatDateTime(run.created_at)}</p>
+          <RunTrend
+            history={history}
+            runId={run.id}
+            metrics={[
+              { label: 'Security findings', value: (entry) => entry.security?.findings },
+              {
+                label: 'Critical and high',
+                value: (entry) => entry.security && entry.security.by_severity.critical + entry.security.by_severity.high,
+              },
+            ]}
+          />
           <SecurityReport
             key={run.id}
             projectId={projectId}

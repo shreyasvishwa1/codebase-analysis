@@ -337,6 +337,18 @@ html {
   }
 }
 
+/* A trend line draws itself from its first run to the latest (pathLength is 1). */
+.spark-draw {
+  stroke-dasharray: 1;
+  animation: spark-draw 1s ease-out both;
+}
+
+@keyframes spark-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
 /* A score ring fills from empty to its value; --ring-c is the circle's circumference. */
 .ring-fill {
   animation: ring-fill 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both;

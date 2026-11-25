@@ -305,7 +305,14 @@ describe('Repository complexity', () => {
     const functions = within(await screen.findByRole('region', { name: 'Most complex functions' }))
     fireEvent.change(functions.getByLabelText('Complexity'), { target: { value: 'low' } })
     await waitFor(() => expect(last(seen)).toMatchObject({ rank: 'low' }))
+    const trend = await screen.findByRole('region', { name: 'Since the previous run' })
+    expect(trend.textContent).toContain('Highly complex functions')
+    expect(trend.textContent).toContain('Average complexity')
+    expect(trend.textContent).toMatch(/than the previous run|No change from the previous run/)
     fireEvent.change(screen.getByLabelText('Run'), { target: { value: 'run-0' } })
+    await waitFor(() =>
+      expect(screen.getByRole('region', { name: 'Since the previous run' }).textContent).toContain('First run with this measure'),
+    )
     expect(await screen.findByText('olderFunction')).toBeTruthy()
     expect(last(seen)).toEqual({ page: 1, page_size: 25 })
     expect(within(screen.getByRole('region', { name: 'Complexity summary' })).getByText('Functions').nextElementSibling?.textContent).toBe('40')

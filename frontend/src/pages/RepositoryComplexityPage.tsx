@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { ComplexityReport } from '../components/ComplexityReport'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { RepositorySectionShell } from '../components/RepositorySectionShell'
+import { RunTrend } from '../components/RunTrend'
 import { useAnalysisRuns } from '../hooks/useAnalysisRuns'
 import { getErrorMessage } from '../services/client'
 import { formatDateTime } from '../utils/format'
@@ -68,6 +69,14 @@ function Complexity({ projectId, repositoryId }: { projectId: string; repository
       {run?.complexity && (
         <>
           <p className="text-xs text-slate-500">Analyzed {formatDateTime(run.created_at)}</p>
+          <RunTrend
+            history={history}
+            runId={run.id}
+            metrics={[
+              { label: 'Highly complex functions', value: (entry) => entry.complexity?.functions_by_rank.high },
+              { label: 'Average complexity', value: (entry) => entry.complexity?.average_cyclomatic, decimals: 2 },
+            ]}
+          />
           <ComplexityReport
             key={run.id}
             projectId={projectId}

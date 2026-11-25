@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { CodeQualityReport } from '../components/CodeQualityReport'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { RepositorySectionShell } from '../components/RepositorySectionShell'
+import { RunTrend } from '../components/RunTrend'
 import { useAnalysisRuns } from '../hooks/useAnalysisRuns'
 import { getErrorMessage } from '../services/client'
 import { formatDateTime } from '../utils/format'
@@ -68,6 +69,14 @@ function CodeAnalysis({ projectId, repositoryId }: { projectId: string; reposito
       {run?.quality && (
         <>
           <p className="text-xs text-slate-500">Analyzed {formatDateTime(run.created_at)}</p>
+          <RunTrend
+            history={history}
+            runId={run.id}
+            metrics={[
+              { label: 'Code issues', value: (entry) => entry.quality?.issues },
+              { label: 'Duplication', value: (entry) => entry.quality?.duplication.percent, decimals: 1, unit: '%' },
+            ]}
+          />
           <CodeQualityReport
             key={run.id}
             projectId={projectId}

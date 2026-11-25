@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { DependencyReport } from '../components/DependencyReport'
 import { ErrorMessage } from '../components/ErrorMessage'
 import { RepositorySectionShell } from '../components/RepositorySectionShell'
+import { RunTrend } from '../components/RunTrend'
 import { useAnalysisRuns } from '../hooks/useAnalysisRuns'
 import { getErrorMessage } from '../services/client'
 import { formatDateTime } from '../utils/format'
@@ -68,6 +69,14 @@ function Dependencies({ projectId, repositoryId }: { projectId: string; reposito
       {run?.dependencies && (
         <>
           <p className="text-xs text-slate-500">Analyzed {formatDateTime(run.created_at)}</p>
+          <RunTrend
+            history={history}
+            runId={run.id}
+            metrics={[
+              { label: 'Vulnerable dependencies', value: (entry) => entry.dependencies?.vulnerable_dependencies },
+              { label: 'Known vulnerabilities', value: (entry) => entry.dependencies?.vulnerabilities },
+            ]}
+          />
           <DependencyReport
             key={run.id}
             projectId={projectId}
