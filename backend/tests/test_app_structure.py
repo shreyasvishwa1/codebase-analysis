@@ -80,6 +80,8 @@ def test_openapi_generation(client: TestClient) -> None:
         "/api/v1/projects/{project_id}/repositories/{repository_id}/chat/conversations",
         "/api/v1/projects/{project_id}/repositories/{repository_id}/chat/conversations/{conversation_id}",
         "/api/v1/projects/{project_id}/repositories/{repository_id}/chat/conversations/{conversation_id}/messages",
+        "/api/v1/projects/{project_id}/repositories/{repository_id}/chat/conversations/{conversation_id}/messages/stream",
+        "/api/v1/projects/{project_id}/repositories/{repository_id}/chat/conversations/stream",
         "/api/v1/chat",
         "/api/v1/chat/status",
         "/api/v1/projects/{project_id}/repositories/{repository_id}/analysis-runs/{run_id}/reports",
