@@ -5,6 +5,19 @@ import { NavLink, useLocation } from 'react-router-dom'
 /** How much of the visible width one arrow press scrolls. */
 export const SCROLL_SHARE = 0.6
 
+/** Room left beside the current section when the row scrolls to it. */
+export const EDGE_ROOM = 48
+
+/** Where the row should scroll so a section is fully visible (with EDGE_ROOM beside it), or
+ * null if it already is. Only the row moves, never the page. */
+export function scrollToShow(row: { scrollLeft: number; clientWidth: number }, item: { offsetLeft: number; offsetWidth: number }): number | null {
+  const start = item.offsetLeft
+  const end = item.offsetLeft + item.offsetWidth
+  if (start < row.scrollLeft) return Math.max(0, start - EDGE_ROOM)
+  if (end > row.scrollLeft + row.clientWidth) return end - row.clientWidth + EDGE_ROOM
+  return null
+}
+
 /** Which sides of a scrolling row have more out of view (a pixel of slack for rounding). */
 export function overflowSides(element: Pick<HTMLElement, 'scrollLeft' | 'scrollWidth' | 'clientWidth'>): { left: boolean; right: boolean } {
   return {
@@ -52,7 +65,12 @@ export function RepositoryNav({ projectId, repositoryId }: { projectId: string; 
 
   // The current section is brought into view (for example "History & reports" on a narrow screen).
   useEffect(() => {
-    row.current?.querySelector('[aria-current="page"]')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })
+    const element = row.current
+    const current = element?.querySelector<HTMLElement>('[aria-current="page"]')
+    if (element && current) {
+      const left = scrollToShow(element, current)
+      if (left !== null) element.scrollLeft = left
+    }
     measure()
   }, [pathname, measure])
 

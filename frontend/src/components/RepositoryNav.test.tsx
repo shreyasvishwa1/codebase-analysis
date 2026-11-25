@@ -3,7 +3,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ROUTER_FUTURE } from '../routerFuture'
-import { overflowSides, RepositoryNav, SCROLL_SHARE } from './RepositoryNav'
+import { EDGE_ROOM, overflowSides, RepositoryNav, SCROLL_SHARE, scrollToShow } from './RepositoryNav'
 
 describe('overflowSides', () => {
   it('says which sides have more out of view', () => {
@@ -17,6 +17,17 @@ describe('overflowSides', () => {
     expect(overflowSides({ scrollLeft: 1, clientWidth: 300, scrollWidth: 900 }).left).toBe(false)
     expect(overflowSides({ scrollLeft: 599.5, clientWidth: 300, scrollWidth: 900 }).right).toBe(false)
     expect(overflowSides({ scrollLeft: 1.5, clientWidth: 300, scrollWidth: 900 }).left).toBe(true)
+  })
+})
+
+describe('scrollToShow', () => {
+  const row = { scrollLeft: 100, clientWidth: 300 }
+  it('scrolls the row only when the section is not fully visible, leaving room beside it', () => {
+    expect(scrollToShow(row, { offsetLeft: 150, offsetWidth: 100 })).toBeNull() // 150-250 inside 100-400
+    expect(scrollToShow(row, { offsetLeft: 380, offsetWidth: 120 })).toBe(500 - 300 + EDGE_ROOM) // past the right edge
+    expect(scrollToShow(row, { offsetLeft: 80, offsetWidth: 60 })).toBe(80 - EDGE_ROOM) // before the left edge
+    expect(scrollToShow(row, { offsetLeft: 20, offsetWidth: 60 })).toBe(0) // never before the start
+    expect(scrollToShow(row, { offsetLeft: 100, offsetWidth: 300 })).toBeNull() // exactly fits
   })
 })
 
@@ -55,9 +66,14 @@ describe('RepositoryNav', () => {
     expect(screen.queryByRole('button', { name: 'Show earlier sections' })).toBeNull()
   })
 
-  it('brings the current section into view', () => {
-    const { intoView } = show('/projects/p/repositories/r/history')
-    expect(intoView.map((element) => element.textContent)).toEqual(['History & reports'])
+  it('brings the current section into view by scrolling the row, never the page', () => {
+    vi.spyOn(HTMLElement.prototype, 'offsetLeft', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.textContent === 'History & reports' ? 1000 : 0
+    })
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(150)
+    const { nav, intoView } = show('/projects/p/repositories/r/history', { clientWidth: 400, scrollWidth: 1200 })
+    expect(nav.scrollLeft).toBe(1150 - 400 + EDGE_ROOM)
+    expect(intoView).toEqual([]) // the page itself is not scrolled
   })
 
   it('offers arrows on the sides with more, and scrolls by part of the width', () => {
