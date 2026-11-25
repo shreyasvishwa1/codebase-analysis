@@ -218,6 +218,15 @@ input::-ms-clear {
   scrollbar-color: rgb(var(--slate-700)) transparent;
 }
 
+/* A row that scrolls sideways without a scrollbar (arrows and faded edges show there is more). */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 /* Smooth scrolling for in-page jumps; route changes reset the scroll instantly in code. */
 html {
   scroll-behavior: smooth;
