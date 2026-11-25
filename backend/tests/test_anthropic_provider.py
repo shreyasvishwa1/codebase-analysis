@@ -20,11 +20,12 @@ from app.ai.anthropic_provider import (
     API_BASE_URL,
     DECLINED,
     INCOMPLETE,
+    TEMPERATURE_UNSUPPORTED,
     UNAVAILABLE,
     AnthropicProvider,
     get_llm_provider,
 )
-from app.ai.provider import ChatMessage, LLMProviderError
+from app.ai.provider import ChatMessage, GenerationResult, LLMProviderError
 from app.config import Settings, get_settings
 
 TEST_KEY = "test-only-anthropic-key-0000"  # not a real credential
@@ -333,3 +334,25 @@ async def test_concurrent_dependency_calls_share_one_provider(
     monkeypatch.setattr(get_settings(), "anthropic_api_key", SecretStr(TEST_KEY))
     providers = await asyncio.gather(*(asyncio.to_thread(get_llm_provider) for _ in range(10)))
     assert all(p is providers[0] for p in providers)
+
+
+async def test_stream_yields_pieces_then_the_result_with_the_same_request() -> None:
+    messages = FakeMessages(_message(content=[{"type": "text", "text": "Hello!"}], model="claude-x", usage=(9, 3)))
+    items = [i async for i in _provider(messages).stream(MESSAGES, system="s", max_tokens=99)]
+    assert items == ["Hel", "lo", "!", GenerationResult(text="Hello!", model="claude-x", input_tokens=9, output_tokens=3)]
+    assert messages.stream_calls[0]["max_tokens"] == 99 and messages.stream_calls[0]["system"] == "s"
+    assert messages.stream_calls[0]["fallbacks"] == "default"
+
+
+async def test_stream_reports_refusal_truncation_errors_and_temperature() -> None:
+    for stop, error in (("refusal", DECLINED), ("max_tokens", INCOMPLETE)):
+        with pytest.raises(LLMProviderError, match=error):
+            async for _ in _provider(FakeMessages(_message(stop_reason=stop))).stream(MESSAGES, max_tokens=10):
+                pass
+    failing = FakeMessages(error=anthropic.APIConnectionError(request=_request()))
+    with pytest.raises(LLMProviderError, match=UNAVAILABLE):
+        async for _ in _provider(failing).stream(MESSAGES, max_tokens=10):
+            pass
+    with pytest.raises(LLMProviderError, match=TEMPERATURE_UNSUPPORTED):
+        async for _ in _provider(FakeMessages()).stream(MESSAGES, max_tokens=10, temperature=0.2):
+            pass

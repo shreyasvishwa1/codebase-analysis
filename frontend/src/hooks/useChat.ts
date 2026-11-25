@@ -36,10 +36,10 @@ export function useConversation(projectId: string, repositoryId: string, convers
 }
 
 /** The first question of a new conversation; the answered conversation goes into the cache. */
-export function useStartConversation(projectId: string, repositoryId: string) {
+export function useStartConversation(projectId: string, repositoryId: string, onText?: (text: string) => void) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (question: string) => startConversation(projectId, repositoryId, question),
+    mutationFn: (question: string) => startConversation(projectId, repositoryId, question, onText),
     onSuccess: (conversation) => {
       queryClient.setQueryData(queryKeys.conversation(projectId, repositoryId, conversation.id), conversation)
       void queryClient.invalidateQueries({ queryKey: queryKeys.conversations(projectId, repositoryId), exact: true })
@@ -48,10 +48,10 @@ export function useStartConversation(projectId: string, repositoryId: string) {
 }
 
 /** A follow-up question; the question and answer are appended to the cached conversation. */
-export function useAskQuestion(projectId: string, repositoryId: string, conversationId: string) {
+export function useAskQuestion(projectId: string, repositoryId: string, conversationId: string, onText?: (text: string) => void) {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (question: string) => askQuestion(projectId, repositoryId, conversationId, question),
+    mutationFn: (question: string) => askQuestion(projectId, repositoryId, conversationId, question, onText),
     onSuccess: (exchange) => {
       queryClient.setQueryData<ChatConversation>(
         queryKeys.conversation(projectId, repositoryId, conversationId),

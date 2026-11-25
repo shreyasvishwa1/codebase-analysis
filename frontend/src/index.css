@@ -337,6 +337,22 @@ html {
   }
 }
 
+/* The cursor after an answer that is still being written. */
+.typing-caret {
+  display: inline-block;
+  width: 0.5rem;
+  height: 1rem;
+  margin-left: 0.125rem;
+  vertical-align: text-bottom;
+  animation: caret-blink 1s steps(2, start) infinite;
+}
+
+@keyframes caret-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
 /* A trend line draws itself from its first run to the latest (pathLength is 1). */
 .spark-draw {
   stroke-dasharray: 1;

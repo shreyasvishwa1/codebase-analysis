@@ -25,7 +25,8 @@ export interface MockResponse {
   data?: unknown
 }
 
-type Route = MockResponse | ((config: InternalAxiosRequestConfig) => MockResponse)
+// A route may answer later (a promise), for example to hold a streamed answer open.
+type Route = MockResponse | ((config: InternalAxiosRequestConfig) => MockResponse | Promise<MockResponse>)
 
 const originalAdapter = apiClient.defaults.adapter
 
@@ -45,7 +46,7 @@ export function mockApi(routes: Record<string, Route>): RecordedRequest[] {
     const result: MockResponse = !route
       ? { status: 404, data: { detail: `No mock for ${method} ${url}` } }
       : typeof route === 'function'
-        ? route(config)
+        ? await route(config)
         : route
     const response: AxiosResponse = {
       data: result.data,

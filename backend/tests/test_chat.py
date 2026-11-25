@@ -7,6 +7,7 @@
   service.
 """
 
+import json
 import re
 from datetime import datetime, timezone
 import uuid
@@ -873,3 +874,179 @@ async def test_a_question_comes_before_its_answer_on_equal_timestamps(
         )
     ).json()
     assert [m["content"] for m in detail["messages"]][2:] == ["question", "answer"]
+
+
+# --- Streaming -----------------------------------------------------------------------------------
+
+
+class StreamingProvider(FakeProvider):
+    """Streams the reply in pieces; ``fail_after`` pieces, it fails instead of finishing."""
+
+    def __init__(self, pieces: list[str], fail_after: int | None = None) -> None:
+        super().__init__(reply="".join(pieces))
+        self.pieces = pieces
+        self.fail_after = fail_after
+
+    async def stream(
+        self,
+        messages: Sequence[ChatMessage],
+        *,
+        system: str | None = None,
+        max_tokens: int,
+        temperature: float | None = None,
+    ) -> AsyncIterator[str | GenerationResult]:
+        self.calls.append({"messages": list(messages), "system": system, "max_tokens": max_tokens})
+        for index, piece in enumerate(self.pieces):
+            if self.fail_after is not None and index == self.fail_after:
+                raise LLMProviderError("boom")
+            yield piece
+        yield GenerationResult(text=f" {self.reply} ", model="stream-model", input_tokens=7, output_tokens=3)
+
+
+def _events(text: str) -> list[tuple[str, Any]]:
+    """Parses server-sent events into (event, data)."""
+    events = []
+    for block in text.strip().split("\n\n"):
+        lines = dict(line.split(": ", 1) for line in block.split("\n"))
+        events.append((lines["event"], json.loads(lines["data"])))
+    return events
+
+
+async def _stream(
+    client: httpx.AsyncClient, url: str, owner: Owner, question: str = "How are passwords hashed?"
+) -> httpx.Response:
+    return await client.post(url, json={"question": question}, headers=owner.headers)
+
+
+@requires_db
+async def test_answers_stream_as_events_then_are_stored(
+    client: httpx.AsyncClient,
+    alice: Owner,
+    monkeypatch: pytest.MonkeyPatch,
+    db_session: AsyncSession,
+) -> None:
+    run = await _analyzed(client, alice, monkeypatch, db_session)
+    fake = StreamingProvider(["Passwords are ", "hashed with ", "SHA-256 [1]."])
+    app.dependency_overrides[get_llm_provider] = lambda: fake
+    commits = 0
+    real_commit = db_session.commit
+
+    async def counted_commit() -> None:
+        nonlocal commits
+        commits += 1
+        await real_commit()
+
+    monkeypatch.setattr(db_session, "commit", counted_commit)
+    try:
+        response = await _stream(client, f"{_chat(alice)}/conversations/stream", alice, "  How are passwords hashed?  ")
+        assert response.status_code == 200
+        assert commits == 1  # the exchange is committed once the answer is whole
+        assert response.headers["content-type"].startswith("text/event-stream")
+        assert response.headers["cache-control"] == "no-cache"
+        assert response.headers["content-encoding"] == "identity"
+        events = _events(response.text)
+        assert events[:3] == [
+            ("delta", {"text": "Passwords are "}),
+            ("delta", {"text": "hashed with "}),
+            ("delta", {"text": "SHA-256 [1]."}),
+        ]
+        name, body = events[3]
+        assert name == "done" and len(events) == 4
+        assert (body["title"], body["run_id"], body["message_count"]) == ("How are passwords hashed?", run["id"], 2)
+        question, reply = body["messages"]
+        assert (question["content"], reply["content"]) == (
+            "How are passwords hashed?",
+            "Passwords are hashed with SHA-256 [1].",
+        )
+        assert reply["citations"] == [
+            {"n": 1, "path": "app/auth.py", "start_line": 4, "end_line": 5, "symbol": "hash_password"}
+        ]
+        (call,) = fake.calls
+        assert call["system"] == SYSTEM_PROMPT and call["max_tokens"] == 8000
+        stored = await db_session.scalar(select(StoredMessage).where(StoredMessage.role == "assistant"))
+        assert stored is not None
+        assert (stored.content, stored.model, stored.input_tokens, stored.output_tokens) == (
+            "Passwords are hashed with SHA-256 [1].", "stream-model", 7, 3,
+        )  # fmt: skip
+
+        # A follow-up streams into the same conversation, with the history sent along.
+        conversation = body["id"]
+        fake.pieces, fake.reply = ["It is ", "called at login."], "It is called at login."
+        url = f"{_chat(alice)}/conversations/{conversation}/messages/stream"
+        follow = _events((await _stream(client, url, alice, "Where is it called?")).text)
+        assert [name for name, _ in follow] == ["delta", "delta", "done"]
+        exchange = follow[-1][1]
+        assert exchange["conversation"]["message_count"] == 4
+        assert [m["content"] for m in exchange["messages"]] == ["Where is it called?", "It is called at login."]
+        assert [m.role for m in fake.calls[1]["messages"]] == ["user", "assistant", "user"]
+        detail = (await client.get(f"{_chat(alice)}/conversations/{conversation}", headers=alice.headers)).json()
+        assert [m["content"] for m in detail["messages"]][-1] == "It is called at login."
+    finally:
+        app.dependency_overrides.pop(get_llm_provider, None)
+
+
+@requires_db
+async def test_a_failure_while_streaming_is_an_error_event_and_stores_nothing(
+    client: httpx.AsyncClient,
+    alice: Owner,
+    monkeypatch: pytest.MonkeyPatch,
+    db_session: AsyncSession,
+) -> None:
+    await _analyzed(client, alice, monkeypatch, db_session)
+    fake = StreamingProvider(["Partial ", "answer"], fail_after=1)
+    app.dependency_overrides[get_llm_provider] = lambda: fake
+    try:
+        response = await _stream(client, f"{_chat(alice)}/conversations/stream", alice)
+        assert response.status_code == 200
+        assert _events(response.text) == [
+            ("delta", {"text": "Partial "}),
+            ("error", {"status": 502, "detail": AI_UNAVAILABLE}),
+        ]
+        assert await db_session.scalar(select(func.count()).select_from(StoredMessage)) == 0
+        listed = (await client.get(f"{_chat(alice)}/conversations", headers=alice.headers)).json()
+        assert listed["conversations"] == []
+
+        # A stream that ends without an answer is a failure too.
+        class NoAnswer(StreamingProvider):
+            async def stream(self, messages: Sequence[ChatMessage], **kwargs: Any) -> AsyncIterator[str | GenerationResult]:
+                yield "half"
+
+        app.dependency_overrides[get_llm_provider] = lambda: NoAnswer([])
+        events = _events((await _stream(client, f"{_chat(alice)}/conversations/stream", alice)).text)
+        assert events[-1] == ("error", {"status": 502, "detail": AI_UNAVAILABLE})
+    finally:
+        app.dependency_overrides.pop(get_llm_provider, None)
+
+
+@requires_db
+async def test_streams_check_like_the_plain_endpoints(
+    client: httpx.AsyncClient,
+    alice: Owner,
+    bob: Owner,
+    monkeypatch: pytest.MonkeyPatch,
+    db_session: AsyncSession,
+    provider: FakeProvider,
+) -> None:
+    start = f"{_chat(alice)}/conversations/stream"
+    # No analysis to chat about yet.
+    response = await _stream(client, start, alice)
+    assert (response.status_code, response.json()) == (409, {"detail": NOT_INDEXED})
+    await _analyzed(client, alice, monkeypatch, db_session)
+    # Someone else's repository and an unknown conversation.
+    assert (await _stream(client, start, bob)).status_code == 404
+    unknown = f"{_chat(alice)}/conversations/{uuid.uuid4()}/messages/stream"
+    assert (await _stream(client, unknown, alice)).json() == {"detail": CONVERSATION_NOT_FOUND}
+    # Questions are validated.
+    assert (await client.post(start, json={"question": " "}, headers=alice.headers)).status_code == 422
+    # The default provider (no streaming of its own) still answers through the stream.
+    events = _events((await _stream(client, start, alice)).text)
+    assert [name for name, _ in events] == ["delta", "done"]
+    assert events[0][1] == {"text": "  Passwords are hashed with SHA-256 [1].\n"}
+    assert events[1][1]["messages"][1]["content"] == "Passwords are hashed with SHA-256 [1]."
+    # Not configured.
+    app.dependency_overrides[get_llm_provider] = lambda: None
+    try:
+        response = await _stream(client, start, alice)
+        assert (response.status_code, response.json()) == (503, {"detail": NOT_CONFIGURED})
+    finally:
+        app.dependency_overrides[get_llm_provider] = lambda: provider

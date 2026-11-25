@@ -60,3 +60,22 @@ class LLMProvider(ABC):
         temperature: float | None = None,
     ) -> AsyncIterator[str]:
         """Yield the response text in pieces as they are produced."""
+
+    async def stream(
+        self,
+        messages: Sequence[ChatMessage],
+        *,
+        system: str | None = None,
+        max_tokens: int,
+        temperature: float | None = None,
+    ) -> AsyncIterator[str | GenerationResult]:
+        """Yield the answer's text in pieces as it is produced, then exactly one
+        ``GenerationResult`` with the complete, validated answer, its model and token counts.
+
+        This default produces the whole answer first (one piece); providers that can stream
+        override it. A failure raises ``LLMProviderError``, possibly after some pieces."""
+        result = await self.generate(
+            messages, system=system, max_tokens=max_tokens, temperature=temperature
+        )
+        yield result.text
+        yield result

@@ -9,12 +9,13 @@ question). Citations are the passages whose numbers appear in the answer as [n].
 """
 
 import re
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.provider import ChatMessage, LLMProvider, LLMProviderError
+from app.ai.provider import ChatMessage, GenerationResult, LLMProvider, LLMProviderError
 from app.chat.context import analysis_context
 from app.chat.retrieval import Passage, Retrieval, retrieve
 from app.models import AnalysisRun
@@ -127,6 +128,44 @@ def history_messages(turns: list[tuple[str, str]]) -> list[ChatMessage]:
     ]
 
 
+@dataclass(frozen=True)
+class Prepared:
+    """What the model is asked, and the passages its citations can refer to."""
+
+    messages: list[ChatMessage]
+    passages: list[Passage]
+
+
+async def prepare(
+    db: AsyncSession,
+    run: AnalysisRun,
+    repository_name: str,
+    weights: dict[str, int],
+    question: str,
+    turns: list[tuple[str, str]],
+) -> Prepared:
+    # Follow-up questions ("and where is it called?") also search with the previous question.
+    previous = next((content for role, content in reversed(turns) if role == "user"), "")
+    retrieval = await retrieve(db, run.id, f"{question}\n{previous}" if previous else question)
+    analysis = await analysis_context(db, run, repository_name, weights)
+    messages = [
+        *history_messages(turns),
+        ChatMessage(role="user", content=build_user_message(analysis, retrieval, question)),
+    ]
+    return Prepared(messages=messages, passages=retrieval.passages)
+
+
+def _answer(result: GenerationResult, passages: list[Passage]) -> Answer:
+    text = result.text.strip()
+    return Answer(
+        text=text,
+        citations=cited(text, passages),
+        model=result.model,
+        input_tokens=result.input_tokens,
+        output_tokens=result.output_tokens,
+    )
+
+
 async def answer(
     db: AsyncSession,
     provider: LLMProvider,
@@ -136,23 +175,23 @@ async def answer(
     question: str,
     turns: list[tuple[str, str]],
 ) -> Answer:
-    # Follow-up questions ("and where is it called?") also search with the previous question.
-    previous = next((content for role, content in reversed(turns) if role == "user"), "")
-    retrieval = await retrieve(db, run.id, f"{question}\n{previous}" if previous else question)
-    analysis = await analysis_context(db, run, repository_name, weights)
-    messages = [
-        *history_messages(turns),
-        ChatMessage(role="user", content=build_user_message(analysis, retrieval, question)),
-    ]
+    prepared = await prepare(db, run, repository_name, weights, question, turns)
     try:
-        result = await provider.generate(messages, system=SYSTEM_PROMPT, max_tokens=MAX_TOKENS)
+        result = await provider.generate(prepared.messages, system=SYSTEM_PROMPT, max_tokens=MAX_TOKENS)
     except LLMProviderError:
         raise ChatError(502, AI_UNAVAILABLE) from None
-    text = result.text.strip()
-    return Answer(
-        text=text,
-        citations=cited(text, retrieval.passages),
-        model=result.model,
-        input_tokens=result.input_tokens,
-        output_tokens=result.output_tokens,
-    )
+    return _answer(result, prepared.passages)
+
+
+async def stream_answer(provider: LLMProvider, prepared: Prepared) -> AsyncIterator[str | Answer]:
+    """The answer's text in pieces as the model writes it, then the complete ``Answer`` (with
+    its citations). A failure raises ``ChatError``, possibly after some pieces."""
+    try:
+        async for item in provider.stream(prepared.messages, system=SYSTEM_PROMPT, max_tokens=MAX_TOKENS):
+            if isinstance(item, GenerationResult):
+                yield _answer(item, prepared.passages)
+                return
+            yield item
+    except LLMProviderError:
+        raise ChatError(502, AI_UNAVAILABLE) from None
+    raise ChatError(502, AI_UNAVAILABLE)  # the stream ended without an answer

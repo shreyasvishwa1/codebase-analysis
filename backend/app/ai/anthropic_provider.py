@@ -119,6 +119,39 @@ class AnthropicProvider(LLMProvider):
             raise LLMProviderError(UNAVAILABLE) from None
         self._check_stop_reason(final.stop_reason)
 
+    async def stream(
+        self,
+        messages: Sequence[ChatMessage],
+        *,
+        system: str | None = None,
+        max_tokens: int,
+        temperature: float | None = None,
+    ) -> AsyncIterator[str | GenerationResult]:
+        if temperature is not None:
+            raise LLMProviderError(TEMPERATURE_UNSUPPORTED)
+        try:
+            async with self._client.beta.messages.stream(
+                model=self._model,
+                max_tokens=max_tokens,
+                system=system if system is not None else anthropic.omit,
+                messages=self._messages(messages),
+                output_config={"effort": EFFORT},
+                betas=[FALLBACK_BETA],
+                fallbacks=FALLBACKS,
+            ) as stream:
+                async for text in stream.text_stream:
+                    yield text
+                final = await stream.get_final_message()
+        except anthropic.AnthropicError:
+            raise LLMProviderError(UNAVAILABLE) from None
+        self._check_stop_reason(final.stop_reason)
+        yield GenerationResult(
+            text="".join(block.text for block in final.content if isinstance(block, BetaTextBlock)),
+            model=final.model,
+            input_tokens=final.usage.input_tokens,
+            output_tokens=final.usage.output_tokens,
+        )
+
 
 _providers: dict[tuple[str, str], AnthropicProvider] = {}
 _providers_lock = threading.Lock()

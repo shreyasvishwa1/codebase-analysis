@@ -17,6 +17,7 @@ vendor details are chained. Prompts, responses and the key are never logged.
 """
 
 import asyncio
+import json
 from collections.abc import AsyncIterator, Sequence
 import threading
 from typing import Any
@@ -175,11 +176,126 @@ class GeminiProvider(LLMProvider):
         max_tokens: int,
         temperature: float | None = None,
     ) -> AsyncIterator[str]:
-        # No caller streams yet; the complete, validated answer is yielded as one piece.
+        # The complete, validated answer as one piece (the chat uses ``stream``).
         result = await self.generate(
             messages, system=system, max_tokens=max_tokens, temperature=temperature
         )
         yield result.text
+
+    async def stream(
+        self,
+        messages: Sequence[ChatMessage],
+        *,
+        system: str | None = None,
+        max_tokens: int,
+        temperature: float | None = None,
+    ) -> AsyncIterator[str | GenerationResult]:
+        """Streams with ``streamGenerateContent`` (server-sent events). A busy model or a
+        timeout before the first piece moves on to the fallback model, still streaming; if
+        that is busy too, ``generate`` answers (with its retries) in one piece. The end of the
+        stream is checked like a complete answer."""
+        if temperature is not None:
+            raise LLMProviderError(TEMPERATURE_UNSUPPORTED)
+        body = self._body(messages, system, max_tokens)
+        for model in (self._model, self._fallback):
+            if model is None:
+                continue
+            pieces: list[str] = []
+            last: dict[str, Any] = {}
+            try:
+                async for text, event in self._stream_from(model, body):
+                    if text:
+                        pieces.append(text)
+                        yield text
+                    last = event
+            except _Busy:
+                continue
+            # The last event carries the finish reason and the usage; its text is replaced by
+            # all of the text, so the end is validated exactly like a complete answer.
+            candidates = last.get("candidates")
+            candidate = (
+                candidates[0]
+                if isinstance(candidates, list) and candidates and isinstance(candidates[0], dict)
+                else {}
+            )
+            whole = {
+                **last,
+                "candidates": [{**candidate, "content": {"parts": [{"text": "".join(pieces)}]}}],
+            }
+            yield self._parse(whole, model)
+            return
+        result = await self.generate(messages, system=system, max_tokens=max_tokens)
+        yield result.text
+        yield result
+
+    async def _stream_from(
+        self, model: str, body: dict[str, Any]
+    ) -> AsyncIterator[tuple[str, dict[str, Any]]]:
+        """(text, event) for each event of one model's stream. ``_Busy`` when the model is
+        busy or times out before any text; other failures are ``LLMProviderError``."""
+        started = False
+        try:
+            async with self._client.stream(
+                "POST",
+                f"/v1beta/models/{model}:streamGenerateContent",
+                params={"alt": "sse"},
+                json=body,
+            ) as response:
+                if response.status_code in BUSY_STATUSES:
+                    raise _Busy
+                if response.status_code != 200:
+                    raise LLMProviderError(UNAVAILABLE)
+                async for line in response.aiter_lines():
+                    if not line.startswith("data:"):
+                        continue
+                    data = _event(line[len("data:") :])
+                    texts = _texts(data)
+                    if not texts:
+                        yield "", data
+                    for text in texts:
+                        started = True
+                        yield text, data
+        except httpx.TimeoutException:
+            if started:
+                raise LLMProviderError(UNAVAILABLE) from None
+            raise _Busy from None
+        except httpx.HTTPError:
+            raise LLMProviderError(UNAVAILABLE) from None
+
+
+class _Busy(Exception):
+    """A model was busy (or slow) before it wrote anything: try the next one."""
+
+
+def _event(payload: str) -> dict[str, Any]:
+    """One server-sent event's JSON; a malformed event is an error (a blocked prompt is
+    caught when the end of the stream is checked)."""
+    try:
+        data = json.loads(payload)
+    except ValueError:
+        raise LLMProviderError(UNAVAILABLE) from None
+    if not isinstance(data, dict):
+        raise LLMProviderError(UNAVAILABLE)
+    return data
+
+
+def _texts(data: dict[str, Any]) -> list[str]:
+    """The answer text in one event (thought summaries and non-text parts are ignored)."""
+    candidates = data.get("candidates")
+    if not isinstance(candidates, list) or not candidates or not isinstance(candidates[0], dict):
+        return []
+    content = candidates[0].get("content")
+    parts = content.get("parts") if isinstance(content, dict) else None
+    if not isinstance(parts, list):
+        return []
+    return [
+        part["text"]
+        for part in parts
+        if isinstance(part, dict)
+        and isinstance(part.get("text"), str)
+        and part["text"]
+        and not part.get("thought")
+    ]
 
 
 _providers: dict[tuple[str, str, str | None], GeminiProvider] = {}

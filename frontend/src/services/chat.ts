@@ -5,14 +5,12 @@ import type {
   ChatOverview,
   ChatStatus,
 } from '../types/api'
+import { streamAnswer } from './chatStream'
 import { apiClient } from './client'
 import { repositoryPath } from './repositories'
 
 const chatPath = (projectId: string, repositoryId: string) =>
   `${repositoryPath(projectId, repositoryId)}/chat/conversations`
-
-/** Answers can take a while: the AI provider has up to a minute, with retries. */
-const ANSWER_TIMEOUT_MS = 150_000
 
 /** Whether an AI provider is configured on the server. */
 export async function getChatStatus(): Promise<ChatStatus> {
@@ -40,18 +38,15 @@ export async function getConversation(
   return data
 }
 
-/** Start a conversation with its first question; the answer comes back with it. */
+/** Start a conversation with its first question; the answer streams in (`onText`, with the
+ * text so far) and the stored conversation comes back with it. */
 export async function startConversation(
   projectId: string,
   repositoryId: string,
   question: string,
+  onText?: (text: string) => void,
 ): Promise<ChatConversation> {
-  const { data } = await apiClient.post<ChatConversation>(
-    chatPath(projectId, repositoryId),
-    { question },
-    { timeout: ANSWER_TIMEOUT_MS },
-  )
-  return data
+  return streamAnswer<ChatConversation>(`${chatPath(projectId, repositoryId)}/stream`, question, onText)
 }
 
 export async function askQuestion(
@@ -59,13 +54,9 @@ export async function askQuestion(
   repositoryId: string,
   conversationId: string,
   question: string,
+  onText?: (text: string) => void,
 ): Promise<ChatExchange> {
-  const { data } = await apiClient.post<ChatExchange>(
-    `${chatPath(projectId, repositoryId)}/${conversationId}/messages`,
-    { question },
-    { timeout: ANSWER_TIMEOUT_MS },
-  )
-  return data
+  return streamAnswer<ChatExchange>(`${chatPath(projectId, repositoryId)}/${conversationId}/messages/stream`, question, onText)
 }
 
 export async function deleteConversation(

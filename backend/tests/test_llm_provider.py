@@ -218,3 +218,12 @@ def test_method_signatures_do_not_drift(name: str) -> None:
     assert inspect.signature(method).return_annotation == expected_return
     assert inspect.iscoroutinefunction(method) is (name == "generate")
     assert LLMProvider.__abstractmethods__ == frozenset({"generate", "generate_stream"})
+
+
+async def test_the_default_stream_yields_the_whole_answer_then_the_result() -> None:
+    provider = FakeProvider()
+    items = [item async for item in provider.stream(MESSAGES, system="s", max_tokens=64)]
+    assert len(items) == 2 and isinstance(items[1], GenerationResult)
+    assert items[0] == items[1].text
+    assert provider.calls[0]["method"] == "generate"
+    assert (provider.calls[0]["system"], provider.calls[0]["max_tokens"]) == ("s", 64)

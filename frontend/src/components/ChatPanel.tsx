@@ -332,17 +332,21 @@ function Thread({
   const runs = useAnalysisRuns(projectId, repositoryId)
   const indexed = runs.data?.runs.find((run) => run.chat_index !== null)
   const conversation = useConversation(projectId, repositoryId, conversationId)
-  const start = useStartConversation(projectId, repositoryId)
-  const ask = useAskQuestion(projectId, repositoryId, conversationId ?? '')
+  // The answer as the model writes it, until the stored answer replaces it.
+  const [live, setLive] = useState('')
+  const start = useStartConversation(projectId, repositoryId, setLive)
+  const ask = useAskQuestion(projectId, repositoryId, conversationId ?? '', setLive)
   const mutation = conversationId ? ask : start
+  const writing = live.length > 0
   const endRef = useRef<HTMLDivElement>(null)
   const messages = conversation.data?.messages ?? []
 
   useEffect(() => {
     endRef.current?.scrollIntoView?.({ block: 'end' })
-  }, [messages.length, mutation.isPending])
+  }, [messages.length, mutation.isPending, writing])
 
   function send(question: string) {
+    setLive('')
     if (conversationId) {
       ask.mutate(question)
     } else {
@@ -407,9 +411,20 @@ function Thread({
               message={{ id: 'pending', role: 'user', content: pendingQuestion, citations: [], created_at: '' }}
               explorer={explorer}
             />
-            <li role="status" className="flex items-center gap-2 pl-7 text-sm text-slate-400">
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Searching the code and analysis results…
-            </li>
+            {live ? (
+              <li className="flex gap-2" aria-busy="true">
+                <Bot className="mt-1 h-5 w-5 shrink-0 text-emerald-300" aria-hidden="true" />
+                <article aria-label="Answer being written" className="min-w-0 max-w-[90%] rounded-2xl rounded-tl-sm border border-slate-800 bg-slate-900/80 px-4 py-3 text-sm text-slate-200">
+                  <AnswerText text={live} citations={[]} explorer={explorer} />
+                  <span aria-hidden="true" className="typing-caret bg-emerald-300" />
+                </article>
+                <p role="status" className="sr-only">The answer is being written…</p>
+              </li>
+            ) : (
+              <li role="status" className="flex items-center gap-2 pl-7 text-sm text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Searching the code and analysis results…
+              </li>
+            )}
           </>
         )}
       </ol>

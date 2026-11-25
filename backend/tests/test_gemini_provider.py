@@ -4,6 +4,7 @@ Requests are intercepted with respx; nothing reaches Google.
 """
 
 import json
+from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
@@ -22,7 +23,7 @@ from app.ai.gemini_provider import (
     GeminiProvider,
     get_gemini_provider,
 )
-from app.ai.provider import ChatMessage, LLMProviderError
+from app.ai.provider import ChatMessage, GenerationResult, LLMProviderError
 from app.config import Settings, get_settings
 
 TEST_KEY = "test-only-gemini-key-0000"  # not a real credential
@@ -450,3 +451,142 @@ def test_provider_is_cached_per_fallback(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setattr(settings, "gemini_fallback_model", None)
     second = get_gemini_provider()
     assert second is not first and second is not None and second._fallback is None
+
+
+# --- Streaming the answer (stream) ---------------------------------------------------------
+
+STREAM_URL = f"{API_BASE_URL}/v1beta/models/{MODEL}:streamGenerateContent"
+
+
+def _sse(*events: dict[str, Any]) -> bytes:
+    return "".join(f"data: {json.dumps(event)}\r\n\r\n" for event in events).encode()
+
+
+def _piece(text: str, thought: bool = False) -> dict[str, Any]:
+    part: dict[str, Any] = {"text": text}
+    if thought:
+        part["thought"] = True
+    return {"candidates": [{"content": {"role": "model", "parts": [part]}}]}
+
+
+async def _collect(provider: GeminiProvider) -> list[Any]:
+    return [item async for item in provider.stream(MESSAGES, system="s", max_tokens=10)]
+
+
+async def test_stream_yields_pieces_then_the_validated_result(api: respx.MockRouter) -> None:
+    route = api.post(STREAM_URL).respond(
+        200,
+        content=_sse(
+            _piece("thinking", thought=True),
+            _piece("Hel"),
+            {"candidates": [{"content": {"parts": [{"text": ""}, {"inlineData": {}}]}}]},
+            _response(parts=[{"text": "lo"}], usage={"promptTokenCount": 9, "candidatesTokenCount": 2}),
+        ),
+        headers={"content-type": "text/event-stream"},
+    )
+    items = await _collect(GeminiProvider(TEST_KEY, MODEL))
+    assert items[:2] == ["Hel", "lo"]
+    assert items[2] == GenerationResult(text="Hello", model="gemini-3.8-flash-001", input_tokens=9, output_tokens=2)
+    assert len(items) == 3
+    request = route.calls[0].request
+    assert request.url.params["alt"] == "sse"
+    body = json.loads(request.content)
+    assert body["systemInstruction"] == {"parts": [{"text": "s"}]}
+    assert body["generationConfig"] == {"maxOutputTokens": 10}
+
+
+async def test_a_busy_model_falls_back_to_the_complete_answer(api: respx.MockRouter) -> None:
+    api.post(STREAM_URL).respond(503, json={"error": {"status": "UNAVAILABLE"}})
+    api.post(URL).respond(200, json=_response(parts=[{"text": "whole"}]))
+    assert [i if isinstance(i, str) else i.text for i in await _collect(GeminiProvider(TEST_KEY, MODEL))] == [
+        "whole",
+        "whole",
+    ]
+
+
+async def test_a_timeout_before_any_text_falls_back_and_after_text_fails(api: respx.MockRouter) -> None:
+    api.post(STREAM_URL).mock(side_effect=httpx.ReadTimeout("slow"))
+    api.post(URL).respond(200, json=_response(parts=[{"text": "late"}]))
+    items = await _collect(GeminiProvider(TEST_KEY, MODEL))
+    assert items[0] == "late" and isinstance(items[-1], GenerationResult)
+
+    class Slow(httpx.AsyncByteStream):
+        async def __aiter__(self) -> AsyncIterator[bytes]:
+            yield _sse(_piece("part"))
+            raise httpx.ReadTimeout("stalled")
+
+    api.post(STREAM_URL).mock(return_value=httpx.Response(200, stream=Slow()))
+    received: list[Any] = []
+    with pytest.raises(LLMProviderError, match=UNAVAILABLE):
+        async for item in GeminiProvider(TEST_KEY, MODEL).stream(MESSAGES, max_tokens=10):
+            received.append(item)
+    assert received == ["part"]
+
+
+@pytest.mark.parametrize(
+    ("events", "message"),
+    [
+        ((_piece("so far"), _response(parts=[{"text": "..."}], finish="MAX_TOKENS")), INCOMPLETE),
+        ((_piece("so far"), _response(parts=[{"text": "!"}], finish="SAFETY")), DECLINED),
+        (({"promptFeedback": {"blockReason": "SAFETY"}},), DECLINED),
+        ((_piece("no end"),), DECLINED),  # the stream ended without a finish reason
+    ],
+)
+async def test_a_stream_that_ends_badly_fails(
+    api: respx.MockRouter, events: tuple[dict[str, Any], ...], message: str
+) -> None:
+    api.post(STREAM_URL).respond(200, content=_sse(*events))
+    with pytest.raises(LLMProviderError, match=message):
+        await _collect(GeminiProvider(TEST_KEY, MODEL))
+
+
+@pytest.mark.parametrize("content", [b"data: not json\r\n\r\n", b"data: [1, 2]\r\n\r\n"])
+async def test_malformed_events_fail(api: respx.MockRouter, content: bytes) -> None:
+    api.post(STREAM_URL).respond(200, content=content)
+    with pytest.raises(LLMProviderError, match=UNAVAILABLE):
+        await _collect(GeminiProvider(TEST_KEY, MODEL))
+
+
+async def test_other_statuses_and_connection_errors_fail(api: respx.MockRouter) -> None:
+    api.post(STREAM_URL).respond(400, json={"error": {"status": "INVALID_ARGUMENT"}})
+    with pytest.raises(LLMProviderError, match=UNAVAILABLE):
+        await _collect(GeminiProvider(TEST_KEY, MODEL))
+    api.post(STREAM_URL).mock(side_effect=httpx.ConnectError("refused"))
+    with pytest.raises(LLMProviderError, match=UNAVAILABLE):
+        await _collect(GeminiProvider(TEST_KEY, MODEL))
+    with pytest.raises(LLMProviderError, match=TEMPERATURE_UNSUPPORTED):
+        async for _ in GeminiProvider(TEST_KEY, MODEL).stream(MESSAGES, max_tokens=10, temperature=0.5):
+            pass
+
+
+async def test_a_busy_model_streams_from_the_fallback_model(api: respx.MockRouter) -> None:
+    fallback_stream = f"{API_BASE_URL}/v1beta/models/{FALLBACK}:streamGenerateContent"
+    api.post(STREAM_URL).respond(503, json={"error": {"status": "UNAVAILABLE"}})
+    api.post(fallback_stream).respond(
+        200,
+        content=_sse(
+            _piece("From the "),
+            _piece("fallback"),
+            # Gemini ends with an event that has no text, only the finish reason and the usage.
+            {
+                "candidates": [{"content": {"role": "model", "parts": [{"text": ""}]}, "finishReason": "STOP"}],
+                "usageMetadata": {"promptTokenCount": 5, "candidatesTokenCount": 3},
+            },
+        ),
+    )
+    whole = api.post(URL)
+    items = await _collect(GeminiProvider(TEST_KEY, MODEL, fallback_model=FALLBACK))
+    assert items == [
+        "From the ",
+        "fallback",
+        GenerationResult(text="From the fallback", model=FALLBACK, input_tokens=5, output_tokens=3),
+    ]
+    assert whole.call_count == 0  # no complete answer was needed
+
+
+async def test_both_models_busy_answers_in_one_piece(api: respx.MockRouter) -> None:
+    api.post(STREAM_URL).respond(503, json={})
+    api.post(f"{API_BASE_URL}/v1beta/models/{FALLBACK}:streamGenerateContent").mock(side_effect=httpx.ReadTimeout("slow"))
+    api.post(URL).respond(200, json=_response(parts=[{"text": "complete"}]))
+    items = await _collect(GeminiProvider(TEST_KEY, MODEL, fallback_model=FALLBACK))
+    assert items[0] == "complete" and isinstance(items[1], GenerationResult) and len(items) == 2

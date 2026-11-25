@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { ROUTER_FUTURE } from '../routerFuture'
 import { beforeAll, describe, expect, it } from 'vitest'
@@ -84,7 +84,7 @@ function Location() {
   )
 }
 
-function mountChat(routes: Record<string, MockResponse | ((config: { data?: unknown }) => MockResponse)>, entry = `${REPO_URL}/chat`) {
+function mountChat(routes: Parameters<typeof mockApi>[0], entry = `${REPO_URL}/chat`) {
   const requests = mockApi({
     [`GET ${REPO_URL}`]: { status: 200, data: READY },
     'GET /chat/status': { status: 200, data: { configured: true } },
@@ -160,6 +160,13 @@ describe('Answer text', () => {
   })
 })
 
+/** A streamed answer: server-sent events, as the streaming endpoints send them. */
+const sse = (...events: [string, unknown][]) => events.map(([name, data]) => `event: ${name}\ndata: ${JSON.stringify(data)}\n\n`).join('')
+const streamed = (result: unknown, ...pieces: string[]) => ({
+  status: 200,
+  data: sse(...pieces.map((text): [string, unknown] => ['delta', { text }]), ['done', result]),
+})
+
 describe('Repository chat', () => {
   it('starts a conversation and shows the answer with its sources', async () => {
     let listed = 0
@@ -168,7 +175,7 @@ describe('Repository chat', () => {
         listed += 1
         return { status: 200, data: { conversations: listed > 1 ? [summary('c1', 'How are passwords hashed?')] : [] } }
       },
-      [`POST ${CHAT_URL}`]: { status: 201, data: CONVERSATION },
+      [`POST ${CHAT_URL}/stream`]: streamed(CONVERSATION, 'With SHA-256 ', 'in hash_password.'),
     })
     expect(await screen.findByText('No conversations yet.')).toBeTruthy()
     expect(await screen.findByText(/indexed 4,431 passages from 434 files/)).toBeTruthy()
@@ -190,7 +197,7 @@ describe('Repository chat', () => {
   })
 
   it('asks a suggested question', async () => {
-    const requests = mountChat({ [`POST ${CHAT_URL}`]: { status: 201, data: CONVERSATION } })
+    const requests = mountChat({ [`POST ${CHAT_URL}/stream`]: streamed(CONVERSATION) })
     const suggestions = within(await screen.findByLabelText('Suggested questions'))
     await waitFor(() => expect((suggestions.getAllByRole('button')[0] as HTMLButtonElement).disabled).toBe(false))
     expect(suggestions.getAllByRole('button').map((b) => b.textContent)).toEqual(SUGGESTIONS)
@@ -204,15 +211,16 @@ describe('Repository chat', () => {
     const requests = mountChat(
       {
         [`GET ${CHAT_URL}`]: () => ({ status: 200, data: { conversations: [summary('c1', 'How are passwords hashed?', count)] } }),
-        [`POST ${CHAT_URL}/c1/messages`]: () => {
+        [`POST ${CHAT_URL}/c1/messages/stream`]: () => {
           count = 4
-          return {
-            status: 201,
-            data: {
+          return streamed(
+            {
               conversation: summary('c1', 'How are passwords hashed?', 4),
               messages: [turn('m3', 'user', 'Where is it called?'), turn('m4', 'assistant', 'In verify_password.')],
             },
-          }
+            'In ',
+            'verify_password.',
+          )
         },
       },
       `${REPO_URL}/chat?conversation=c1`,
@@ -237,11 +245,11 @@ describe('Repository chat', () => {
   it('keeps a question that could not be answered and tries again', async () => {
     let attempts = 0
     const requests = mountChat({
-      [`POST ${CHAT_URL}`]: () => {
+      [`POST ${CHAT_URL}/stream`]: () => {
         attempts += 1
         return attempts === 1
           ? { status: 502, data: { detail: 'The AI service is unavailable; try again later' } }
-          : { status: 201, data: CONVERSATION }
+          : streamed(CONVERSATION)
       },
     })
     await screen.findByText(/indexed 4,431 passages/)
@@ -252,6 +260,76 @@ describe('Repository chat', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('article', { name: 'Answer' })).toBeTruthy()
     expect(requests.filter((r) => r.method === 'POST').map((r) => JSON.parse(String(r.data)).question)).toEqual(['Why?', 'Why?'])
+  })
+
+  it('shows the answer as it is written, then the stored answer with its sources', async () => {
+    let finish: (() => void) | undefined
+    mountChat({
+      [`POST ${CHAT_URL}/stream`]: (config) =>
+        new Promise<MockResponse>((resolve) => {
+          const body = sse(['delta', { text: 'With **SHA-256** ' }], ['delta', { text: 'in' }])
+          config.onDownloadProgress?.({ event: { target: { responseText: body } } } as never)
+          finish = () => resolve(streamed(CONVERSATION, 'With **SHA-256** ', 'in'))
+        }),
+    })
+    await screen.findByText(/indexed 4,431 passages/)
+    fireEvent.change(question(), { target: { value: 'How are passwords hashed?' } })
+    fireEvent.click(sendButton())
+    const writing = await screen.findByRole('article', { name: 'Answer being written' })
+    expect(writing.textContent).toBe('With SHA-256 in')
+    expect(within(writing).getByText('SHA-256', { selector: 'strong' })).toBeTruthy() // formatted as it arrives
+    expect(writing.querySelector('.typing-caret')).toBeTruthy()
+    expect(screen.getByText('The answer is being written…')).toBeTruthy()
+    expect(screen.queryByText('Searching the code and analysis results…')).toBeNull()
+    act(() => finish?.())
+    const answer = await screen.findByRole('article', { name: 'Answer' })
+    expect(within(answer).getByRole('list', { name: 'Sources' })).toBeTruthy()
+    expect(screen.queryByRole('article', { name: 'Answer being written' })).toBeNull()
+  })
+
+  it('starts each answer afresh, without the text of the one before', async () => {
+    let calls = 0
+    mountChat(
+      {
+        [`POST ${CHAT_URL}/c1/messages/stream`]: () => {
+          calls += 1
+          if (calls === 1) {
+            return streamed({ conversation: summary('c1', 'How are passwords hashed?', 4), messages: [turn('m3', 'user', 'First?'), turn('m4', 'assistant', 'First answer.')] }, 'First answer.')
+          }
+          return new Promise<MockResponse>(() => {}) // the second answer has not started yet
+        },
+      },
+      `${REPO_URL}/chat?conversation=c1`,
+    )
+    await screen.findByRole('article', { name: 'Answer' })
+    fireEvent.change(question(), { target: { value: 'First?' } })
+    fireEvent.click(sendButton())
+    expect(await screen.findByText('First answer.')).toBeTruthy()
+    fireEvent.change(question(), { target: { value: 'Second?' } })
+    fireEvent.click(sendButton())
+    expect(await screen.findByText('Searching the code and analysis results…')).toBeTruthy()
+    expect(screen.queryByRole('article', { name: 'Answer being written' })).toBeNull()
+  })
+
+  it('reports an answer that fails while it is written, and keeps the question', async () => {
+    let attempts = 0
+    mountChat({
+      [`POST ${CHAT_URL}/stream`]: () => {
+        attempts += 1
+        if (attempts === 1) {
+          return { status: 200, data: sse(['delta', { text: 'Half an ' }], ['error', { status: 502, detail: 'The AI service is unavailable' }]) }
+        }
+        return { status: 200, data: sse(['delta', { text: 'Cut off' }]) } // ended without a stored answer
+      },
+    })
+    await screen.findByText(/indexed 4,431 passages/)
+    fireEvent.change(question(), { target: { value: 'Why?' } })
+    fireEvent.click(sendButton())
+    expect((await screen.findByRole('alert')).textContent).toBe('The AI service is unavailable')
+    expect(screen.getByText('Not answered: “Why?”')).toBeTruthy()
+    expect(screen.queryByRole('article', { name: 'Answer being written' })).toBeNull() // nothing half-written stays
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toBe('The answer was cut off; try again'))
   })
 
   it('only sends questions that fit', async () => {

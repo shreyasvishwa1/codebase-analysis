@@ -4,13 +4,22 @@ analysis (code passages and analysis results) with citations, and kept as histor
 Checks run in this order: repository ownership (404), the conversation (404), the AI
 provider's configuration (503), an analysis that can be chatted about (409), the per-user
 rate limit (429), then the provider (502). A question and its answer are stored together,
-only once the answer exists."""
+only once the answer exists.
 
+The ``/stream`` variants run the same checks (failing with the same status codes), then answer
+with server-sent events: ``delta`` events carry the answer's text as the model writes it,
+then ``done`` carries what the plain endpoint returns, once the exchange is stored, or
+``error`` carries the provider failure (nothing is stored)."""
+
+import json
 import re
 import uuid
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy import Select, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +29,16 @@ from app.analysis.results import latest_runs_with, run_entry
 from app.api.v1.dependencies import get_current_user
 from app.api.v1.routes.health_score import weights_of
 from app.api.v1.routes.repositories import _get_owned_repository
-from app.chat.service import CHAT_LIMIT, NOT_CONFIGURED, Answer, ChatError, answer
+from app.chat.service import (
+    CHAT_LIMIT,
+    NOT_CONFIGURED,
+    Answer,
+    ChatError,
+    Prepared,
+    answer,
+    prepare,
+    stream_answer,
+)
 from app.database import get_db
 from app.models import AnalysisRun, ChatConversation, ChatMessage, Repository, User
 from app.schemas.chat import (
@@ -38,6 +56,12 @@ from app.schemas.chat import (
 from app.services.rate_limit import RateLimit
 
 CONVERSATION_NOT_FOUND = "Conversation not found"
+# No caching, and no buffering or compression on the way (Caddy and other proxies would hold
+# the events back until the response ends).
+STREAM_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Content-Encoding": "identity"}
+STREAM_RESPONSES: dict[int | str, dict[str, Any]] = {
+    200: {"description": "Server-sent events: delta, then done or error", "content": {"text/event-stream": {}}}
+}
 NOT_INDEXED = "Run a full analysis of this repository to chat about it"
 TITLE_CHARS = 80
 LIST_LIMIT = 100
@@ -285,6 +309,107 @@ async def ask_in_conversation(
         conversation=await _summary_of(db, conversation.id),
         messages=[_message(m) for m in stored],
     )
+
+
+def _event(name: str, data: Any) -> str:
+    return f"event: {name}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _streamed(
+    db: AsyncSession,
+    provider: LLMProvider,
+    prepared: Prepared,
+    store: Callable[[Answer], Awaitable[BaseModel]],
+) -> StreamingResponse:
+    """The answer as server-sent events; ``store`` saves the exchange once the answer is whole."""
+
+    async def events() -> AsyncIterator[str]:
+        try:
+            async for item in stream_answer(provider, prepared):
+                if isinstance(item, Answer):
+                    result = await store(item)
+                    await db.commit()
+                    yield _event("done", result.model_dump(mode="json"))
+                else:
+                    yield _event("delta", {"text": item})
+        except ChatError as exc:  # before anything was stored: nothing to undo
+            yield _event("error", {"status": exc.status_code, "detail": exc.detail})
+
+    return StreamingResponse(events(), media_type="text/event-stream", headers=STREAM_HEADERS)
+
+
+@router.post("/conversations/stream", response_class=StreamingResponse, responses=STREAM_RESPONSES)
+async def start_conversation_stream(
+    project_id: uuid.UUID,
+    repository_id: uuid.UUID,
+    body: ChatQuestion,
+    db: DbSession,
+    user: CurrentUser,
+    limiter: RateLimit,
+    provider: Provider,
+) -> StreamingResponse:
+    """Start a conversation, streaming the first answer (see the module docstring)."""
+    repository = await _get_owned_repository(db, project_id, repository_id, user)
+    if provider is None:
+        raise HTTPException(status_code=503, detail=NOT_CONFIGURED)
+    run = await _chat_run(db, repository.id)
+    if run is None:
+        raise HTTPException(status_code=409, detail=NOT_INDEXED)
+    await limiter.hit(CHAT_LIMIT, str(user.id))
+    prepared = await prepare(db, run, repository.name, weights_of(user), body.question, [])
+
+    async def store(result: Answer) -> ChatConversationDetail:
+        conversation = ChatConversation(
+            user_id=user.id,
+            project_id=repository.project_id,
+            repository_id=repository.id,
+            run_id=run.id,
+            title=title_of(body.question),
+        )
+        db.add(conversation)
+        await db.flush()
+        stored = await _store_exchange(db, conversation, body.question, result)
+        summary = await _summary_of(db, conversation.id)
+        return ChatConversationDetail(**summary.model_dump(), messages=[_message(m) for m in stored])
+
+    return _streamed(db, provider, prepared, store)
+
+
+@router.post(
+    "/conversations/{conversation_id}/messages/stream",
+    response_class=StreamingResponse,
+    responses=STREAM_RESPONSES,
+)
+async def ask_in_conversation_stream(
+    project_id: uuid.UUID,
+    repository_id: uuid.UUID,
+    conversation_id: uuid.UUID,
+    body: ChatQuestion,
+    db: DbSession,
+    user: CurrentUser,
+    limiter: RateLimit,
+    provider: Provider,
+) -> StreamingResponse:
+    """Ask in a conversation, streaming the answer (see the module docstring)."""
+    repository = await _get_owned_repository(db, project_id, repository_id, user)
+    conversation = await _conversation(db, repository, user, conversation_id)
+    if provider is None:
+        raise HTTPException(status_code=503, detail=NOT_CONFIGURED)
+    run = await db.get(AnalysisRun, conversation.run_id)
+    if run is None or run.chat_index is None:  # pragma: no cover - the FK cascades
+        raise HTTPException(status_code=409, detail=NOT_INDEXED)
+    await limiter.hit(CHAT_LIMIT, str(user.id))
+    turns = [(m.role, m.content) for m in await _messages(db, conversation.id)]
+    prepared = await prepare(db, run, repository.name, weights_of(user), body.question, turns)
+
+    async def store(result: Answer) -> ChatExchange:
+        stored = await _store_exchange(db, conversation, body.question, result)
+        return ChatExchange(
+            conversation=await _summary_of(db, conversation.id),
+            messages=[_message(m) for m in stored],
+        )
+
+    return _streamed(db, provider, prepared, store)
 
 
 @router.delete("/conversations/{conversation_id}", status_code=status.HTTP_204_NO_CONTENT)
