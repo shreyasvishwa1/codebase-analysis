@@ -1,6 +1,6 @@
 # Production image: the built frontend, the FastAPI backend, the arq worker and Caddy in one
 # container. Backend and worker share the repository storage at DATA_DIR (a persistent volume).
-# PostgreSQL and Redis are external services (for example Railway's). See DEPLOY.md.
+# PostgreSQL and Redis are external services provided by the host.
 # Everything runs as the unprivileged user "app"; the code stays owned by root, so the running
 # app cannot change it.
 

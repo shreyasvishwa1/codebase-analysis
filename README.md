@@ -9,10 +9,14 @@ understanding.**
 
 Self-hosted · FastAPI + React/TypeScript · repository code is never executed.
 
-**Live demo:** https://codebase-analysis.onrender.com (free hosting: the first visit after a
-quiet spell can take about a minute to wake the server). The **Import the sample** button on the
-Upload page loads a small repository with planted problems, so there is something to analyze
-straight away.
+**Live demo:** https://codebase-analysis.onrender.com. The demo is **offline at the moment**
+(the hosting is paused); the app runs on any Windows laptop with the steps in `HOW-TO-RUN.txt`
+(in the project ZIP) or in [Installation](#installation). Once it runs, the **Import the sample**
+button on the Upload page loads a small repository with planted problems, so there is something
+to analyze straight away.
+
+Everything the project is built with, and what each part is for, is listed in
+[docs/TECHNOLOGIES.md](docs/TECHNOLOGIES.md).
 
 ![CodeBase Analysis: repository dashboard](docs/screenshots/05-repository.png)
 
@@ -67,17 +71,17 @@ guesses.
 | Area | Capabilities |
 | --- | --- |
 | Ingestion | ZIP upload or public GitHub archive, from one Upload Repository page, or one click to import the sample repository; background jobs with status; pending jobs can be cancelled. File contents are also kept in the database, so a host that wipes its disk (such as Render's free plan) never needs the ZIP uploaded again |
-| Full analysis | One background run analyzes a repository snapshot (dependency folders such as `node_modules/` and build output excluded) and stores the results; every run is kept in the repository's history |
+| Full analysis | One background run analyzes a repository snapshot (dependency folders such as `node_modules/` and build output excluded) and stores the results; every run is kept in the repository's history. A live board follows the run stage by stage; the browser tab and the status bar show its progress on any page, and when it ends a notice says what changed since the previous run (health score, findings, code issues) |
 | Overview | Totals across all your repositories from their latest stored runs: projects, repositories, lines of code, analyses, active jobs, language distribution, recent analyses and each repository's latest health score (lowest first) |
 | Architecture | Each full analysis also maps the architecture: components (directories) and the imports between them in an interactive diagram, dependency cycles, technologies and data stores, API routes, entry points, Dockerfiles, Docker Compose services, CI and deployment files, and observations such as a layered structure or circular dependencies. Every item links to the file and line it comes from |
 | Usability survey | **Rate this app**: the ten statements of the System Usability Scale (Brooke, 1996), answered from 1 to 5. Each account answers once and can change its answers. The results show the number of responses, the mean SUS score (0-100) with its grade on Sauro and Lewis's curved scale (68 is average), the spread, each statement's average answer, and a CSV of the anonymous answers (respondent number, answers, score, day; no names or emails) for analysis |
 | Settings | Profile (display name), what the account holds, password change (other sessions are signed out), the health-score weights, whether the AI features are configured, and account deletion after the password and a confirmation |
 | History & Reports | Every full analysis of your repositories, newest first, with its health score and the change from the previous analysis, critical and high security findings, quality issues, complex functions and vulnerable packages. Create a PDF report of any analysis (overview, health score with calculations, security findings with fixes, code quality, complexity, dependencies, architecture); reports are kept so you can download them again |
-| AI Chat | Ask questions about a repository in plain language. Answers are built from the passages of code that match the question (PostgreSQL full-text search over Python definitions and line windows) and from the results of its latest full analysis, and they cite the files and lines they rely on as links into the explorer. Conversations are kept per repository. Secrets are masked before anything is stored or sent, and repository content is passed to the model as untrusted data. Needs `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` |
-| Health Score | One score from 0 to 100 (grade A-F) per analysis: a weighted average of security, code quality, complexity, maintainability, dependency health and architecture. Each dimension shows its inputs, the calculation with the actual numbers and what would raise it. The weights are yours to change, and a trend shows the score across runs. Formulas: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#6-code-health-score-phase-7) |
+| AI Chat | Ask questions about a repository in plain language. Answers are built from the passages of code that match the question (PostgreSQL full-text search over Python definitions and line windows) and from the results of its latest full analysis, and they cite the files and lines they rely on as links into the explorer. Answers appear as they are written, and the suggested questions come from what the analysis found (for example the most complex function). Conversations are kept per repository. Secrets are masked before anything is stored or sent, and repository content is passed to the model as untrusted data. Needs `ANTHROPIC_API_KEY` or `GEMINI_API_KEY` |
+| Health Score | One score from 0 to 100 (grade A-F) per analysis: a weighted average of security, code quality, complexity, maintainability, dependency health and architecture. Each dimension shows its inputs, the calculation with the actual numbers and what would raise it. The weights are yours to change, and a trend shows the score across runs. A "what if" panel shows which dimension would raise the score most and recomputes it live as you try other weights. Formulas: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#6-code-health-score-phase-7) |
 | Dependencies | Each full analysis also checks dependency health: every package declared in `package.json`, `pyproject.toml` and `requirements*.txt` (runtime and development), the version it allows, the latest release on PyPI or npm (major, minor or patch behind), known vulnerabilities from OSV.dev with CVE ids, CVSS scores and the fixed version, and packages declared with conflicting versions. Vulnerable versions also appear on the Security page (OWASP A06). Package names and versions are sent to PyPI, npm and OSV.dev; `DEPENDENCY_LOOKUPS=false` turns that off |
 | Complexity | Each full analysis also measures complexity: the cyclomatic complexity of every function (Lizard, about twenty languages) rated Low, Medium or High, the maintainability index of every file (Radon for Python; the same formula estimated for other languages), functions, classes, lines of code and duplication. The most complex functions open in the explorer at their line; files can be sorted by complexity, maintainability or size |
-| Security | Each full analysis also checks security: committed secrets and `.env` files, injection risks (SQL and shell commands built from strings, `eval`), XSS sinks, request input that reaches a file path, an outgoing request, a redirect, a template or an HTML response (path traversal, SSRF, open redirect, template injection, reflected XSS), disabled TLS verification, insecure JWT and CORS settings, debug settings and Dockerfiles that run as root, plus Bandit for Python. Findings are rated Critical, High, Medium or Low, marked confirmed or potential, and mapped to the OWASP Top 10 with a CWE; each explains the risk and the fix. Secret values are never shown, and the page never calls a project secure |
+| Security | Each full analysis also checks security: committed secrets and `.env` files, injection risks (SQL and shell commands built from strings, `eval`), XSS sinks, request input that reaches a file path, an outgoing request, a redirect, a template or an HTML response (path traversal, SSRF, open redirect, template injection, reflected XSS), disabled TLS verification, insecure JWT and CORS settings, debug settings and Dockerfiles that run as root, plus Bandit for Python. Findings are rated Critical, High, Medium or Low, marked confirmed or potential, and mapped to the OWASP Top 10 with a CWE; each explains the risk and the fix, shows the code it points at, and, for data-flow findings, the path the input took (`request.args` → `name` → `open()`). Each report also shows what changed since the previous run, with a trend line. Secret values are never shown, and the page never calls a project secure |
 | Code analysis | Each full analysis also finds code-quality issues: bug risks, syntax errors, unused and unreachable code, duplicate blocks (every language), naming, missing docstrings, formatting, TODO/FIXME markers and very long files. Python is checked with Ruff on a private copy, so repository code is never run. Each issue shows its file, line, category, severity, why it matters and a suggested fix, and links to the line in the explorer. Issues can be filtered by severity, category, file and text |
 | Dashboard | Per-repository overview: files, lines of code, languages, dependencies and secret findings; a health score from five checks; code distribution, largest files, file sizes, dependencies by ecosystem and job activity |
 | Browsing and search | File tree with a path filter, language statistics, plain-text file viewer, literal code search, exact Python symbol search |
@@ -137,7 +141,8 @@ passes `/api` to the backend and adds the security headers: see [Deployment](#de
 | Backend | Python 3.12, FastAPI, SQLAlchemy (async, asyncpg), Alembic, PostgreSQL 16, Redis 7, arq, Pydantic, PyJWT, argon2-cffi, ReportLab (PDF reports) |
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS, TanStack Query, React Router, Axios, Recharts |
 | Analysis | Python standard library: `ast`, `tokenize` (plus `json` and `tomllib` for manifests); Ruff (code quality), Bandit (Python security), Lizard and Radon (complexity and maintainability); PyPI, npm and OSV.dev for dependency versions and vulnerabilities |
-| Testing | pytest, ruff, mypy, Vitest, Testing Library; GitHub Actions runs everything on each push |
+| Testing | pytest, ruff, mypy, Vitest, Testing Library, ESLint; GitHub Actions runs everything on each push |
+| AI (optional) | Google Gemini or Anthropic Claude, answers streamed with server-sent events; PostgreSQL full-text search for retrieval |
 | Deployment | Docker (non-root containers), Caddy, Render (free plan) with a Neon PostgreSQL database |
 | Local infrastructure | Docker Compose for PostgreSQL and Redis (development only) |
 
@@ -153,12 +158,12 @@ The details are in [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Testing & Quality Engineering
 
-Results at the latest commit (25 November 2026):
+Results at the latest commit (28 November 2026):
 
 | Check | Result |
 | --- | --- |
-| Frontend tests (Vitest, Testing Library, jsdom) | 1,495 passing in 58 files |
-| Backend tests (pytest) | 3,910 passing in 61 files on Linux; of the 37 skipped there, 34 are Windows-only tests (directory junctions) and 3 need the SecurityEval download |
+| Frontend tests (Vitest, Testing Library, jsdom) | 1,603 passing in 69 files |
+| Backend tests (pytest) | 3,937 passing in 61 files on Linux; of the 37 skipped there, 34 are Windows-only tests (directory junctions) and 3 need the SecurityEval download |
 | TypeScript typecheck, ESLint and production build | Passing |
 | `ruff check` and mypy | Passing |
 | Continuous integration | GitHub Actions runs every check above on each push and pull request, on Linux with real PostgreSQL and Redis ([tests.yml](.github/workflows/tests.yml)) |
@@ -350,6 +355,7 @@ All endpoints are under `/api/v1` and need a bearer token, except sign-up, sign-
 
 | Document | What it covers |
 | --- | --- |
+| [docs/TECHNOLOGIES.md](docs/TECHNOLOGIES.md) | Every language, library, tool and service used, with versions and what each is for |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Modules, database, analysis pipeline, health score formulas, AI chat |
 | [docs/FEATURES.md](docs/FEATURES.md) | Each code-intelligence feature, diagnostic and repository analysis, and its limits |
 | [docs/EVALUATION.md](docs/EVALUATION.md) | Accuracy of the security analysis against Semgrep |
@@ -382,17 +388,17 @@ All endpoints are under `/api/v1` and need a bearer token, except sign-up, sign-
 
 ## Deployment
 
-The live demo runs on **Render's free plan** with a **Neon** PostgreSQL database. It is
+The live demo runs on **Render's free plan** with a **Neon** PostgreSQL database (paused at the
+moment; resuming it in the Render dashboard brings it back unchanged). It is
 built from [render.yaml](render.yaml) and [deploy/render/Dockerfile](deploy/render/Dockerfile):
 one container holding Caddy, the API, the worker and a private Redis.
 - Render wipes its disk when the service restarts, sleeps or redeploys. Uploaded files are also
   kept in the database and restored automatically, so a ZIP never has to be uploaded again.
 - Every push to `main` redeploys it, and the database migrations run on start.
 
-Other ways to host it:
-- [DEPLOY-RENDER.md](DEPLOY-RENDER.md): the Render and Neon setup, step by step (free, no card).
-- [DEPLOY.md](DEPLOY.md): Railway, using the root [Dockerfile](Dockerfile).
-- [DEPLOY-ORACLE.md](DEPLOY-ORACLE.md): an Oracle Cloud Always Free server.
+[DEPLOY-RENDER.md](DEPLOY-RENDER.md) has the Render and Neon setup, step by step (free, no
+card). The root [Dockerfile](Dockerfile) builds the same single-container app for any Docker
+host that provides PostgreSQL and Redis.
 
 The root `docker-compose.yml` is for local development only.
 
